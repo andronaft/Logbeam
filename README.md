@@ -76,7 +76,7 @@ Logbeam has no server and no analytics, and it makes no network requests.
 | `storage` | Remember which sites use dark mode |
 | optional host access, per site | Only when you tick "Remember for this site", and only for that site |
 
-Logbeam never asks for access to all sites up front.
+Logbeam never asks for access to all sites up front. See the [privacy policy](PRIVACY.md).
 
 ## Install
 
