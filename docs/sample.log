@@ -1,0 +1,63 @@
+2026-09-29 10:00:00.044  INFO 4242 --- [http-nio-8080-exec-1] c.z.TeamDanceCommunityApplication        : Starting TeamDanceCommunityApplication v0.0.1 using Java 17.0.12
+2026-09-29 10:00:00.097  INFO 4242 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8080 (http)
+2026-09-29 10:00:00.109 DEBUG 4242 --- [main] o.s.web.servlet.DispatcherServlet        : Detected StandardServletMultipartResolver
+2026-09-29 10:00:00.158  INFO 4242 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-09-29 10:00:30.170  WARN 4242 --- [http-nio-8080-exec-1] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Connection is not available, request timed out after 30000ms
+2026-09-29 10:00:31.170  WARN 4242 --- [main] c.z.service.impl.GroupTrainingServiceImpl : Retry 1 of 10 for sync job 8123
+2026-09-29 10:00:32.170  WARN 4242 --- [main] c.z.service.impl.GroupTrainingServiceImpl : Retry 2 of 10 for sync job 8123
+2026-09-29 10:00:33.170  WARN 4242 --- [scheduling-1] c.z.service.impl.GroupTrainingServiceImpl : Retry 3 of 10 for sync job 8123
+2026-09-29 10:00:34.170  WARN 4242 --- [scheduling-1] c.z.service.impl.GroupTrainingServiceImpl : Retry 4 of 10 for sync job 8123
+2026-09-29 10:00:35.170  WARN 4242 --- [main] c.z.service.impl.GroupTrainingServiceImpl : Retry 5 of 10 for sync job 8123
+2026-09-29 10:00:36.170  WARN 4242 --- [http-nio-8080-exec-1] c.z.service.impl.GroupTrainingServiceImpl : Retry 6 of 10 for sync job 8123
+2026-09-29 10:00:36.174 ERROR 4242 --- [main] o.s.boot.SpringApplication               : Application run failed
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory'
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1804)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:620)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:315)
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	... 42 common frames omitted
+2026-09-29 10:00:38.674  INFO 4242 --- [scheduling-1] c.z.TeamDanceCommunityApplication        : Restarting with fallback datasource
+2026-09-29 10:00:38.684  INFO 4242 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8080 (http) with context path ''
+2026-09-29 10:00:38.767  WARN 4242 --- [main] c.z.security.JwtTokenFilter              : Rejected expired JWT for /api/v1/users/getAllUserInfo
+2026-09-29 10:00:38.820 DEBUG 4242 --- [main] org.hibernate.SQL                        : select u.id, u.username, u.status from tdcbd.users u where u.username=?
+2026-09-29 10:00:38.828  WARN 4242 --- [http-nio-8080-exec-1] c.z.security.JwtTokenFilter              : Rejected expired JWT for /api/v1/users/getAllUserInfo
+2026-09-29 10:00:38.846  INFO 4242 --- [http-nio-8080-exec-2] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user19 status=200 took=178ms
+2026-09-29 10:00:38.936 DEBUG 4242 --- [http-nio-8080-exec-1] org.hibernate.SQL                        : select u.id, u.username, u.status from tdcbd.users u where u.username=?
+2026-09-29 10:00:38.986  INFO 4242 --- [main] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user74 status=200 took=88ms
+2026-09-29 10:00:39.068  INFO 4242 --- [http-nio-8080-exec-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user9 status=200 took=55ms
+2026-09-29 10:00:39.170  INFO 4242 --- [http-nio-8080-exec-2] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user69 status=200 took=149ms
+2026-09-29 10:00:39.211  INFO 4242 --- [http-nio-8080-exec-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user59 status=200 took=132ms
+2026-09-29 10:00:39.224  INFO 4242 --- [http-nio-8080-exec-2] c.z.rest.training.GroupTrainingControllerV1 : GET /api/v1/training/groupTraining/findByBranch branchId=2 status=200
+2026-09-29 10:00:39.263  INFO 4242 --- [main] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user44 status=200 took=154ms
+2026-09-29 10:00:39.362  INFO 4242 --- [http-nio-8080-exec-2] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user54 status=200 took=82ms
+2026-09-29 10:00:39.370  INFO 4242 --- [main] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user63 status=200 took=147ms
+2026-09-29 10:00:39.474  INFO 4242 --- [http-nio-8080-exec-2] c.z.rest.training.GroupTrainingControllerV1 : GET /api/v1/training/groupTraining/findByBranch branchId=5 status=200
+2026-09-29 10:00:39.551  INFO 4242 --- [scheduling-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user45 status=200 took=167ms
+2026-09-29 10:00:39.614  INFO 4242 --- [main] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user12 status=200 took=109ms
+2026-09-29 10:00:39.699  INFO 4242 --- [scheduling-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user90 status=200 took=119ms
+2026-09-29 10:00:39.704  INFO 4242 --- [scheduling-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user50 status=200 took=128ms
+2026-09-29 10:00:39.770  INFO 4242 --- [main] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user79 status=200 took=69ms
+2026-09-29 10:00:39.867  INFO 4242 --- [http-nio-8080-exec-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user37 status=200 took=73ms
+2026-09-29 10:00:39.891  INFO 4242 --- [scheduling-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user64 status=200 took=60ms
+2026-09-29 10:00:39.998  INFO 4242 --- [scheduling-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user36 status=200 took=75ms
+2026-09-29 10:00:40.091  INFO 4242 --- [scheduling-1] c.z.rest.training.GroupTrainingControllerV1 : GET /api/v1/training/groupTraining/findByBranch branchId=3 status=200
+2026-09-29 10:00:40.181  WARN 4242 --- [scheduling-1] c.z.security.JwtTokenFilter              : Rejected expired JWT for /api/v1/users/getAllUserInfo
+2026-09-29 10:00:40.203  WARN 4242 --- [main] c.z.security.JwtTokenFilter              : Rejected expired JWT for /api/v1/users/getAllUserInfo
+2026-09-29 10:00:40.207  INFO 4242 --- [scheduling-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user30 status=200 took=99ms
+2026-09-29 10:00:40.243  INFO 4242 --- [http-nio-8080-exec-2] c.z.rest.training.GroupTrainingControllerV1 : GET /api/v1/training/groupTraining/findByBranch branchId=2 status=200
+2026-09-29 10:00:40.293  INFO 4242 --- [http-nio-8080-exec-2] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user54 status=200 took=176ms
+2026-09-29 10:00:40.384  WARN 4242 --- [main] c.z.security.JwtTokenFilter              : Rejected expired JWT for /api/v1/users/getAllUserInfo
+2026-09-29 10:00:40.437  INFO 4242 --- [scheduling-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user88 status=200 took=140ms
+2026-09-29 10:00:40.447  INFO 4242 --- [http-nio-8080-exec-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user62 status=200 took=142ms
+2026-09-29 10:00:40.470  INFO 4242 --- [main] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user27 status=200 took=152ms
+2026-09-29 10:00:40.473  INFO 4242 --- [http-nio-8080-exec-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user7 status=200 took=66ms
+2026-09-29 10:00:40.485  INFO 4242 --- [http-nio-8080-exec-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user47 status=200 took=46ms
+2026-09-29 10:00:40.507 DEBUG 4242 --- [http-nio-8080-exec-2] org.hibernate.SQL                        : select u.id, u.username, u.status from tdcbd.users u where u.username=?
+2026-09-29 10:00:40.587  WARN 4242 --- [http-nio-8080-exec-2] c.z.security.JwtTokenFilter              : Rejected expired JWT for /api/v1/users/getAllUserInfo
+2026-09-29 10:00:40.649  INFO 4242 --- [scheduling-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user15 status=200 took=164ms
+2026-09-29 10:00:40.665  INFO 4242 --- [http-nio-8080-exec-2] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user11 status=200 took=76ms
+2026-09-29 10:00:40.729 DEBUG 4242 --- [http-nio-8080-exec-1] org.hibernate.SQL                        : select u.id, u.username, u.status from tdcbd.users u where u.username=?
+2026-09-29 10:00:40.778  INFO 4242 --- [http-nio-8080-exec-1] c.z.rest.AuthenticationRestControllerV1  : POST /api/v1/auth/login user=user27 status=200 took=175ms
+{"@timestamp":"2026-09-29T10:01:20.114Z","level":"INFO","message":"payment webhook received","provider":"stripe","amount":4200}
+{"@timestamp":"2026-09-29T10:01:32.870Z","level":"ERROR","message":"payment webhook signature mismatch","provider":"stripe","requestId":"7c9e6679-7425-40de-944b-e07fc1f90ae7"}

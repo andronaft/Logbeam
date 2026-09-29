@@ -1,0 +1,25 @@
+{
+  "name": "logbeam",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome extension for developers & platform engineers: readable logs, dark mode everywhere, and one-click JSON / JWT / Base64 / timestamp / cron tools.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "icons": "node scripts/icons.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test && npm run build",
+    "package": "npm run build && node scripts/package.mjs",
+    "screenshots": "npm run build && node scripts/screenshots.mjs"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "esbuild": "^0.24.0",
+    "playwright": "^1.56.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

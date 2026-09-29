@@ -1,0 +1,23 @@
+/*
+ * Dark mode for sites without their own: invert the whole page, rotate hues back so
+ * colours keep their meaning, then invert media again so photos and videos look normal.
+ */
+html {
+  filter: invert(0.92) hue-rotate(180deg) !important;
+  background-color: #fff !important;
+}
+
+img,
+picture,
+video,
+canvas,
+iframe,
+svg image,
+[style*="background-image"] {
+  filter: invert(1) hue-rotate(180deg) !important;
+}
+
+/* Fullscreen video is rendered outside the filtered <html>. */
+:fullscreen video {
+  filter: none !important;
+}

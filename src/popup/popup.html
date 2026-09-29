@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Logbeam</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="" width="24" height="24">
+    <h1>Logbeam</h1>
+  </header>
+
+  <section class="site">
+    <h2>This page</h2>
+    <label class="switch-row">
+      <span>
+        Dark mode
+        <small id="dark-hint">Applies to this tab</small>
+      </span>
+      <input type="checkbox" id="dark-toggle" role="switch">
+    </label>
+    <label class="check-row">
+      <input type="checkbox" id="dark-remember">
+      <span>Remember for <b id="site-name">this site</b></span>
+    </label>
+    <button id="open-viewer" class="wide">Open as log <kbd>Alt+Shift+L</kbd></button>
+    <p id="site-note" class="note" hidden></p>
+  </section>
+
+  <section class="tools">
+    <h2>Text tools</h2>
+    <textarea id="input" placeholder="Paste JSON, a JWT, Base64, a timestamp, a cron expression…" spellcheck="false"></textarea>
+    <div id="transforms" class="grid"></div>
+    <pre id="output" class="output" hidden></pre>
+    <div class="row" id="output-actions" hidden>
+      <button id="copy">Copy</button>
+      <button id="use-output">Use as input</button>
+    </div>
+  </section>
+
+  <footer>
+    Select text on any page → right-click → <b>Logbeam</b>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
