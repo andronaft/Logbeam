@@ -27,7 +27,7 @@ const base = `http://localhost:${server.address().port}`;
 const context = await chromium.launchPersistentContext(mkdtempSync(path.join(tmpdir(), 'logbeam-')), {
   channel: 'chromium',
   headless: true,
-  viewport: { width: 1280, height: 720 },
+  viewport: { width: 1280, height: 800 },
   args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
 });
 const errors = [];

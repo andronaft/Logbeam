@@ -58,5 +58,7 @@ Does not collect or transmit any user data.
 
 ## Assets
 - Icon: `icons/icon128.png`
-- Screenshots (1280×800 or 640×400): take them from `docs/*.png`, resized
-- Small promo tile 440×280: optional
+- Screenshots, 1280×800 JPEG: `docs/store/1-log-viewer.jpg` … `5-popup.jpg`
+- Small promo tile, 440×280: `docs/store/promo-small-440x280.jpg`
+- Marquee, 1400×560: `docs/store/promo-marquee-1400x560.jpg`
+- Regenerate all of them with `npm run screenshots && npm run store-assets`
