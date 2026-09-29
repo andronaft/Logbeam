@@ -7,6 +7,9 @@
 <p align="center"><b>Make logs readable again.</b></p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/logbeam/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe"><img src="https://img.shields.io/chrome-web-store/v/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe?label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white&color=ffb454" alt="Chrome Web Store version"></a>
+  <a href="https://chromewebstore.google.com/detail/logbeam/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe"><img src="https://img.shields.io/chrome-web-store/users/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe?label=users&color=ffb454" alt="Chrome Web Store users"></a>
+  <a href="https://chromewebstore.google.com/detail/logbeam/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe"><img src="https://img.shields.io/chrome-web-store/rating/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe?color=ffb454" alt="Chrome Web Store rating"></a>
   <a href="https://github.com/andronaft/Logbeam/actions/workflows/ci.yml"><img src="https://github.com/andronaft/Logbeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?logo=googlechrome&logoColor=white" alt="Manifest V3">
   <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
@@ -16,6 +19,10 @@
 A Chrome extension for developers and platform engineers: a fast log viewer that also **catches leaked
 secrets**, dark mode for any site, and the text tools you keep opening random websites for (JSON, JWT,
 Base64, timestamps, cron). All of it runs locally; no data leaves your browser.
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/logbeam/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe"><b>➜ Add to Chrome — it's free</b></a>
+</p>
 
 <p align="center">
   <img src="docs/log-viewer.png" alt="Logbeam log viewer: levels in colour, grouped stack trace, pauses between entries" width="860">
@@ -101,7 +108,10 @@ Logbeam never asks for access to all sites up front. See the [privacy policy](PR
 
 ## Install
 
-**From source** (until the Chrome Web Store listing is live):
+**From the Chrome Web Store:** [Logbeam on the Chrome Web Store](https://chromewebstore.google.com/detail/logbeam/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe),
+one click and it updates itself. Works in Chrome, Edge, Brave, Opera and other Chromium browsers.
+
+**From source:**
 
 ```bash
 npm ci
