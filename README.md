@@ -13,9 +13,9 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT">
 </p>
 
-A Chrome extension for developers and platform engineers: a fast log viewer, dark mode for any site,
-and the text tools you keep opening random websites for (JSON, JWT, Base64, timestamps, cron). All of it
-runs locally; no data leaves your browser.
+A Chrome extension for developers and platform engineers: a fast log viewer that also **catches leaked
+secrets**, dark mode for any site, and the text tools you keep opening random websites for (JSON, JWT,
+Base64, timestamps, cron). All of it runs locally; no data leaves your browser.
 
 <p align="center">
   <img src="docs/log-viewer.png" alt="Logbeam log viewer: levels in colour, grouped stack trace, pauses between entries" width="860">
@@ -24,6 +24,7 @@ runs locally; no data leaves your browser.
 ## Features
 
 ### 🔦 Log viewer
+
 Open any raw log (a `.log` file, "View raw logs" in GitHub Actions, Jenkins console output, `kubectl logs`
 piped to a file…) with **Alt+Shift+L** or from the popup:
 
@@ -34,29 +35,49 @@ piped to a file…) with **Alt+Shift+L** or from the popup:
 - **JSON logs** (Logback/Logstash, pino, bunyan, zap…) shown as `time LEVEL message {fields}`
 - **Pauses between entries**: `+5.5s` next to lines where the app stalled
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge
+- **Error timeline**: a histogram of entries, errors and warnings over time; click a bar to jump there
+- **Line inspector**: click a line to read it in full, with its time, pause and, for JSON records, all fields
+- **Links to lines**: click a line number to copy a `#L120` link that opens the viewer right on that line
 - **Next error** (`e`), search (`/`), copy visible lines, back to raw
-- Smooth on **100k+ lines**: only the rows on screen are in the DOM
+- **Open automatically** on sites you choose (opt-in per site, only plain-text pages that look like logs)
+- Fast on **150k+ lines**: logs over 1 MB are parsed in a **Web Worker** with a progress bar, and only the
+  rows on screen are in the DOM
 
 <p align="center"><img src="docs/log-viewer-filtered.png" alt="Only errors and warnings, repeated retries collapsed" width="860"></p>
 
+### 🔑 Secret detection
+
+Credentials in logs are how leaks start. Logbeam marks every line that shows one: AWS keys, GitHub, GitLab,
+Slack and Stripe tokens, Google API keys, JWTs, private keys, `postgres://user:password@…` URLs and
+`password=…` / `"apiKey": "…"` settings (placeholders like `${DB_PASSWORD}` are ignored).
+
+- 🔑 next to the line and the value highlighted; `s` jumps to the next one
+- **Mask** hides the values on screen and in everything you copy: `AKIA****************`
+- **Mask secrets** in the right-click menu cleans up any selected text or input before you paste it into a chat
+
+<p align="center"><img src="docs/secrets.png" alt="A leaked AWS key found, masked, and shown in the line inspector" width="860"></p>
+
 ### 🌙 Dark mode for any site
+
 Toggle it from the popup or with **Alt+Shift+D**. "Remember for this site" asks for access to **that one
 site only**, and from then on the dark theme is applied before the page paints, so there's no white flash.
 Photos and videos keep their real colours.
 
 ### 🧰 Text tools
+
 Select text on any page → right-click → **Logbeam**, or paste it into the popup:
 
-| Tool | Example |
-|---|---|
-| Format / minify JSON | `{"a":1}` → pretty-printed, or back to one line |
-| Decode JWT | header, payload, `iat`/`exp` as dates, "valid for another 59m" / "EXPIRED 3h ago" |
-| Base64 encode / decode | UTF-8 safe, understands URL-safe Base64 without padding |
-| URL encode / decode | `a b&c` ⇄ `a%20b%26c` |
-| Timestamp ⇄ date | `1700000000` → `2023-11-14T22:13:20Z`, and back |
-| Explain cron | `0 */15 * * * *` → "Every 15 minutes"; catches `*/900` in the seconds field |
-| Case conversion | `userProfileId` ⇄ `user_profile_id` ⇄ `user-profile-id` ⇄ `USER_PROFILE_ID` |
-| Sort / de-duplicate lines | |
+| Tool                      | Example                                                                           |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| Mask secrets              | `password=hunter2hunter2` → `password=hunt**********`                             |
+| Format / minify JSON      | `{"a":1}` → pretty-printed, or back to one line                                   |
+| Decode JWT                | header, payload, `iat`/`exp` as dates, "valid for another 59m" / "EXPIRED 3h ago" |
+| Base64 encode / decode    | UTF-8 safe, understands URL-safe Base64 without padding                           |
+| URL encode / decode       | `a b&c` ⇄ `a%20b%26c`                                                             |
+| Timestamp ⇄ date          | `1700000000` → `2023-11-14T22:13:20Z`, and back                                   |
+| Explain cron              | `0 */15 * * * *` → "Every 15 minutes"; catches `*/900` in the seconds field       |
+| Case conversion           | `userProfileId` ⇄ `user_profile_id` ⇄ `user-profile-id` ⇄ `USER_PROFILE_ID`       |
+| Sort / de-duplicate lines |                                                                                   |
 
 In an input, textarea or rich editor, **Replace selection** writes the result back in place (undo works).
 
@@ -69,12 +90,12 @@ In an input, textarea or rich editor, **Replace selection** writes the result ba
 
 Logbeam has no server and no analytics, and it makes no network requests.
 
-| Permission | Why |
-|---|---|
-| `activeTab`, `scripting` | Run the log viewer or a text tool on the tab you clicked, only when you ask |
-| `contextMenus` | The right-click menu |
-| `storage` | Remember which sites use dark mode |
-| optional host access, per site | Only when you tick "Remember for this site", and only for that site |
+| Permission                     | Why                                                                                                        |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `activeTab`, `scripting`       | Run the log viewer or a text tool on the tab you clicked, only when you ask                                |
+| `contextMenus`                 | The right-click menu                                                                                       |
+| `storage`                      | Remember your per-site settings                                                                            |
+| optional host access, per site | Only when you turn on "Remember dark mode" or "Open logs automatically" for a site, and only for that site |
 
 Logbeam never asks for access to all sites up front. See the [privacy policy](PRIVACY.md).
 
@@ -93,26 +114,41 @@ folder. To open local `file://` logs, also enable **Allow access to file URLs** 
 ## Development
 
 ```bash
-npm run watch        # rebuild on change, then press ↻ on chrome://extensions
-npm test             # unit tests (Vitest)
-npm run typecheck    # strict TypeScript
-npm run package      # dist/ → logbeam-<version>.zip for the Chrome Web Store
-npm run icons        # regenerate the PNG icons (drawn in code, no image editor needed)
-npm run screenshots  # load the extension into Chromium with Playwright, click through it, save docs/*.png
+npm run watch         # rebuild on change, then press ↻ on chrome://extensions
+npm test              # unit tests (Vitest)
+npm run e2e           # load the extension into Chromium with Playwright, click through it, save docs/*.png
+npm run check         # lint + format + typecheck + unit tests + build (what CI runs)
+npm run package       # dist/ → logbeam-<version>.zip for the Chrome Web Store
+npm run store-assets  # Chrome Web Store screenshots and promo tiles from docs/*.png
+npm run icons         # regenerate the PNG icons (drawn in code, no image editor needed)
+```
+
+Releases: bump the version in `src/manifest.json` and `package.json`, add a `CHANGELOG.md` entry, then push a
+`vX.Y.Z` tag. The release workflow runs every check and attaches the ZIP to a GitHub Release.
+
+```
+
 ```
 
 ```
 src/
 ├── background.ts        service worker: context menu, keyboard shortcuts, permission events
 ├── content/
-│   ├── logViewer.ts     virtualized log viewer, injected on demand
+│   ├── logViewer.ts     virtualized log viewer: filters, inspector, timeline, secrets, #L links
+│   ├── parseAsync.ts    Web Worker parsing (Blob worker) with a chunked main-thread fallback
+│   ├── parseWorker.ts   the worker itself, inlined into the viewer at build time
+│   ├── autoOpen.ts      opt-in per site: opens plain-text logs automatically
 │   └── panel.ts         result panel for the text tools (Shadow DOM, no style clashes)
 ├── lib/                 pure logic, fully unit-tested
-│   ├── logs.ts          level/timestamp/JSON parsing, stack-trace grouping, filters, repeats
-│   ├── transforms.ts    JSON, JWT, Base64, URL, timestamps, case, lines
+│   ├── logs.ts          incremental parser: levels, timestamps, JSON, stack traces, filters, repeats
+│   ├── secrets.ts       credential detection and masking
+│   ├── timeline.ts      error/warning histogram
+│   ├── segments.ts      overlapping highlights (search matches inside secrets)
+│   ├── transforms.ts    JSON, JWT, Base64, URL, timestamps, case, lines, mask secrets
 │   └── cron.ts          cron → plain English (5 and 6 field, macros, names)
 ├── shared/
 │   ├── darkMode.ts      per-site dark mode with dynamic content scripts
+│   ├── autoOpen.ts      per-site auto-open registration
 │   └── inject.ts        on-demand script injection
 ├── popup/               toolbar popup
 └── dark.css             the dark theme itself
@@ -127,13 +163,19 @@ src/
   tab-only dark mode and pending permission requests lives in `chrome.storage`, not in variables.
 - **Trusted Types safe.** The viewer and panel build DOM nodes rather than assigning `innerHTML`, so they work
   on sites that enforce Trusted Types, like GitHub and Google.
-- **Pure core.** Parsing and transforms have no DOM or `chrome.*` dependencies, which keeps them easy to test.
+- **Big logs off the main thread.** A content script can't start a worker from the extension's own URL
+  (different origin), so the worker is built separately, inlined as a string and started from a Blob. Pages
+  whose CSP blocks that fall back to parsing in chunks between frames. The e2e test covers both paths.
+- **Pure core.** Parsing, secret detection and transforms have no DOM or `chrome.*` dependencies, which keeps
+  them easy to test: 61 unit tests plus 30 end-to-end checks in a real Chromium.
 
 ## Roadmap
 
-- [ ] Open `text/plain` logs in the viewer automatically (opt-in per site)
-- [ ] Secret detection: warn when a page shows AWS keys, JWTs or passwords
-- [ ] Parsing large logs in a Web Worker
+- [x] Open `text/plain` logs in the viewer automatically (opt-in per site)
+- [x] Secret detection and masking
+- [x] Parsing large logs in a Web Worker
+- [ ] Settings page (gap threshold, custom levels, which tools to show)
+- [ ] Diff two JSON documents or two logs
 - [ ] Multi-line JSON log records
 - [ ] Firefox build
 

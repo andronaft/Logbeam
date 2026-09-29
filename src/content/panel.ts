@@ -24,7 +24,8 @@ declare global {
 function captureSelection(): { text: string; source: Source } {
   const active = document.activeElement;
   if (
-    (active instanceof HTMLTextAreaElement || (active instanceof HTMLInputElement && /^(text|search|url|email|)$/.test(active.type))) &&
+    (active instanceof HTMLTextAreaElement ||
+      (active instanceof HTMLInputElement && /^(text|search|url|email|)$/.test(active.type))) &&
     active.selectionStart !== null &&
     active.selectionEnd !== null
   ) {
@@ -43,7 +44,9 @@ function captureSelection(): { text: string; source: Source } {
     const range = selection.getRangeAt(0);
     const container = range.commonAncestorContainer;
     const element = container instanceof HTMLElement ? container : container.parentElement;
-    const editable = element?.closest<HTMLElement>('[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]');
+    const editable = element?.closest<HTMLElement>(
+      '[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]',
+    );
     if (editable) {
       return { text, source: { kind: 'editable', element: editable, range: range.cloneRange() } };
     }

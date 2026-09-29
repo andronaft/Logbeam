@@ -1,4 +1,5 @@
 import { TRANSFORMS } from '../lib/transforms';
+import { autoOpenSites, isAutoOpen, setAutoOpen } from '../shared/autoOpen';
 import { isDarkForTab, markPending, originPattern, rememberedSites, setDarkMode } from '../shared/darkMode';
 import { openLogViewer } from '../shared/inject';
 
@@ -18,11 +19,13 @@ async function setupSite(): Promise<void> {
   const hint = $('dark-hint');
   const note = $('site-note');
   const openViewer = $<HTMLButtonElement>('open-viewer');
+  const autoOpen = $<HTMLInputElement>('auto-open');
 
   const pattern = originPattern(tab?.url);
   if (!tab?.id || !pattern) {
     darkToggle.disabled = true;
     remember.disabled = true;
+    autoOpen.disabled = true;
     note.hidden = false;
     note.textContent = 'Dark mode works on http(s) pages. The log viewer also works on plain-text files.';
   } else {
@@ -36,6 +39,7 @@ async function setupSite(): Promise<void> {
   const refresh = async () => {
     darkToggle.checked = await isDarkForTab(tab);
     remember.checked = pattern !== null && (await rememberedSites()).includes(pattern);
+    autoOpen.checked = await isAutoOpen(tab.url);
     hint.textContent = remember.checked ? 'Remembered for this site' : 'Applies to this tab';
   };
   await refresh();
@@ -45,20 +49,39 @@ async function setupSite(): Promise<void> {
     await refresh();
   });
 
+  /**
+   * Both per-site features share one host permission. It is requested straight from the click
+   * (a user gesture, so before any await) and resolves at once if already granted; it is
+   * removed only when neither feature needs it any more.
+   */
+  const requestSite = (feature: 'dark' | 'auto-open') => {
+    const request = chrome.permissions.request({ origins: [pattern!] });
+    void markPending(tab, feature);
+    return request;
+  };
+  const releaseSiteIfUnused = async () => {
+    const stillUsed = (await rememberedSites()).includes(pattern!) || (await autoOpenSites()).includes(pattern!);
+    if (!stillUsed) await chrome.permissions.remove({ origins: [pattern!] }).catch(() => undefined);
+  };
+
   remember.addEventListener('change', async () => {
     if (!pattern) return;
     if (remember.checked) {
-      // Must be requested straight from the click (a user gesture), before any await.
-      // It resolves to true at once if the permission is already granted.
-      const request = chrome.permissions.request({ origins: [pattern] });
-      void markPending(tab);
-      const granted = await request;
-      if (granted) {
-        await setDarkMode(tab, true);
-      }
+      if (await requestSite('dark')) await setDarkMode(tab, true);
     } else {
       await setDarkMode(tab, false);
-      await chrome.permissions.remove({ origins: [pattern] }).catch(() => undefined);
+      await releaseSiteIfUnused();
+    }
+    await refresh();
+  });
+
+  autoOpen.addEventListener('change', async () => {
+    if (!pattern) return;
+    if (autoOpen.checked) {
+      if (await requestSite('auto-open')) await setAutoOpen(tab.url, true);
+    } else {
+      await setAutoOpen(tab.url, false);
+      await releaseSiteIfUnused();
     }
     await refresh();
   });

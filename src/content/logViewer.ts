@@ -2,29 +2,30 @@ import {
   CollapsedLine,
   LEVELS,
   Level,
+  LogLine,
   buildMatcher,
   collapseRepeats,
   countByLevel,
   filterLines,
   formatGap,
-  parseLog,
 } from '../lib/logs';
+import { findSecrets, maskSecrets } from '../lib/secrets';
+import { Range, searchRanges, toSegments } from '../lib/segments';
+import { buildTimeline } from '../lib/timeline';
+import { parseLogAsync } from './parseAsync';
 import { VIEWER_CSS } from './viewerStyles';
 
 /**
  * Replaces the current page with a log viewer. Rows have a fixed height and only the
  * visible ones (plus a small buffer) are in the DOM, so 100k+ line logs stay smooth.
+ * Everything is built from DOM nodes, never innerHTML, so it also works on pages that
+ * enforce Trusted Types (GitHub, Google).
  */
-
-declare global {
-  interface Window {
-    __logbeamViewer?: boolean;
-  }
-}
 
 const ROW_HEIGHT = 20;
 const OVERSCAN = 30;
 const GAP_THRESHOLD_MS = 1000;
+const LINE_HASH = /^#L(\d+)$/;
 
 interface State {
   levels: Set<Level>;
@@ -34,9 +35,24 @@ interface State {
   caseSensitive: boolean;
   collapse: boolean;
   showGaps: boolean;
+  maskSecrets: boolean;
+  showTimeline: boolean;
+  selected: number | null;
 }
 
-function readPageText(): string {
+type Child = Node | string;
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  props: Partial<HTMLElementTagNameMap[K]> = {},
+  ...children: Child[]
+): HTMLElementTagNameMap[K] {
+  const element = Object.assign(document.createElement(tag), props);
+  element.append(...children);
+  return element;
+}
+
+export function readPageText(): string {
   const body = document.body;
   // Chrome shows text/plain documents as <body><pre>…</pre></body>
   const onlyPre = body && body.children.length === 1 && body.firstElementChild instanceof HTMLPreElement;
@@ -46,42 +62,48 @@ function readPageText(): string {
   return body?.innerText ?? '';
 }
 
-/** Appends the text to the parent with search matches wrapped in <mark>. Built from DOM nodes,
- * not innerHTML, so it works on pages that enforce Trusted Types (GitHub, Google). */
-function appendHighlighted(parent: HTMLElement, text: string, state: State): void {
-  if (!state.query) {
-    parent.append(text);
-    return;
-  }
-  let re: RegExp;
-  try {
-    const source = state.regex ? state.query : state.query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    re = new RegExp(source, state.caseSensitive ? 'g' : 'gi');
-  } catch {
-    parent.append(text);
-    return;
-  }
-  let last = 0;
-  for (const match of text.matchAll(re)) {
-    if (match[0].length === 0) break; // e.g. /x*/ would loop forever
-    const index = match.index ?? 0;
-    parent.append(text.slice(last, index), el('mark', {}, match[0]));
-    last = index + match[0].length;
-  }
-  parent.append(text.slice(last));
+function resetDocument(title: string): HTMLBodyElement {
+  document.documentElement.replaceChildren();
+  const head = el(
+    'head',
+    {},
+    el('meta', { name: 'viewport', content: 'width=device-width' } as Partial<HTMLMetaElement>),
+    el('title', {}, `${title} — Logbeam`),
+    el('style', {}, VIEWER_CSS),
+  );
+  const body = el('body');
+  document.documentElement.append(head, body);
+  return body;
 }
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, ...children: (Node | string)[]): HTMLElementTagNameMap[K] {
-  const element = Object.assign(document.createElement(tag), props);
-  element.append(...children);
-  return element;
-}
-
-function start(): void {
-  const text = readPageText();
+export async function openViewer(text: string = readPageText()): Promise<void> {
   const title = document.title || location.pathname.split('/').pop() || 'log';
-  const allLines = parseLog(text);
+  const body = resetDocument(title);
+
+  const bar = el('div', { className: 'progress-bar' });
+  const label = el('div', { className: 'loading-label' }, 'Parsing log…');
+  body.append(
+    el(
+      'div',
+      { className: 'loading' },
+      el('span', { className: 'brand' }, 'Logbeam'),
+      label,
+      el('div', { className: 'progress' }, bar),
+    ),
+  );
+
+  const lines = await parseLogAsync(text, (done, total) => {
+    bar.style.width = `${Math.round((done / total) * 100)}%`;
+    label.textContent = `Parsing log… ${done.toLocaleString()} / ${total.toLocaleString()} lines`;
+  });
+  body.replaceChildren();
+  buildViewer(body, lines);
+}
+
+function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
   const counts = countByLevel(allLines);
+  const secretCount = allLines.filter((l) => l.secret).length;
+  const timeline = buildTimeline(allLines);
 
   const state: State = {
     levels: new Set(LEVELS),
@@ -91,18 +113,20 @@ function start(): void {
     caseSensitive: false,
     collapse: false,
     showGaps: true,
+    maskSecrets: false,
+    showTimeline: timeline !== null,
+    selected: null,
   };
   let visible: CollapsedLine[] = [];
 
-  // ---- build the page -------------------------------------------------------------
-  document.documentElement.replaceChildren();
-  const head = el('head', {}, el('meta', { name: 'viewport', content: 'width=device-width' } as Partial<HTMLMetaElement>), el('title', {}, `${title} — Logbeam`), el('style', {}, VIEWER_CSS));
-  const body = el('body');
-  document.documentElement.append(head, body);
-
-  const levelChips: HTMLButtonElement[] = [];
-  const chip = (key: Level | 'UNKNOWN', label: string) => {
-    const button = el('button', { className: `chip lvl-${key} on`, title: `Show/hide ${label}` }, `${label} `, el('span', { className: 'count' }, String(counts[key])));
+  // ---- toolbar ----------------------------------------------------------------------------
+  const chip = (key: Level | 'UNKNOWN', text: string) => {
+    const button = el(
+      'button',
+      { className: `chip lvl-${key} on`, title: `Show/hide ${text}` },
+      `${text} `,
+      el('span', { className: 'count' }, String(counts[key])),
+    );
     button.addEventListener('click', () => {
       if (key === 'UNKNOWN') state.includeUnknown = !state.includeUnknown;
       else if (state.levels.has(key)) state.levels.delete(key);
@@ -110,16 +134,53 @@ function start(): void {
       button.classList.toggle('on');
       refresh();
     });
-    levelChips.push(button);
+    button.hidden = counts[key] === 0; // nothing to filter
+    return button;
+  };
+  const toggleButton = (text: string, title: string, on: boolean, apply: () => void) => {
+    const button = el('button', { className: `toggle${on ? ' on' : ''}`, title }, text);
+    button.addEventListener('click', () => {
+      button.classList.toggle('on');
+      apply();
+      refresh();
+    });
     return button;
   };
 
   const search = el('input', { type: 'search', placeholder: 'Search… ( / )', className: 'search', spellcheck: false });
-  const regexToggle = el('button', { className: 'toggle', title: 'Regular expression' }, '.*');
-  const caseToggle = el('button', { className: 'toggle', title: 'Match case' }, 'Aa');
-  const collapseToggle = el('button', { className: 'toggle', title: 'Collapse repeated lines' }, 'Collapse repeats');
-  const gapsToggle = el('button', { className: 'toggle on', title: `Show pauses longer than ${GAP_THRESHOLD_MS / 1000}s` }, 'Gaps');
-  const nextError = el('button', { className: 'toggle', title: 'Jump to next error ( e )' }, 'Next error');
+  const regexToggle = toggleButton('.*', 'Regular expression', false, () => (state.regex = !state.regex));
+  const caseToggle = toggleButton('Aa', 'Match case', false, () => (state.caseSensitive = !state.caseSensitive));
+  const collapseToggle = toggleButton(
+    'Collapse',
+    'Collapse repeated lines (×N)',
+    false,
+    () => (state.collapse = !state.collapse),
+  );
+  const gapsToggle = toggleButton(
+    'Gaps',
+    `Show pauses longer than ${GAP_THRESHOLD_MS / 1000}s`,
+    true,
+    () => (state.showGaps = !state.showGaps),
+  );
+  const timelineToggle = toggleButton('Timeline', 'Errors and warnings over time', state.showTimeline, () => {
+    state.showTimeline = !state.showTimeline;
+    timelineEl.hidden = !state.showTimeline;
+  });
+  timelineToggle.hidden = timeline === null;
+  const maskToggle = toggleButton(
+    'Mask',
+    'Hide secret values on screen and in copied text',
+    false,
+    () => (state.maskSecrets = !state.maskSecrets),
+  );
+  const secretsButton = el(
+    'button',
+    { className: 'toggle secrets', title: 'Lines that show keys, tokens or passwords. Jump to the next one ( s )' },
+    `🔑 ${secretCount}`,
+  );
+  const secretsGroup = el('span', { className: 'group' }, secretsButton, maskToggle);
+  secretsGroup.hidden = secretCount === 0;
+  const nextError = el('button', { className: 'toggle', title: 'Jump to the next error ( e )' }, 'Next error');
   const copyButton = el('button', { className: 'toggle', title: 'Copy visible lines' }, 'Copy');
   const rawButton = el('button', { className: 'toggle', title: 'Back to the original page' }, 'Raw');
   const status = el('span', { className: 'status' });
@@ -134,32 +195,124 @@ function start(): void {
     chip('DEBUG', 'Debug'),
     chip('TRACE', 'Trace'),
     chip('UNKNOWN', 'Other'),
-    el('span', { className: 'search-box' }, search, regexToggle, caseToggle),
+    el('span', { className: 'group' }, search, regexToggle, caseToggle),
     collapseToggle,
     gapsToggle,
+    timelineToggle,
+    secretsGroup,
     nextError,
     copyButton,
     rawButton,
     status,
   );
 
+  // ---- timeline -------------------------------------------------------------------------
+  const timelineEl = el('div', { className: 'timeline' });
+  timelineEl.hidden = !state.showTimeline;
+  if (timeline) {
+    const fmt = (t: number) => new Date(t).toISOString().replace('T', ' ').slice(0, 19);
+    for (const bucket of timeline.buckets) {
+      const height = (n: number) => `${Math.round((n / timeline.max) * 100)}%`;
+      const other = bucket.total - bucket.errors - bucket.warnings;
+      const bar = el(
+        'button',
+        {
+          className: 'bucket',
+          title: `${fmt(bucket.from)} – ${fmt(bucket.to)}\n${bucket.total} entries, ${bucket.errors} errors, ${bucket.warnings} warnings`,
+        },
+        el('span', { className: 'b-err' }),
+        el('span', { className: 'b-warn' }),
+        el('span', { className: 'b-other' }),
+      );
+      (bar.children[0] as HTMLElement).style.height = height(bucket.errors);
+      (bar.children[1] as HTMLElement).style.height = height(bucket.warnings);
+      (bar.children[2] as HTMLElement).style.height = height(other);
+      bar.addEventListener('click', () => {
+        const index = visible.findIndex((l) => l.time !== null && l.time >= bucket.from);
+        if (index >= 0) scrollToIndex(index, true);
+      });
+      timelineEl.append(bar);
+    }
+  }
+
+  // ---- rows and inspector ---------------------------------------------------------------
   const spacer = el('div', { className: 'spacer' });
   const rows = el('div', { className: 'rows' });
   const scroller = el('main', { className: 'scroller', tabIndex: 0 }, spacer, rows);
-  body.append(toolbar, scroller);
+  const inspector = el('aside', { className: 'inspector' });
+  inspector.hidden = true;
+  const toast = el('div', { className: 'toast' });
+  body.append(toolbar, timelineEl, scroller, inspector, toast);
 
-  // ---- behaviour --------------------------------------------------------------------
-  const toggle = (button: HTMLButtonElement, apply: () => void) =>
-    button.addEventListener('click', () => {
-      button.classList.toggle('on');
-      apply();
-      refresh();
+  const displayText = (line: LogLine) => (state.maskSecrets && line.secret ? maskSecrets(line.text) : line.text);
+
+  function showToast(message: string): void {
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1600);
+  }
+
+  function lineLink(number: number): string {
+    return `${location.href.split('#')[0]}#L${number}`;
+  }
+
+  function appendText(parent: HTMLElement, line: LogLine): void {
+    const text = displayText(line);
+    const ranges: Range[] = searchRanges(text, state.query, state.regex, state.caseSensitive, 'match');
+    if (line.secret && !state.maskSecrets) {
+      for (const secret of findSecrets(text)) {
+        ranges.push({ start: secret.start, end: secret.end, cls: 'secret' });
+      }
+    }
+    for (const segment of toSegments(text, ranges)) {
+      parent.append(segment.classes.length ? el('span', { className: segment.classes.join(' ') }, segment.text) : segment.text);
+    }
+  }
+
+  function renderInspector(): void {
+    const line = state.selected === null ? undefined : allLines[state.selected - 1];
+    inspector.hidden = !line;
+    if (!line) return;
+    const facts: Child[] = [`Line ${line.number}`];
+    if (line.level) facts.push(' · ', el('b', { className: `lvl-${line.level}` }, line.level));
+    if (line.time !== null) facts.push(` · ${new Date(line.time).toISOString()}`);
+    if (line.gap !== null) facts.push(` · ${formatGap(line.gap)} after previous entry`);
+    if (line.secret) facts.push(' · ', el('b', { className: 'secret-note' }, '🔑 contains a secret'));
+
+    const copyLine = el('button', { className: 'toggle' }, 'Copy line');
+    copyLine.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(displayText(line));
+      showToast('Line copied');
     });
-  toggle(regexToggle, () => (state.regex = !state.regex));
-  toggle(caseToggle, () => (state.caseSensitive = !state.caseSensitive));
-  toggle(collapseToggle, () => (state.collapse = !state.collapse));
-  toggle(gapsToggle, () => (state.showGaps = !state.showGaps));
+    const copyLink = el('button', { className: 'toggle' }, 'Copy link');
+    copyLink.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(lineLink(line.number));
+      showToast('Link copied');
+    });
+    const close = el('button', { className: 'toggle', title: 'Close ( Esc )' }, '×');
+    close.addEventListener('click', () => select(null));
 
+    const text = el('pre', { className: 'full-text' });
+    appendText(text, line);
+    const parts: Child[] = [
+      el('div', { className: 'inspector-head' }, el('span', { className: 'facts' }, ...facts), copyLine, copyLink, close),
+      text,
+    ];
+    if (line.json) {
+      const json = JSON.stringify(line.json, null, 2);
+      parts.push(el('pre', { className: 'json' }, state.maskSecrets ? maskSecrets(json) : json));
+    }
+    inspector.replaceChildren(...parts);
+  }
+
+  function select(number: number | null): void {
+    state.selected = number;
+    history.replaceState(null, '', number === null ? location.pathname + location.search : `#L${number}`);
+    renderInspector();
+    render();
+  }
+
+  // ---- behaviour --------------------------------------------------------------------------
   let debounce: number | undefined;
   search.addEventListener('input', () => {
     clearTimeout(debounce);
@@ -169,13 +322,28 @@ function start(): void {
     }, 150);
   });
 
-  nextError.addEventListener('click', jumpToNextError);
+  nextError.addEventListener('click', () => jumpToNext((l) => l.level === 'ERROR' && !l.continuation));
+  secretsButton.addEventListener('click', () => jumpToNext((l) => l.secret));
   copyButton.addEventListener('click', async () => {
-    await navigator.clipboard.writeText(visible.map((l) => l.text).join('\n'));
-    copyButton.textContent = 'Copied ✓';
-    setTimeout(() => (copyButton.textContent = 'Copy'), 1500);
+    await navigator.clipboard.writeText(visible.map(displayText).join('\n'));
+    showToast(`${visible.length.toLocaleString()} lines copied`);
   });
   rawButton.addEventListener('click', () => location.reload());
+
+  rows.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    const row = target.closest<HTMLElement>('.row');
+    if (!row) return;
+    const number = Number(row.dataset.number);
+    if (target.classList.contains('ln')) {
+      select(number);
+      void navigator.clipboard.writeText(lineLink(number)).then(() => showToast(`Link to line ${number} copied`));
+      return;
+    }
+    // don't steal clicks that finish a text selection
+    if (window.getSelection()?.toString()) return;
+    select(state.selected === number ? null : number);
+  });
 
   document.addEventListener('keydown', (event) => {
     if (event.target === search) {
@@ -187,25 +355,37 @@ function start(): void {
       }
       return;
     }
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.key === '/') {
       event.preventDefault();
       search.focus();
     } else if (event.key === 'e') {
-      jumpToNextError();
+      jumpToNext((l) => l.level === 'ERROR' && !l.continuation);
+    } else if (event.key === 's' && secretCount > 0) {
+      jumpToNext((l) => l.secret);
+    } else if (event.key === 'Escape' && state.selected !== null) {
+      select(null);
     }
   });
 
   scroller.addEventListener('scroll', () => render(), { passive: true });
   window.addEventListener('resize', () => render());
 
-  function jumpToNextError(): void {
-    const firstVisibleIndex = Math.floor(scroller.scrollTop / ROW_HEIGHT);
-    let target = visible.findIndex((l, i) => i > firstVisibleIndex && l.level === 'ERROR' && !l.continuation);
-    if (target < 0) target = visible.findIndex((l) => l.level === 'ERROR' && !l.continuation); // wrap around
-    if (target >= 0) {
-      scroller.scrollTop = target * ROW_HEIGHT;
-      render();
-    }
+  function scrollToIndex(index: number, selectIt: boolean): void {
+    scroller.scrollTop = Math.max(0, index * ROW_HEIGHT - scroller.clientHeight / 3);
+    if (selectIt) select(visible[index].number);
+    else render();
+  }
+
+  function jumpToNext(predicate: (line: CollapsedLine) => boolean): void {
+    const current =
+      state.selected !== null
+        ? visible.findIndex((l) => l.number === state.selected)
+        : Math.floor(scroller.scrollTop / ROW_HEIGHT) - 1;
+    let target = visible.findIndex((l, i) => i > current && predicate(l));
+    if (target < 0) target = visible.findIndex(predicate); // wrap around
+    if (target >= 0) scrollToIndex(target, true);
+    else showToast('Nothing found in the visible lines');
   }
 
   function refresh(): void {
@@ -221,6 +401,7 @@ function start(): void {
     visible = state.collapse ? collapseRepeats(filtered) : filtered.map((l) => ({ ...l, repeat: 1 }));
     spacer.style.height = `${visible.length * ROW_HEIGHT}px`;
     status.textContent = matcherError || `${visible.length.toLocaleString()} / ${allLines.length.toLocaleString()} lines`;
+    renderInspector();
     render();
   }
 
@@ -231,7 +412,13 @@ function start(): void {
     rows.style.transform = `translateY(${first * ROW_HEIGHT}px)`;
     rows.replaceChildren(
       ...slice.map((line) => {
-        const row = el('div', { className: `row lvl-${line.level ?? 'UNKNOWN'}${line.continuation ? ' cont' : ''}` });
+        const classes = ['row', `lvl-${line.level ?? 'UNKNOWN'}`];
+        if (line.continuation) classes.push('cont');
+        if (line.secret) classes.push('has-secret');
+        if (line.number === state.selected) classes.push('selected');
+        const row = el('div', { className: classes.join(' ') });
+        row.dataset.number = String(line.number);
+
         const gap = el('span', { className: 'gap' });
         if (state.showGaps && line.gap !== null && line.gap >= GAP_THRESHOLD_MS) {
           gap.textContent = formatGap(line.gap);
@@ -242,8 +429,8 @@ function start(): void {
         if (line.repeat > 1) {
           txt.append(el('span', { className: 'repeat', title: 'Similar consecutive lines' }, `×${line.repeat}`));
         }
-        appendHighlighted(txt, line.text, state);
-        row.append(el('span', { className: 'ln' }, String(line.number)), gap, txt);
+        appendText(txt, line);
+        row.append(el('span', { className: 'ln', title: 'Copy a link to this line' }, String(line.number)), gap, txt);
         return row;
       }),
     );
@@ -251,9 +438,11 @@ function start(): void {
 
   refresh();
   scroller.focus();
-}
 
-if (!window.__logbeamViewer) {
-  window.__logbeamViewer = true;
-  start();
+  // #L120 in the address opens the viewer on that line
+  const hash = LINE_HASH.exec(location.hash);
+  if (hash) {
+    const index = visible.findIndex((l) => l.number === Number(hash[1]));
+    if (index >= 0) scrollToIndex(index, true);
+  }
 }

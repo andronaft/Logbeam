@@ -1,3 +1,5 @@
+import { hasSecret } from './secrets';
+
 export type Level = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE';
 
 export const LEVELS: Level[] = ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'];
@@ -16,21 +18,35 @@ export interface LogLine {
   gap: number | null;
   /** Structured fields when the line is a JSON log record. */
   json: Record<string, unknown> | null;
+  /** The line shows a credential (key, token, password). */
+  secret: boolean;
 }
 
 const LEVEL_ALIASES: Record<string, Level> = {
-  ERROR: 'ERROR', ERR: 'ERROR', FATAL: 'ERROR', SEVERE: 'ERROR', CRITICAL: 'ERROR', PANIC: 'ERROR',
-  WARN: 'WARN', WARNING: 'WARN',
-  INFO: 'INFO', NOTICE: 'INFO',
-  DEBUG: 'DEBUG', FINE: 'DEBUG',
-  TRACE: 'TRACE', FINER: 'TRACE', FINEST: 'TRACE',
+  ERROR: 'ERROR',
+  ERR: 'ERROR',
+  FATAL: 'ERROR',
+  SEVERE: 'ERROR',
+  CRITICAL: 'ERROR',
+  PANIC: 'ERROR',
+  WARN: 'WARN',
+  WARNING: 'WARN',
+  INFO: 'INFO',
+  NOTICE: 'INFO',
+  DEBUG: 'DEBUG',
+  FINE: 'DEBUG',
+  TRACE: 'TRACE',
+  FINER: 'TRACE',
+  FINEST: 'TRACE',
 };
 
 // A level word on its own, optionally in brackets: "ERROR", "[warn]", "level=info" etc.
-const LEVEL_RE = /(?:^|[\s\[(|:=])(ERROR|ERR|FATAL|SEVERE|CRITICAL|PANIC|WARN|WARNING|INFO|NOTICE|DEBUG|FINE|TRACE|FINER|FINEST)(?=$|[\s\]):|,])/i;
+const LEVEL_RE =
+  /(?:^|[\s[(|:=])(ERROR|ERR|FATAL|SEVERE|CRITICAL|PANIC|WARN|WARNING|INFO|NOTICE|DEBUG|FINE|TRACE|FINER|FINEST)(?=$|[\s\]):|,])/i;
 
 // Stack trace frames and wrapped exceptions (Java, JS, Python, Go).
-const CONTINUATION_RE = /^(\s+at\s|\s+\.\.\.\s\d+\s(more|common frames)|Caused by:|Suppressed:|\s+File ".*", line \d+|Traceback \(most recent call last\)|goroutine \d+ \[|\t)/;
+const CONTINUATION_RE =
+  /^(\s+at\s|\s+\.\.\.\s\d+\s(more|common frames)|Caused by:|Suppressed:|\s+File ".*", line \d+|Traceback \(most recent call last\)|goroutine \d+ \[|\t)/;
 
 // ISO 8601 and the common "yyyy-MM-dd HH:mm:ss,SSS" / "yyyy/MM/dd HH:mm:ss.SSS" forms.
 const TIMESTAMP_RE = /(\d{4})[-/](\d{2})[-/](\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:[.,](\d{1,9}))?(Z|[+-]\d{2}:?\d{2})?/;
@@ -132,51 +148,68 @@ function jsonTime(record: Record<string, unknown>): number | null {
   return typeof value === 'string' ? parseTimestamp(value) : null;
 }
 
-export function parseLog(text: string): LogLine[] {
-  const rawLines = text.replace(/\r\n?/g, '\n').split('\n');
-  if (rawLines.length > 0 && rawLines[rawLines.length - 1] === '') {
-    rawLines.pop();
+export function splitLines(text: string): string[] {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  if (lines.length > 0 && lines[lines.length - 1] === '') {
+    lines.pop();
+  }
+  return lines;
+}
+
+/**
+ * Parses lines one chunk at a time. It keeps the state that crosses chunk borders (the
+ * level of the current entry, the previous timestamp), so a big log can be parsed in a
+ * Web Worker or between animation frames with progress updates.
+ */
+export class LogParser {
+  private currentLevel: Level | null = null;
+  private lastTime: number | null = null;
+  private count = 0;
+
+  push(rawLines: string[]): LogLine[] {
+    return rawLines.map((raw) => this.parseLine(raw));
   }
 
-  const lines: LogLine[] = [];
-  let currentLevel: Level | null = null;
-  let lastTime: number | null = null;
-
-  rawLines.forEach((raw, index) => {
+  private parseLine(raw: string): LogLine {
     const json = parseJsonRecord(raw);
     const continuation = json === null && CONTINUATION_RE.test(raw);
 
     let level: Level | null;
     let time: number | null = null;
     if (continuation) {
-      level = currentLevel;
+      level = this.currentLevel;
     } else {
       level = json ? jsonLevel(json) : detectLevel(raw);
       time = json ? jsonTime(json) : parseTimestamp(raw);
       // a line without its own level but with a timestamp starts a new, unknown-level entry
       if (level !== null || time !== null) {
-        currentLevel = level;
+        this.currentLevel = level;
       } else {
-        level = currentLevel;
+        level = this.currentLevel;
       }
     }
 
-    const gap = time !== null && lastTime !== null ? time - lastTime : null;
+    const gap = time !== null && this.lastTime !== null ? time - this.lastTime : null;
     if (time !== null) {
-      lastTime = time;
+      this.lastTime = time;
     }
 
-    lines.push({
-      number: index + 1,
-      text: json ? formatJsonRecord(json) : raw,
+    const text = json ? formatJsonRecord(json) : raw;
+    return {
+      number: ++this.count,
+      text,
       level,
       continuation,
       time,
       gap,
       json,
-    });
-  });
-  return lines;
+      secret: hasSecret(text),
+    };
+  }
+}
+
+export function parseLog(text: string): LogLine[] {
+  return new LogParser().push(splitLines(text));
 }
 
 /** Heuristic used to decide whether a plain-text page is a log worth opening in the viewer. */
@@ -204,7 +237,9 @@ export interface FilterOptions {
 }
 
 /** Builds the search predicate; throws SyntaxError for an invalid regex so the UI can show it. */
-export function buildMatcher(options: Pick<FilterOptions, 'query' | 'regex' | 'caseSensitive'>): ((text: string) => boolean) | null {
+export function buildMatcher(
+  options: Pick<FilterOptions, 'query' | 'regex' | 'caseSensitive'>,
+): ((text: string) => boolean) | null {
   if (!options.query) {
     return null;
   }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   LEVELS,
+  LogParser,
+  splitLines,
   collapseRepeats,
   countByLevel,
   detectLevel,
@@ -101,6 +103,32 @@ describe('parseLog', () => {
   });
 });
 
+describe('LogParser', () => {
+  it('gives the same result when fed in chunks as in one go', () => {
+    const rawLines = splitLines(SPRING_LOG);
+    const parser = new LogParser();
+    const chunked = [
+      ...parser.push(rawLines.slice(0, 4)),
+      ...parser.push(rawLines.slice(4, 5)),
+      ...parser.push(rawLines.slice(5)),
+    ];
+    expect(chunked).toEqual(parseLog(SPRING_LOG));
+  });
+
+  it('flags lines that show credentials', () => {
+    const [clean, leaked, placeholder] = parseLog(
+      [
+        '2024-03-01 10:00:00 INFO connecting to database',
+        '2024-03-01 10:00:01 DEBUG url=jdbc:postgresql://app:Sup3rS3cret@db:5432/app',
+        '2024-03-01 10:00:02 DEBUG spring.datasource.password=${DB_PASSWORD}',
+      ].join('\n'),
+    );
+    expect(clean.secret).toBe(false);
+    expect(leaked.secret).toBe(true);
+    expect(placeholder.secret).toBe(false);
+  });
+});
+
 describe('filterLines', () => {
   const lines = parseLog(SPRING_LOG);
   const all = { levels: new Set(LEVELS), includeUnknown: true, query: '', regex: false, caseSensitive: false };
@@ -168,7 +196,10 @@ describe('helpers', () => {
   });
 
   it('parses a 100k line log quickly', () => {
-    const big = Array.from({ length: 100_000 }, (_, i) => `2024-03-01 10:00:00.${String(i % 1000).padStart(3, '0')} INFO line ${i}`).join('\n');
+    const big = Array.from(
+      { length: 100_000 },
+      (_, i) => `2024-03-01 10:00:00.${String(i % 1000).padStart(3, '0')} INFO line ${i}`,
+    ).join('\n');
     const started = performance.now();
     expect(parseLog(big)).toHaveLength(100_000);
     expect(performance.now() - started).toBeLessThan(2000);

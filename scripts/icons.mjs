@@ -57,12 +57,18 @@ function render(size) {
   const pixels = Buffer.alloc(size * size * 4);
   for (let py = 0; py < size; py++) {
     for (let px = 0; px < size; px++) {
-      let r = 0, g = 0, b = 0, covered = 0;
+      let r = 0,
+        g = 0,
+        b = 0,
+        covered = 0;
       for (let sy = 0; sy < SAMPLES; sy++) {
         for (let sx = 0; sx < SAMPLES; sx++) {
           const c = shade((px + (sx + 0.5) / SAMPLES) / size, (py + (sy + 0.5) / SAMPLES) / size);
           if (c) {
-            r += c[0]; g += c[1]; b += c[2]; covered++;
+            r += c[0];
+            g += c[1];
+            b += c[2];
+            covered++;
           }
         }
       }

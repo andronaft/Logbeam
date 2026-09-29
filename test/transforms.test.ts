@@ -115,6 +115,13 @@ describe('lines', () => {
   });
 });
 
+describe('mask secrets', () => {
+  it('masks and explains when there is nothing to mask', () => {
+    expect(TRANSFORMS.find((t) => t.id === 'mask-secrets')!.apply('password=hunter2hunter2')).toBe('password=hunt**********');
+    expect(() => TRANSFORMS.find((t) => t.id === 'mask-secrets')!.apply('hello')).toThrow(/No secrets/);
+  });
+});
+
 describe('registry', () => {
   it('has unique ids', () => {
     const ids = TRANSFORMS.map((t) => t.id);

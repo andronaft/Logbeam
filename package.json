@@ -1,6 +1,6 @@
 {
   "name": "logbeam",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Chrome extension for developers & platform engineers: readable logs, dark mode everywhere, and one-click JSON / JWT / Base64 / timestamp / cron tools.",
   "license": "MIT",
@@ -11,16 +11,25 @@
     "icons": "node scripts/icons.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run typecheck && npm test && npm run build",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build",
     "package": "npm run build && node scripts/package.mjs",
-    "screenshots": "npm run build && node scripts/screenshots.mjs",
-    "store-assets": "node scripts/store-assets.mjs"
+    "screenshots": "npm run e2e",
+    "store-assets": "node scripts/store-assets.mjs",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "e2e": "npm run build && node scripts/e2e.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/chrome": "^0.0.287",
     "esbuild": "^0.24.0",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0",
     "playwright": "^1.56.1",
+    "prettier": "^3.9.9",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.71.0",
     "vitest": "^2.1.8"
   }
 }

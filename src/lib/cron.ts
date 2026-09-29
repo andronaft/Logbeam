@@ -16,15 +16,34 @@ const MINUTE: FieldSpec = { name: 'minute', plural: 'minutes', min: 0, max: 59 }
 const HOUR: FieldSpec = { name: 'hour', plural: 'hours', min: 0, max: 23 };
 const DAY: FieldSpec = { name: 'day of month', plural: 'days', min: 1, max: 31 };
 const MONTH: FieldSpec = {
-  name: 'month', plural: 'months', min: 1, max: 12,
+  name: 'month',
+  plural: 'months',
+  min: 1,
+  max: 12,
   names: ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
 };
 const WEEKDAY: FieldSpec = {
-  name: 'day of week', plural: 'days of week', min: 0, max: 7,
+  name: 'day of week',
+  plural: 'days of week',
+  min: 0,
+  max: 7,
   names: ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
 };
 
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const MACROS: Record<string, string> = {
@@ -75,7 +94,9 @@ function parseField(raw: string, spec: FieldSpec): Parsed {
         throw new Error(`Invalid step "${stepRaw}" in ${spec.name}`);
       }
       if (step > spec.max) {
-        throw new Error(`Step ${step} is larger than the ${spec.name} range (${spec.min}-${spec.max}), so it only ever matches ${spec.min}`);
+        throw new Error(
+          `Step ${step} is larger than the ${spec.name} range (${spec.min}-${spec.max}), so it only ever matches ${spec.min}`,
+        );
       }
     }
     if (range === '*' || range === '?') {

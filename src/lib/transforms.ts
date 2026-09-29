@@ -1,4 +1,5 @@
 import { explainCron } from './cron';
+import { findSecrets, maskSecrets } from './secrets';
 
 export interface Transform {
   id: string;
@@ -91,12 +92,7 @@ export function decodeJwt(input: string): DecodedJwt {
 /** Human-readable JWT: header, payload, and the registered time claims as dates with "expired" status. */
 export function describeJwt(input: string, now: number = Date.now()): string {
   const { header, payload, signaturePresent } = decodeJwt(input);
-  const lines = [
-    '// header',
-    JSON.stringify(header, null, 2),
-    '// payload',
-    JSON.stringify(payload, null, 2),
-  ];
+  const lines = ['// header', JSON.stringify(header, null, 2), '// payload', JSON.stringify(payload, null, 2)];
   const claims: string[] = [];
   for (const claim of ['iat', 'nbf', 'exp'] as const) {
     const value = payload[claim];
@@ -159,20 +155,34 @@ export function words(input: string): string[] {
 }
 
 export const toCamelCase = (s: string) =>
-  words(s).map((w, i) => (i === 0 ? w : w[0].toUpperCase() + w.slice(1))).join('');
+  words(s)
+    .map((w, i) => (i === 0 ? w : w[0].toUpperCase() + w.slice(1)))
+    .join('');
 export const toSnakeCase = (s: string) => words(s).join('_');
 export const toKebabCase = (s: string) => words(s).join('-');
 export const toConstantCase = (s: string) => words(s).join('_').toUpperCase();
 
 export function sortLines(input: string): string {
-  return input.split('\n').sort((a, b) => a.localeCompare(b)).join('\n');
+  return input
+    .split('\n')
+    .sort((a, b) => a.localeCompare(b))
+    .join('\n');
 }
 
 export function uniqueLines(input: string): string {
   return [...new Set(input.split('\n'))].join('\n');
 }
 
+/** Masks keys, tokens and passwords, e.g. before pasting a log or config into a chat. */
+export function maskSecretsTransform(input: string): string {
+  if (findSecrets(input).length === 0 && !/PRIVATE KEY-----/.test(input)) {
+    throw new Error('No secrets found');
+  }
+  return maskSecrets(input);
+}
+
 export const TRANSFORMS: Transform[] = [
+  { id: 'mask-secrets', short: 'Mask secrets', title: 'Mask secrets (keys, tokens, passwords)', apply: maskSecretsTransform },
   { id: 'json-format', short: 'Format JSON', title: 'Format JSON', apply: formatJson },
   { id: 'json-minify', short: 'Minify JSON', title: 'Minify JSON', apply: minifyJson },
   { id: 'jwt-decode', short: 'Decode JWT', title: 'Decode JWT', apply: (s) => describeJwt(s) },

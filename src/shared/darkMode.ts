@@ -150,22 +150,25 @@ export async function forgetTab(tabId: number): Promise<void> {
  * meant to do next. So it records the request first and the background finishes it when the
  * permission arrives.
  */
-export async function markPending(tab: chrome.tabs.Tab): Promise<void> {
+export type SiteFeature = 'dark' | 'auto-open';
+
+export async function markPending(tab: chrome.tabs.Tab, feature: SiteFeature): Promise<void> {
   const pattern = originPattern(tab.url);
   if (pattern && tab.id !== undefined) {
-    await chrome.storage.session.set({ [PENDING_KEY]: { pattern, tabId: tab.id } });
+    await chrome.storage.session.set({ [PENDING_KEY]: { pattern, tabId: tab.id, feature } });
   }
 }
 
-export async function completePending(): Promise<void> {
+/** Finishes a request started in the popup, once the permission has been granted. */
+export async function completePending(apply: (feature: SiteFeature, tab: chrome.tabs.Tab) => Promise<unknown>): Promise<void> {
   const data = await chrome.storage.session.get(PENDING_KEY);
-  const pending = data[PENDING_KEY] as { pattern: string; tabId: number } | undefined;
+  const pending = data[PENDING_KEY] as { pattern: string; tabId: number; feature: SiteFeature } | undefined;
   if (!pending || !(await hasPermission(pending.pattern))) return;
   await chrome.storage.session.remove(PENDING_KEY);
   try {
     const tab = await chrome.tabs.get(pending.tabId);
     if (originPattern(tab.url) === pending.pattern) {
-      await setDarkMode(tab, true);
+      await apply(pending.feature, tab);
     }
   } catch {
     // the tab was closed in the meantime

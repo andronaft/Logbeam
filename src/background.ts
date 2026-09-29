@@ -1,5 +1,6 @@
 import { TRANSFORMS } from './lib/transforms';
-import { completePending, forgetTab, syncRegistrations, toggleDarkMode } from './shared/darkMode';
+import { setAutoOpen, syncAutoOpenRegistrations } from './shared/autoOpen';
+import { completePending, forgetTab, setDarkMode, syncRegistrations, toggleDarkMode } from './shared/darkMode';
 import { openLogViewer, runTransformInTab } from './shared/inject';
 
 const MENU_ROOT = 'logbeam';
@@ -18,28 +19,44 @@ function createMenus(): void {
         contexts: ['selection', 'editable'],
       });
     }
-    chrome.contextMenus.create({ id: 'logbeam:sep', parentId: MENU_ROOT, type: 'separator', contexts: ['selection', 'editable'] });
-    chrome.contextMenus.create({ id: MENU_LOG_VIEWER, parentId: MENU_ROOT, title: 'Open page in log viewer', contexts: ['page', 'selection', 'editable'] });
-    chrome.contextMenus.create({ id: MENU_DARK, parentId: MENU_ROOT, title: 'Toggle dark mode for this site', contexts: ['page', 'selection', 'editable'] });
+    chrome.contextMenus.create({
+      id: 'logbeam:sep',
+      parentId: MENU_ROOT,
+      type: 'separator',
+      contexts: ['selection', 'editable'],
+    });
+    chrome.contextMenus.create({
+      id: MENU_LOG_VIEWER,
+      parentId: MENU_ROOT,
+      title: 'Open page in log viewer',
+      contexts: ['page', 'selection', 'editable'],
+    });
+    chrome.contextMenus.create({
+      id: MENU_DARK,
+      parentId: MENU_ROOT,
+      title: 'Toggle dark mode for this site',
+      contexts: ['page', 'selection', 'editable'],
+    });
   });
+}
+
+function syncAll(): void {
+  void syncRegistrations();
+  void syncAutoOpenRegistrations();
 }
 
 chrome.runtime.onInstalled.addListener(() => {
   createMenus();
-  void syncRegistrations();
+  syncAll();
 });
 
-chrome.runtime.onStartup.addListener(() => {
-  void syncRegistrations();
-});
+chrome.runtime.onStartup.addListener(syncAll);
 
 chrome.permissions.onAdded.addListener(() => {
-  void completePending();
+  void completePending((feature, tab) => (feature === 'dark' ? setDarkMode(tab, true) : setAutoOpen(tab.url, true)));
 });
 
-chrome.permissions.onRemoved.addListener(() => {
-  void syncRegistrations();
-});
+chrome.permissions.onRemoved.addListener(syncAll);
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   void forgetTab(tabId);

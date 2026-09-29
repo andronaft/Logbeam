@@ -2,6 +2,7 @@
 2026-09-29 10:00:00.097  INFO 4242 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8080 (http)
 2026-09-29 10:00:00.109 DEBUG 4242 --- [main] o.s.web.servlet.DispatcherServlet        : Detected StandardServletMultipartResolver
 2026-09-29 10:00:00.158  INFO 4242 --- [main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-09-29 10:00:00.162 DEBUG 4242 --- [main] com.zaxxer.hikari.HikariConfig          : jdbcUrl=jdbc:postgresql://tdc:Sup3rS3cretPass@db.internal:5432/tdc
 2026-09-29 10:00:30.170  WARN 4242 --- [http-nio-8080-exec-1] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Connection is not available, request timed out after 30000ms
 2026-09-29 10:00:31.170  WARN 4242 --- [main] c.z.service.impl.GroupTrainingServiceImpl : Retry 1 of 10 for sync job 8123
 2026-09-29 10:00:32.170  WARN 4242 --- [main] c.z.service.impl.GroupTrainingServiceImpl : Retry 2 of 10 for sync job 8123
@@ -18,6 +19,7 @@ Caused by: java.net.ConnectException: Connection refused
 	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
 	... 42 common frames omitted
 2026-09-29 10:00:38.674  INFO 4242 --- [scheduling-1] c.z.TeamDanceCommunityApplication        : Restarting with fallback datasource
+2026-09-29 10:00:38.676  WARN 4242 --- [main] c.z.config.StorageConfig                 : Using static credentials AKIAIOSFODNN7EXAMPLE, prefer an IAM role
 2026-09-29 10:00:38.684  INFO 4242 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8080 (http) with context path ''
 2026-09-29 10:00:38.767  WARN 4242 --- [main] c.z.security.JwtTokenFilter              : Rejected expired JWT for /api/v1/users/getAllUserInfo
 2026-09-29 10:00:38.820 DEBUG 4242 --- [main] org.hibernate.SQL                        : select u.id, u.username, u.status from tdcbd.users u where u.username=?

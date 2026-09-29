@@ -33,10 +33,30 @@ function screenshotPage(title, subtitle, file) {
 }
 
 const SCREENSHOTS = [
-  ['1-log-viewer', 'Logs you can <span class="accent">actually read</span>', 'Levels in colour · stack traces grouped with their error · pauses between entries', 'docs/log-viewer.png'],
-  ['2-filters', 'Find the problem <span class="accent">in seconds</span>', 'Filter by level · regex search · collapse repeated lines (×6) · jump to next error', 'docs/log-viewer-filtered.png'],
-  ['3-json', 'Right-click → <span class="accent">Format JSON</span>', 'Works on any page · “Replace selection” writes the result back into inputs and editors', 'docs/text-tools.png'],
-  ['4-jwt', 'Decode a JWT <span class="accent">without pasting it anywhere</span>', 'Header, payload, dates and expiry, computed locally in your browser', 'docs/jwt.png'],
+  [
+    '1-log-viewer',
+    'Logs you can <span class="accent">actually read</span>',
+    'Levels in colour · stack traces grouped with their error · pauses · error timeline',
+    'docs/log-viewer.png',
+  ],
+  [
+    '2-secrets',
+    'Catches <span class="accent">leaked keys and passwords</span>',
+    'AWS keys, tokens, JWTs, DB passwords flagged with 🔑 · one click masks them everywhere',
+    'docs/secrets.png',
+  ],
+  [
+    '3-filters',
+    'Find the problem <span class="accent">in seconds</span>',
+    'Filter by level · regex search · collapse repeated lines (×6) · jump to next error',
+    'docs/log-viewer-filtered.png',
+  ],
+  [
+    '4-json',
+    'Right-click → <span class="accent">Format JSON</span>',
+    'Works on any page · “Replace selection” writes the result back into inputs and editors',
+    'docs/text-tools.png',
+  ],
 ];
 
 const POPUP_PAGE = `<style>${BASE_CSS}
@@ -48,10 +68,11 @@ const POPUP_PAGE = `<style>${BASE_CSS}
   .shot { height: 655px; }
 </style>
 <div class="text">
-  <h1>Dark mode and <span class="accent">15 dev tools</span> in one click</h1>
+  <h1>Dark mode and <span class="accent">16 dev tools</span> in one click</h1>
   <ul>
     <li>Dark mode for any site, per tab or remembered</li>
     <li>JSON · JWT · Base64 · URL · timestamps</li>
+    <li>Mask secrets before you paste a log into a chat</li>
     <li>Explain cron: 0 */15 * * * * → “Every 15 minutes”</li>
     <li>camelCase ⇄ snake_case ⇄ kebab-case</li>
     <li>100% local: no server, no analytics</li>

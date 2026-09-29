@@ -13,7 +13,7 @@ video,
 canvas,
 iframe,
 svg image,
-[style*="background-image"] {
+[style*='background-image'] {
   filter: invert(1) hue-rotate(180deg) !important;
 }
 
