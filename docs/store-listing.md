@@ -18,7 +18,7 @@ Developer Tools
 
 Logbeam makes raw logs readable and keeps everyday developer tools one right-click away.
 
-LOG VIEWER (Alt+Shift+L)
+LOG VIEWER (Ctrl+Shift+L)
 • ERROR / WARN / INFO / DEBUG / TRACE in colour, with counters and one-click filters
 • Java, Python and Go stack traces stay grouped with their error
 • Plain-text and regex search with highlighted matches
@@ -35,9 +35,10 @@ LEAKED SECRET DETECTION
 • One click masks them on screen and in everything you copy
 • "Mask secrets" in the right-click menu cleans up text before you paste it into a chat
 
-DARK MODE FOR ANY SITE (Alt+Shift+D)
+DARK MODE FOR ANY SITE (Ctrl+Shift+K)
 • Turn it on for the current tab, or remember it for a site
 • Photos and videos keep their real colours
+• Sites that already have a dark theme are left alone
 
 TEXT TOOLS: select text, right-click, then Logbeam
 • Format / minify JSON

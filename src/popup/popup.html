@@ -16,7 +16,7 @@
       <label class="switch-row">
         <span>
           Dark mode
-          <small id="dark-hint">Applies to this tab</small>
+          <small><span id="dark-hint">Applies to this tab</span> · <a href="#" id="dark-shortcut" class="shortcut"></a></small>
         </span>
         <input type="checkbox" id="dark-toggle" role="switch" />
       </label>
@@ -24,7 +24,10 @@
         <input type="checkbox" id="dark-remember" />
         <span>Remember for <b id="site-name">this site</b></span>
       </label>
-      <button id="open-viewer" class="wide">Open as log <kbd>Alt+Shift+L</kbd></button>
+      <div class="viewer-row">
+        <button id="open-viewer" class="wide">Open as log</button>
+        <a href="#" id="viewer-shortcut" class="shortcut"></a>
+      </div>
       <label class="check-row auto-row">
         <input type="checkbox" id="auto-open" />
         <span>Open plain-text logs on this site automatically</span>

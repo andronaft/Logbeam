@@ -104,19 +104,26 @@ function parseField(raw: string, spec: FieldSpec): Parsed {
     }
     if (range.includes('-')) {
       const [from, to] = range.split('-').map((v) => parseValue(v, spec));
+      if (from > to) {
+        throw new Error(
+          `Range ${range} in ${spec.name} runs backwards; split it, e.g. ${to}-${from} or ${from}-${spec.max},${spec.min}-${to}`,
+        );
+      }
       const base = `${label(from, spec)} through ${label(to, spec)}`;
       return { text: step ? `every ${step} ${spec.plural} from ${base}` : base, step, single: null };
     }
     const value = parseValue(range, spec);
     if (step) {
-      return { text: `every ${step} ${spec.plural} starting at ${label(value, spec)}`, step, single: null };
+      const start = spec === DAY ? `on day ${value}` : `at ${label(value, spec)}`;
+      return { text: `every ${step} ${spec.plural} starting ${start}`, step, single: null };
     }
     return { text: label(value, spec), step: null, single: value };
   });
 
   const single = parts.length === 1 ? parts[0].single : null;
   const step = parts.length === 1 ? parts[0].step : null;
-  return { any: false, step, single, text: joinList(parts.map((p) => p.text)) };
+  // "0,7" in day of week is Sunday twice
+  return { any: false, step, single, text: joinList([...new Set(parts.map((p) => p.text))]) };
 }
 
 function joinList(items: string[]): string {
@@ -133,13 +140,25 @@ export function explainCron(input: string): string {
   expression = MACROS[expression.toLowerCase()] ?? expression;
   const fields = expression.split(' ');
 
+  const looksLikeYear = (field: string) => /^(19[7-9]\d|2\d{3})([-,/].*)?$/.test(field);
   let second: Parsed | null = null;
+  let year: string | null = null;
   let rest = fields;
-  if (fields.length === 6) {
+  if (fields.length === 7) {
+    // Quartz: seconds first and a year last
+    second = parseField(fields[0], SECOND);
+    year = fields[6] === '*' || fields[6] === '?' ? null : fields[6];
+    rest = fields.slice(1, 6);
+  } else if (fields.length === 6) {
+    if (looksLikeYear(fields[5]) && !looksLikeYear(fields[0])) {
+      throw new Error(
+        `The last field "${fields[5]}" looks like a year. Six fields mean seconds first (Spring); with a year use the 7-field Quartz form: sec min hour day month weekday year`,
+      );
+    }
     second = parseField(fields[0], SECOND);
     rest = fields.slice(1);
   } else if (fields.length !== 5) {
-    throw new Error('A cron expression has 5 fields (min hour day month weekday) or 6 with seconds first');
+    throw new Error('A cron expression has 5 fields (min hour day month weekday), 6 with seconds first, or 7 with a year last');
   }
 
   const [minute, hour, day, month, weekday] = [
@@ -176,7 +195,7 @@ export function explainCron(input: string): string {
   }
 
   if (!day.any) {
-    parts.push(`on day ${day.text} of the month`);
+    parts.push(day.text.startsWith('every ') ? day.text : `on day ${day.text} of the month`);
   }
   if (!weekday.any) {
     parts.push(`on ${weekday.text}`);
@@ -184,11 +203,22 @@ export function explainCron(input: string): string {
   if (!month.any) {
     parts.push(`in ${month.text}`);
   }
+  if (year) {
+    parts.push(`in ${year}`);
+  }
 
   let sentence = parts.join(', ').replace(/^at /, 'At ');
   sentence = sentence.charAt(0).toUpperCase() + sentence.slice(1);
   if (!day.any && !weekday.any) {
     sentence += ' (in Unix cron a day matching EITHER the day of month OR the weekday fires)';
+  }
+  if (day.single !== null && month.single !== null) {
+    const maxDays = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month.single - 1];
+    if (day.single > maxDays) {
+      sentence += ` (never fires: ${MONTH_NAMES[month.single - 1]} has at most ${maxDays} days)`;
+    } else if (month.single === 2 && day.single === 29) {
+      sentence += ' (only in leap years)';
+    }
   }
   return sentence;
 }

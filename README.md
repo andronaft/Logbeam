@@ -33,7 +33,7 @@ Base64, timestamps, cron). All of it runs locally; no data leaves your browser.
 ### 🔦 Log viewer
 
 Open any raw log (a `.log` file, "View raw logs" in GitHub Actions, Jenkins console output, `kubectl logs`
-piped to a file…) with **Alt+Shift+L** or from the popup:
+piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup:
 
 - **Levels in colour** (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`) with counters and one-click filters
 - **Stack traces stay with their error**: Java `at …` / `Caused by:`, Python tracebacks and Go goroutines are
@@ -66,7 +66,8 @@ Slack and Stripe tokens, Google API keys, JWTs, private keys, `postgres://user:p
 
 ### 🌙 Dark mode for any site
 
-Toggle it from the popup or with **Alt+Shift+D**. "Remember for this site" asks for access to **that one
+Toggle it from the popup or with **Ctrl+Shift+K** (**⌃⇧K** on Mac). Pages that already have a dark theme are
+detected and left alone, and turning it off never reloads the page. "Remember for this site" asks for access to **that one
 site only**, and from then on the dark theme is applied before the page paints, so there's no white flash.
 Photos and videos keep their real colours.
 

@@ -205,3 +205,78 @@ describe('helpers', () => {
     expect(performance.now() - started).toBeLessThan(2000);
   });
 });
+
+describe('fixes from the 0.2.0 bug report', () => {
+  it('flags and masks the body of a PEM private key, not just its header', () => {
+    const lines = parseLog(
+      [
+        '2024-03-01 10:00:00 DEBUG loaded key:',
+        '-----BEGIN EC PRIVATE KEY-----',
+        'MHcCAQEEIBase64BodyLine1',
+        'MoreBase64Body==',
+        '-----END EC PRIVATE KEY-----',
+        '2024-03-01 10:00:01 INFO next',
+      ].join('\n'),
+    );
+    expect(lines.map((l) => [l.secret, l.secretBlock])).toEqual([
+      [false, false],
+      [true, false],
+      [true, true],
+      [true, true],
+      [false, false],
+      [false, false],
+    ]);
+    expect(lines[2].level).toBe('DEBUG');
+  });
+
+  it('shows pino and zap records with a date and a level name', () => {
+    const [pino, zap] = parseLog(
+      ['{"level":30,"time":1700000000000,"msg":"started"}', '{"level":"warn","ts":1700000000.25,"msg":"slow"}'].join('\n'),
+    );
+    expect(pino.text).toBe('2023-11-14T22:13:20.000Z INFO started');
+    expect(zap.text).toBe('2023-11-14T22:13:20.250Z warn slow');
+  });
+
+  it('collapses repeated entries together with their stack traces', () => {
+    const entry = (n: number) => [
+      `2024-03-01 10:00:0${n} ERROR Failed job ${n}`,
+      '\tat com.example.Job.run(Job.java:42)',
+      '\tat java.lang.Thread.run(Thread.java:833)',
+    ];
+    const lines = parseLog([1, 2, 3, 4, 5, 6].flatMap(entry).join('\n'));
+    const collapsed = collapseRepeats(lines);
+    expect(collapsed).toHaveLength(3);
+    expect(collapsed[0].repeat).toBe(6);
+  });
+
+  it('reads syslog, nginx, Android and epoch timestamps', () => {
+    expect(parseTimestamp('Sep 29 10:00:00 host sshd[1]: ok')).toBe(Date.UTC(new Date().getUTCFullYear(), 8, 29, 10, 0, 0));
+    expect(parseTimestamp('1.2.3.4 - - [29/Sep/2026:10:00:00 +0200] "GET / HTTP/1.1" 200')).toBe(Date.UTC(2026, 8, 29, 8, 0, 0));
+    expect(parseTimestamp('09-29 10:00:00.123  123  456 W Tag: msg')).toBe(
+      Date.UTC(new Date().getUTCFullYear(), 8, 29, 10, 0, 0, 123),
+    );
+    expect(parseTimestamp('1700000000 job done')).toBe(1700000000000);
+    expect(parseTimestamp('1700000000123 job done')).toBe(1700000000123);
+    expect(parseTimestamp('1234567890123456 not a time')).toBeNull();
+  });
+
+  it('detects levels in context only, so prose stays neutral', () => {
+    expect(detectLevel('no error here')).toBeNull();
+    expect(detectLevel('the information desk')).toBeNull();
+    expect(detectLevel('Error: ENOENT: no such file')).toBe('ERROR');
+    expect(detectLevel('<warn> disk')).toBe('WARN');
+    expect(detectLevel('E/ActivityManager( 123): crash')).toBe('ERROR');
+    expect(detectLevel('09-29 10:00:00.123  123  456 W Tag: low memory')).toBe('WARN');
+    expect(detectLevel('[W] disk almost full')).toBe('WARN');
+    expect(detectLevel('10:00:00 DBG cache hit')).toBe('DEBUG');
+  });
+
+  it('formats gaps without rounding artefacts', () => {
+    expect(formatGap(59_999)).toBe('+59.9s');
+    expect(formatGap(3_599_999)).toBe('+59m59s');
+    expect(formatGap(-5)).toBe('−5ms');
+    expect(formatGap(-3000)).toBe('−3.0s');
+    expect(formatGap(NaN)).toBe('');
+    expect(formatGap(Infinity)).toBe('');
+  });
+});

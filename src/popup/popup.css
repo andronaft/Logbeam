@@ -127,6 +127,31 @@ button.wide {
   justify-content: space-between;
   align-items: center;
 }
+a.shortcut {
+  color: var(--muted);
+  font:
+    11px ui-monospace,
+    Menlo,
+    Consolas,
+    monospace;
+  text-decoration: none;
+  white-space: nowrap;
+}
+a.shortcut:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.viewer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.viewer-row .wide {
+  flex: 1;
+}
+.note {
+  color: var(--accent);
+}
 kbd {
   color: var(--muted);
   font:

@@ -12,17 +12,21 @@ for (const file of ['manifest.json', 'dark.css', 'popup/popup.html', 'popup/popu
 }
 cpSync('icons', `${outdir}/icons`, { recursive: true });
 
-// The parse worker is inlined into the viewer as a string: a content script can only start
+// The workers are inlined into the viewer as strings: a content script can only start
 // a worker from a Blob, not from the extension's own URL.
-const worker = await esbuild.build({
-  entryPoints: ['src/content/parseWorker.ts'],
-  bundle: true,
-  format: 'iife',
-  target: 'chrome110',
-  minify: true,
-  write: false,
-});
-const workerCode = worker.outputFiles[0].text;
+const bundleWorker = async (entry) => {
+  const result = await esbuild.build({
+    entryPoints: [entry],
+    bundle: true,
+    format: 'iife',
+    target: 'chrome110',
+    minify: true,
+    write: false,
+  });
+  return result.outputFiles[0].text;
+};
+const parseWorkerCode = await bundleWorker('src/content/parseWorker.ts');
+const searchWorkerCode = await bundleWorker('src/content/searchWorker.ts');
 
 const options = {
   entryPoints: {
@@ -31,8 +35,13 @@ const options = {
     logViewer: 'src/content/viewerEntry.ts',
     autoOpen: 'src/content/autoOpen.ts',
     panel: 'src/content/panel.ts',
+    darkApi: 'src/content/darkApiEntry.ts',
+    darkAuto: 'src/content/darkAutoEntry.ts',
   },
-  define: { __PARSE_WORKER__: JSON.stringify(workerCode) },
+  define: {
+    __PARSE_WORKER__: JSON.stringify(parseWorkerCode),
+    __SEARCH_WORKER__: JSON.stringify(searchWorkerCode),
+  },
   outdir,
   bundle: true,
   // injected page scripts can't be ES modules, so everything is bundled as a plain script

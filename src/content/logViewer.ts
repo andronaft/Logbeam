@@ -1,18 +1,9 @@
-import {
-  CollapsedLine,
-  LEVELS,
-  Level,
-  LogLine,
-  buildMatcher,
-  collapseRepeats,
-  countByLevel,
-  filterLines,
-  formatGap,
-} from '../lib/logs';
+import { CollapsedLine, LEVELS, Level, LogLine, collapseRepeats, countByLevel, filterLines, formatGap } from '../lib/logs';
 import { findSecrets, maskSecrets } from '../lib/secrets';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
 import { parseLogAsync } from './parseAsync';
+import { RegexSearch } from './regexSearch';
 import { VIEWER_CSS } from './viewerStyles';
 
 /**
@@ -26,6 +17,8 @@ const ROW_HEIGHT = 20;
 const OVERSCAN = 30;
 const GAP_THRESHOLD_MS = 1000;
 const LINE_HASH = /^#L(\d+)$/;
+/** Highlighting only looks at the start of very long lines (a minified bundle, say); rows don't wrap anyway. */
+const HIGHLIGHT_LIMIT = 5000;
 
 interface State {
   levels: Set<Level>;
@@ -37,6 +30,8 @@ interface State {
   showGaps: boolean;
   maskSecrets: boolean;
   showTimeline: boolean;
+  /** Why the current search can't run (invalid or too slow regex); empty when it's fine. */
+  searchError: string;
   selected: number | null;
 }
 
@@ -114,6 +109,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     collapse: false,
     showGaps: true,
     maskSecrets: false,
+    searchError: '',
     showTimeline: timeline !== null,
     selected: null,
   };
@@ -132,7 +128,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
       else if (state.levels.has(key)) state.levels.delete(key);
       else state.levels.add(key);
       button.classList.toggle('on');
-      refresh();
+      void refresh();
     });
     button.hidden = counts[key] === 0; // nothing to filter
     return button;
@@ -142,7 +138,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     button.addEventListener('click', () => {
       button.classList.toggle('on');
       apply();
-      refresh();
+      void refresh();
     });
     return button;
   };
@@ -244,7 +240,20 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
   const toast = el('div', { className: 'toast' });
   body.append(toolbar, timelineEl, scroller, inspector, toast);
 
-  const displayText = (line: LogLine) => (state.maskSecrets && line.secret ? maskSecrets(line.text) : line.text);
+  const displayText = (line: LogLine) => {
+    if (!state.maskSecrets || !line.secret) return line.text;
+    // a line of a private key's base64 body has nothing recognisable to mask piece by piece
+    return line.secretBlock ? '****' : maskSecrets(line.text);
+  };
+
+  async function copy(text: string, message: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(message);
+    } catch {
+      showToast('Copy failed: the page doesn’t allow clipboard access');
+    }
+  }
 
   function showToast(message: string): void {
     toast.textContent = message;
@@ -258,10 +267,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
 
   function appendText(parent: HTMLElement, line: LogLine): void {
     const text = displayText(line);
-    const ranges: Range[] = searchRanges(text, state.query, state.regex, state.caseSensitive, 'match');
+    const head = text.length > HIGHLIGHT_LIMIT ? text.slice(0, HIGHLIGHT_LIMIT) : text;
+    const ranges: Range[] = state.searchError ? [] : searchRanges(head, state.query, state.regex, state.caseSensitive, 'match');
     if (line.secret && !state.maskSecrets) {
-      for (const secret of findSecrets(text)) {
-        ranges.push({ start: secret.start, end: secret.end, cls: 'secret' });
+      if (line.secretBlock) {
+        ranges.push({ start: 0, end: text.length, cls: 'secret' });
+      } else {
+        for (const secret of findSecrets(head)) {
+          ranges.push({ start: secret.start, end: secret.end, cls: 'secret' });
+        }
       }
     }
     for (const segment of toSegments(text, ranges)) {
@@ -280,15 +294,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     if (line.secret) facts.push(' · ', el('b', { className: 'secret-note' }, '🔑 contains a secret'));
 
     const copyLine = el('button', { className: 'toggle' }, 'Copy line');
-    copyLine.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(displayText(line));
-      showToast('Line copied');
-    });
+    copyLine.addEventListener('click', () => void copy(displayText(line), 'Line copied'));
     const copyLink = el('button', { className: 'toggle' }, 'Copy link');
-    copyLink.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(lineLink(line.number));
-      showToast('Link copied');
-    });
+    copyLink.addEventListener('click', () => void copy(lineLink(line.number), 'Link copied'));
     const close = el('button', { className: 'toggle', title: 'Close ( Esc )' }, '×');
     close.addEventListener('click', () => select(null));
 
@@ -318,16 +326,16 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     clearTimeout(debounce);
     debounce = window.setTimeout(() => {
       state.query = search.value;
-      refresh();
+      void refresh();
     }, 150);
   });
 
   nextError.addEventListener('click', () => jumpToNext((l) => l.level === 'ERROR' && !l.continuation));
   secretsButton.addEventListener('click', () => jumpToNext((l) => l.secret));
-  copyButton.addEventListener('click', async () => {
-    await navigator.clipboard.writeText(visible.map(displayText).join('\n'));
-    showToast(`${visible.length.toLocaleString()} lines copied`);
-  });
+  copyButton.addEventListener(
+    'click',
+    () => void copy(visible.map(displayText).join('\n'), `${visible.length.toLocaleString()} lines copied`),
+  );
   rawButton.addEventListener('click', () => location.reload());
 
   rows.addEventListener('click', (event) => {
@@ -337,7 +345,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     const number = Number(row.dataset.number);
     if (target.classList.contains('ln')) {
       select(number);
-      void navigator.clipboard.writeText(lineLink(number)).then(() => showToast(`Link to line ${number} copied`));
+      void copy(lineLink(number), `Link to line ${number} copied`);
       return;
     }
     // don't steal clicks that finish a text selection
@@ -350,7 +358,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
       if (event.key === 'Escape') {
         search.value = '';
         state.query = '';
-        refresh();
+        void refresh();
         scroller.focus();
       }
       return;
@@ -388,19 +396,40 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     else showToast('Nothing found in the visible lines');
   }
 
-  function refresh(): void {
-    let matcherError = '';
-    try {
-      buildMatcher(state);
-      search.classList.remove('invalid');
-    } catch (e) {
-      matcherError = (e as Error).message;
-      search.classList.add('invalid');
+  const regexSearch = new RegexSearch(allLines.map((l) => l.text));
+  let refreshId = 0;
+
+  /**
+   * Plain-text search is linear and runs here. Regex search runs in a worker with a time limit,
+   * so a pattern like (a+)+$ can't freeze the tab; results of outdated searches are dropped.
+   */
+  async function refresh(): Promise<void> {
+    const id = ++refreshId;
+    let error = '';
+    let mask: Uint8Array | null = null;
+    if (state.query && state.regex) {
+      status.textContent = 'Searching…';
+      const result = await regexSearch.search(state.query, state.caseSensitive);
+      if (id !== refreshId) return;
+      if ('error' in result) error = result.error;
+      else mask = result.mask;
     }
-    const filtered = matcherError ? [] : filterLines(allLines, state);
+    state.searchError = error;
+    search.classList.toggle('invalid', error !== '');
+    search.title = error;
+
+    let filtered: LogLine[];
+    if (error) {
+      filtered = [];
+    } else if (mask) {
+      const matches = mask;
+      filtered = filterLines(allLines, { ...state, query: '' }).filter((l) => matches[l.number - 1] === 1);
+    } else {
+      filtered = filterLines(allLines, state);
+    }
     visible = state.collapse ? collapseRepeats(filtered) : filtered.map((l) => ({ ...l, repeat: 1 }));
     spacer.style.height = `${visible.length * ROW_HEIGHT}px`;
-    status.textContent = matcherError || `${visible.length.toLocaleString()} / ${allLines.length.toLocaleString()} lines`;
+    status.textContent = error || `${visible.length.toLocaleString()} / ${allLines.length.toLocaleString()} lines`;
     renderInspector();
     render();
   }
@@ -436,7 +465,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     );
   }
 
-  refresh();
+  void refresh();
   scroller.focus();
 
   // #L120 in the address opens the viewer on that line

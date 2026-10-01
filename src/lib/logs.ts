@@ -20,6 +20,8 @@ export interface LogLine {
   json: Record<string, unknown> | null;
   /** The line shows a credential (key, token, password). */
   secret: boolean;
+  /** The whole line is part of a secret, e.g. the base64 body of a PEM private key. */
+  secretBlock: boolean;
 }
 
 const LEVEL_ALIASES: Record<string, Level> = {
@@ -34,15 +36,29 @@ const LEVEL_ALIASES: Record<string, Level> = {
   INFO: 'INFO',
   NOTICE: 'INFO',
   DEBUG: 'DEBUG',
+  DBG: 'DEBUG',
   FINE: 'DEBUG',
   TRACE: 'TRACE',
   FINER: 'TRACE',
   FINEST: 'TRACE',
 };
 
-// A level word on its own, optionally in brackets: "ERROR", "[warn]", "level=info" etc.
-const LEVEL_RE =
-  /(?:^|[\s[(|:=])(ERROR|ERR|FATAL|SEVERE|CRITICAL|PANIC|WARN|WARNING|INFO|NOTICE|DEBUG|FINE|TRACE|FINER|FINEST)(?=$|[\s\]):|,])/i;
+const LEVEL_WORDS = 'ERROR|ERR|FATAL|SEVERE|CRITICAL|PANIC|WARN|WARNING|INFO|NOTICE|DEBUG|DBG|FINE|TRACE|FINER|FINEST';
+// An upper-case level word on its own: "ERROR", "[WARN]", "W0301 WARNING:". Case-sensitive, so prose like
+// "no error here" doesn't turn a line red.
+const LEVEL_UPPER_RE = new RegExp(`(?:^|[\\s[(|:=<])(${LEVEL_WORDS})(?=$|[\\s\\]):|,>])`);
+// Lower- or mixed-case levels only where the context says it's a level: "level=info", "[warn]", "<debug>",
+// or a line starting with "Error: …"
+const LEVEL_CONTEXT_RES = [
+  new RegExp(`\\blevel["']?\\s*[=:]\\s*["']?(${LEVEL_WORDS})\\b`, 'i'),
+  new RegExp(`[[<(](${LEVEL_WORDS})[\\]>)]`, 'i'),
+  new RegExp(`^\\s*(${LEVEL_WORDS})(?=:\\s|\\s*$)`, 'i'),
+];
+// Android logcat: "E/ActivityManager( 123): …" and threadtime "09-29 10:00:00.123  123  456 W Tag: …"
+const ANDROID_RE = /^\s*([VDIWEF])\/[\w.$-]+\s*(?:\(\s*\d+\))?\s*:|^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}\s+\d+\s+\d+\s+([VDIWEF])\s/;
+// Single-letter level in brackets near the start: "[W] disk almost full"
+const LETTER_RE = /^.{0,40}?\[([VDIWEF])\]\s/;
+const LETTER_LEVELS: Record<string, Level> = { V: 'TRACE', D: 'DEBUG', I: 'INFO', W: 'WARN', E: 'ERROR', F: 'ERROR' };
 
 // Stack trace frames and wrapped exceptions (Java, JS, Python, Go).
 const CONTINUATION_RE =
@@ -52,20 +68,71 @@ const CONTINUATION_RE =
 const TIMESTAMP_RE = /(\d{4})[-/](\d{2})[-/](\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:[.,](\d{1,9}))?(Z|[+-]\d{2}:?\d{2})?/;
 
 export function detectLevel(text: string): Level | null {
-  const match = LEVEL_RE.exec(text.slice(0, 200));
-  return match ? LEVEL_ALIASES[match[1].toUpperCase()] : null;
+  const head = text.slice(0, 200);
+  const word = LEVEL_UPPER_RE.exec(head) ?? LEVEL_CONTEXT_RES.map((re) => re.exec(head)).find(Boolean);
+  if (word) return LEVEL_ALIASES[word[1].toUpperCase()];
+  const letter = ANDROID_RE.exec(head) ?? LETTER_RE.exec(head);
+  if (letter) return LETTER_LEVELS[letter[1] ?? letter[2]];
+  return null;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// nginx / Apache common log format: [29/Sep/2026:10:00:00 +0000]
+const CLF_RE = /(\d{2})\/([A-Z][a-z]{2})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})(?: ([+-]\d{4}))?/;
+// syslog: "Sep 29 10:00:00" at the start (no year)
+const SYSLOG_RE = /^([A-Z][a-z]{2}) {1,2}(\d{1,2}) (\d{2}):(\d{2}):(\d{2})\b/;
+// Android logcat threadtime: "09-29 10:00:00.123" at the start (no year)
+const MONTH_DAY_RE = /^(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{3})\b/;
+// Unix time at the start of the line, seconds (optionally with a fraction) or millis, 2001–2100
+const EPOCH_RE = /^\s*(\d{10}(?:\.\d+)?|\d{13})\b/;
+
+/** Formats without a year are read in the current year; only the gaps between lines matter for those. */
+const CURRENT_YEAR = new Date().getUTCFullYear();
+
+function utc(year: number, month: number, day: number, h: number, mi: number, s: number, ms = 0): number | null {
+  const time = Date.UTC(year, month, day, h, mi, s, ms);
+  return Number.isNaN(time) ? null : time;
 }
 
 export function parseTimestamp(text: string): number | null {
-  const m = TIMESTAMP_RE.exec(text.slice(0, 80));
+  const head = text.slice(0, 80);
+  const m = TIMESTAMP_RE.exec(head);
   if (!m) {
-    return null;
+    return parseOtherTimestamp(head);
   }
   const [, y, mo, d, h, mi, s, frac = '0', zone] = m;
   const millis = Number(frac.padEnd(3, '0').slice(0, 3));
   const iso = `${y}-${mo}-${d}T${h}:${mi}:${s}.${String(millis).padStart(3, '0')}${normalizeZone(zone)}`;
   const time = Date.parse(iso);
   return Number.isNaN(time) ? null : time;
+}
+
+function parseOtherTimestamp(head: string): number | null {
+  const clf = CLF_RE.exec(head);
+  if (clf && MONTHS.includes(clf[2])) {
+    const [, d, mon, y, h, mi, s, zone] = clf;
+    const time = utc(+y, MONTHS.indexOf(mon), +d, +h, +mi, +s);
+    if (time === null || !zone) return time;
+    const offset = (zone[0] === '-' ? -1 : 1) * (+zone.slice(1, 3) * 60 + +zone.slice(3)) * 60_000;
+    return time - offset;
+  }
+  const syslog = SYSLOG_RE.exec(head);
+  if (syslog && MONTHS.includes(syslog[1])) {
+    const [, mon, d, h, mi, s] = syslog;
+    return utc(CURRENT_YEAR, MONTHS.indexOf(mon), +d, +h, +mi, +s);
+  }
+  const monthDay = MONTH_DAY_RE.exec(head);
+  if (monthDay) {
+    const [, mo, d, h, mi, s, ms] = monthDay;
+    return utc(CURRENT_YEAR, +mo - 1, +d, +h, +mi, +s, +ms);
+  }
+  const epoch = EPOCH_RE.exec(head);
+  if (epoch) {
+    const value = Number(epoch[1]);
+    const millis = epoch[1].length === 13 ? value : value * 1000;
+    return millis >= 978_307_200_000 && millis < 4_102_444_800_000 ? Math.round(millis) : null;
+  }
+  return null;
 }
 
 function normalizeZone(zone: string | undefined): string {
@@ -107,8 +174,12 @@ function pick(record: Record<string, unknown>, keys: string[]): unknown {
 
 /** Renders a JSON record as "time LEVEL message {other fields}" so it reads like a plain log line. */
 export function formatJsonRecord(record: Record<string, unknown>): string {
-  const time = pick(record, JSON_TIME_KEYS);
-  const level = pick(record, JSON_LEVEL_KEYS);
+  // pino and zap write epoch numbers and numeric levels; show them as a date and a level name
+  const rawTime = pick(record, JSON_TIME_KEYS);
+  const millis = typeof rawTime === 'number' ? jsonTime(record) : null;
+  const time = millis !== null ? new Date(millis).toISOString() : rawTime;
+  const rawLevel = pick(record, JSON_LEVEL_KEYS);
+  const level = typeof rawLevel === 'number' ? (jsonLevel(record) ?? rawLevel) : rawLevel;
   const message = pick(record, JSON_MESSAGE_KEYS);
   const rest: Record<string, unknown> = {};
   const used = new Set([...JSON_TIME_KEYS, ...JSON_LEVEL_KEYS, ...JSON_MESSAGE_KEYS]);
@@ -143,7 +214,7 @@ function jsonLevel(record: Record<string, unknown>): Level | null {
 function jsonTime(record: Record<string, unknown>): number | null {
   const value = pick(record, JSON_TIME_KEYS);
   if (typeof value === 'number') {
-    return value < 1e12 ? value * 1000 : value; // seconds or millis
+    return Math.round(value < 1e12 ? value * 1000 : value); // seconds (zap: with a fraction) or millis
   }
   return typeof value === 'string' ? parseTimestamp(value) : null;
 }
@@ -161,7 +232,12 @@ export function splitLines(text: string): string[] {
  * level of the current entry, the previous timestamp), so a big log can be parsed in a
  * Web Worker or between animation frames with progress updates.
  */
+const PEM_BEGIN = /-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----/;
+const PEM_END = /-----END (?:[A-Z]+ )*PRIVATE KEY-----/;
+
 export class LogParser {
+  /** Inside a PEM private key: its body lines don't look like secrets on their own. */
+  private inPem = false;
   private currentLevel: Level | null = null;
   private lastTime: number | null = null;
   private count = 0;
@@ -171,6 +247,26 @@ export class LogParser {
   }
 
   private parseLine(raw: string): LogLine {
+    if (this.inPem) {
+      const body = !PEM_END.test(raw);
+      this.inPem = body;
+      // the key belongs to the entry that printed it
+      return {
+        number: ++this.count,
+        text: raw,
+        level: this.currentLevel,
+        continuation: true,
+        time: null,
+        gap: null,
+        json: null,
+        secret: body,
+        secretBlock: body,
+      };
+    }
+    if (PEM_BEGIN.test(raw) && !PEM_END.test(raw)) {
+      this.inPem = true;
+    }
+
     const json = parseJsonRecord(raw);
     const continuation = json === null && CONTINUATION_RE.test(raw);
 
@@ -204,6 +300,7 @@ export class LogParser {
       gap,
       json,
       secret: hasSecret(text),
+      secretBlock: false,
     };
   }
 }
@@ -277,17 +374,30 @@ export function signature(text: string): string {
     .trim();
 }
 
+/**
+ * Collapses consecutive repeated entries. An entry is a line plus its continuation lines (a stack
+ * trace), so six identical errors with the same trace become one entry marked ×6.
+ */
 export function collapseRepeats(lines: LogLine[]): CollapsedLine[] {
+  const entries: LogLine[][] = [];
+  for (const line of lines) {
+    const current = entries[entries.length - 1];
+    if (line.continuation && current) current.push(line);
+    else entries.push([line]);
+  }
+
   const result: CollapsedLine[] = [];
   let previousSignature: string | null = null;
-  for (const line of lines) {
-    const sig = signature(line.text);
-    const last = result[result.length - 1];
-    if (last && sig === previousSignature) {
-      last.repeat++;
+  let previousHead: CollapsedLine | null = null;
+  for (const entry of entries) {
+    const sig = entry.map((line) => signature(line.text)).join('\n');
+    if (previousHead && sig === previousSignature) {
+      previousHead.repeat++;
       continue;
     }
-    result.push({ ...line, repeat: 1 });
+    const collapsed = entry.map((line) => ({ ...line, repeat: 1 }));
+    result.push(...collapsed);
+    previousHead = collapsed[0];
     previousSignature = sig;
   }
   return result;
@@ -301,9 +411,15 @@ export function countByLevel(lines: LogLine[]): Record<Level | 'UNKNOWN', number
   return counts;
 }
 
+/** "+250ms", "+5.5s", "+2m5s", "+1.5h"; an out-of-order log gives a negative gap ("−3.0s"). */
 export function formatGap(ms: number): string {
-  if (ms < 1000) return `+${ms}ms`;
-  if (ms < 60_000) return `+${(ms / 1000).toFixed(1)}s`;
-  if (ms < 3_600_000) return `+${Math.floor(ms / 60_000)}m${Math.round((ms % 60_000) / 1000)}s`;
-  return `+${(ms / 3_600_000).toFixed(1)}h`;
+  if (!Number.isFinite(ms)) return '';
+  const sign = ms < 0 ? '−' : '+';
+  const abs = Math.abs(Math.round(ms));
+  if (abs < 1000) return `${sign}${abs}ms`;
+  const tenths = Math.floor(abs / 100); // truncate, so 59 999 ms doesn't round up to "60.0s"
+  if (tenths < 600) return `${sign}${(tenths / 10).toFixed(1)}s`;
+  const seconds = Math.floor(abs / 1000);
+  if (seconds < 3600) return `${sign}${Math.floor(seconds / 60)}m${seconds % 60}s`;
+  return `${sign}${(Math.floor(abs / 360_000) / 10).toFixed(1)}h`;
 }

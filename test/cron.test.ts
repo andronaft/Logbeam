@@ -41,4 +41,14 @@ describe('explainCron', () => {
     expect(() => explainCron('* * *')).toThrow(/5 fields/);
     expect(() => explainCron('61 * * * *')).toThrow(/out of range/);
   });
+
+  it('handles the edge cases from the 0.2.0 bug report', () => {
+    expect(explainCron('0 0 * * 0,7')).toBe('At 00:00, on Sunday');
+    expect(() => explainCron('0 0 * * 5-1')).toThrow(/runs backwards/);
+    expect(explainCron('0 0 31 2 *')).toContain('never fires: February has at most 29 days');
+    expect(explainCron('0 0 29 2 *')).toContain('only in leap years');
+    expect(explainCron('0 0 1/2 * *')).toBe('At 00:00, every 2 days starting on day 1');
+    expect(() => explainCron('0 12 * * MON 2026')).toThrow(/looks like a year/);
+    expect(explainCron('0 0 12 * * ? 2027')).toBe('At 12:00, in 2027');
+  });
 });

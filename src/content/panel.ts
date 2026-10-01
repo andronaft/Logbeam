@@ -8,8 +8,22 @@ import { findTransform } from '../lib/transforms';
 
 type Source =
   | { kind: 'field'; element: HTMLInputElement | HTMLTextAreaElement; start: number; end: number }
+  /** Inputs without a text selection API (type=number): the whole value is replaced. */
+  | { kind: 'value'; element: HTMLInputElement }
   | { kind: 'editable'; element: HTMLElement; range: Range }
   | { kind: 'page' };
+
+// Input types with selectionStart/End. Password fields are deliberately left out.
+const SELECTABLE_INPUT = /^(text|search|url|email|tel|)$/;
+
+/** The focused element, looking inside open shadow roots (web components). */
+function deepActiveElement(): Element | null {
+  let active = document.activeElement;
+  while (active?.shadowRoot?.activeElement) {
+    active = active.shadowRoot.activeElement;
+  }
+  return active;
+}
 
 interface PanelApi {
   run(id: string): void;
@@ -22,20 +36,18 @@ declare global {
 }
 
 function captureSelection(): { text: string; source: Source } {
-  const active = document.activeElement;
-  if (
-    (active instanceof HTMLTextAreaElement ||
-      (active instanceof HTMLInputElement && /^(text|search|url|email|)$/.test(active.type))) &&
-    active.selectionStart !== null &&
-    active.selectionEnd !== null
-  ) {
-    const start = active.selectionStart;
-    const end = active.selectionEnd;
+  const active = deepActiveElement();
+  if (active instanceof HTMLTextAreaElement || (active instanceof HTMLInputElement && SELECTABLE_INPUT.test(active.type))) {
+    const start = active.selectionStart ?? 0;
+    const end = active.selectionEnd ?? 0;
     // nothing selected in a field: work on the whole value
     if (start === end) {
       return { text: active.value, source: { kind: 'field', element: active, start: 0, end: active.value.length } };
     }
     return { text: active.value.slice(start, end), source: { kind: 'field', element: active, start, end } };
+  }
+  if (active instanceof HTMLInputElement && active.type === 'number') {
+    return { text: active.value, source: { kind: 'value', element: active } };
   }
 
   const selection = window.getSelection();
@@ -48,6 +60,12 @@ function captureSelection(): { text: string; source: Source } {
       '[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]',
     );
     if (editable) {
+      if (!text) {
+        // nothing selected in an editor: work on all of it, like in a textarea
+        const all = document.createRange();
+        all.selectNodeContents(editable);
+        return { text: editable.innerText, source: { kind: 'editable', element: editable, range: all } };
+      }
       return { text, source: { kind: 'editable', element: editable, range: range.cloneRange() } };
     }
   }
@@ -55,6 +73,11 @@ function captureSelection(): { text: string; source: Source } {
 }
 
 function replaceSource(source: Source, value: string): boolean {
+  if (source.kind === 'value') {
+    source.element.value = value;
+    source.element.dispatchEvent(new Event('input', { bubbles: true }));
+    return source.element.value === value; // a number input rejects non-numbers
+  }
   if (source.kind === 'field') {
     const { element, start, end } = source;
     element.focus();
@@ -112,6 +135,9 @@ function close(): void {
 
 function onKeyDown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
+    // the page shouldn't also react, e.g. by closing its own dialog
+    event.stopPropagation();
+    event.preventDefault();
     close();
   }
 }
@@ -152,8 +178,12 @@ function show(title: string, output: string, isError: boolean, source: Source): 
     const copy = document.createElement('button');
     copy.textContent = 'Copy';
     copy.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(output);
-      copy.textContent = 'Copied ✓';
+      try {
+        await navigator.clipboard.writeText(output);
+        copy.textContent = 'Copied ✓';
+      } catch {
+        copy.textContent = 'Copy blocked by the page';
+      }
     });
     footer.append(copy);
 

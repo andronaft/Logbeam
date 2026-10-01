@@ -117,8 +117,47 @@ describe('lines', () => {
 
 describe('mask secrets', () => {
   it('masks and explains when there is nothing to mask', () => {
-    expect(TRANSFORMS.find((t) => t.id === 'mask-secrets')!.apply('password=hunter2hunter2')).toBe('password=hunt**********');
+    expect(TRANSFORMS.find((t) => t.id === 'mask-secrets')!.apply('password=hunter2hunter2')).toBe('password=********');
     expect(() => TRANSFORMS.find((t) => t.id === 'mask-secrets')!.apply('hello')).toThrow(/No secrets/);
+  });
+});
+
+describe('fixes from the 0.2.0 bug report', () => {
+  it('keeps big and precise numbers exactly as written', () => {
+    expect(formatJson('{"id":12345678901234567890,"price":1.10,"e":1E+3}')).toBe(
+      '{\n  "id": 12345678901234567890,\n  "price": 1.10,\n  "e": 1E+3\n}',
+    );
+    expect(minifyJson('{ "id" : 12345678901234567890 , "tags" : [ ] , "o" : { } }')).toBe(
+      '{"id":12345678901234567890,"tags":[],"o":{}}',
+    );
+  });
+
+  it('keeps strings with escapes, brackets and commas intact', () => {
+    const json = '{"s":"a, b: [c] {d} \\"quoted\\" \\\\"}';
+    expect(JSON.parse(formatJson(json))).toEqual(JSON.parse(json));
+    expect(minifyJson(formatJson(json))).toBe(json);
+  });
+
+  it('formats nested arrays', () => {
+    expect(formatJson('[1,[2,3],[]]')).toBe('[\n  1,\n  [\n    2,\n    3\n  ],\n  []\n]');
+  });
+
+  it('reads JWT dates written in milliseconds and says so', () => {
+    const payload = base64Encode(JSON.stringify({ exp: 1700003600000 })).replace(/=+$/, '');
+    const described = describeJwt(`eyJhbGciOiJIUzI1NiJ9.${payload}.sig`, 1700000000000);
+    expect(described).toContain('exp: 2023-11-14T23:13:20.000Z  (looks like milliseconds');
+    expect(described).toContain('valid for another 1h 0m');
+  });
+
+  it('recognises microsecond and nanosecond timestamps', () => {
+    expect(convertTimestamp('1700000000000000')).toContain('2023-11-14T22:13:20.000Z');
+    expect(convertTimestamp('1700000000000000')).toContain('microseconds');
+    expect(convertTimestamp('1700000000000000000')).toContain('nanoseconds');
+  });
+
+  it('sorts lines without CRLF leftovers or a leading empty line', () => {
+    expect(sortLines('b\r\na\r\n')).toBe('a\nb\n');
+    expect(uniqueLines('a\r\nb\r\na\r\n')).toBe('a\nb\n');
   });
 });
 

@@ -10,12 +10,55 @@ export interface Transform {
   apply: (input: string) => string;
 }
 
+/**
+ * Pretty-prints JSON without round-tripping it through JS numbers: JSON.parse would turn the
+ * snowflake id 12345678901234567890 into 12345678901234567000 and 1.10 into 1.1. The input is
+ * validated with JSON.parse, then re-indented token by token, copying every literal verbatim.
+ */
 export function formatJson(input: string): string {
-  return JSON.stringify(parseJson(input), null, 2);
+  return reformatJson(input, '  ');
 }
 
 export function minifyJson(input: string): string {
-  return JSON.stringify(parseJson(input));
+  return reformatJson(input, null);
+}
+
+function reformatJson(input: string, indent: string | null): string {
+  const text = input.trim();
+  parseJson(text); // throws a readable error for invalid input
+  let out = '';
+  let depth = 0;
+  const newline = () => (indent === null ? '' : '\n' + indent.repeat(depth));
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j;
+    } else if (c === '{' || c === '[') {
+      // keep empty objects and arrays on one line
+      let j = i + 1;
+      while (/\s/.test(text[j])) j++;
+      if (text[j] === (c === '{' ? '}' : ']')) {
+        out += c + text[j];
+        i = j;
+      } else {
+        depth++;
+        out += c + newline();
+      }
+    } else if (c === '}' || c === ']') {
+      depth--;
+      out += newline() + c;
+    } else if (c === ',') {
+      out += ',' + newline();
+    } else if (c === ':') {
+      out += indent === null ? ':' : ': ';
+    } else if (!/\s/.test(c)) {
+      out += c; // numbers, true, false, null: copied as written
+    }
+  }
+  return out;
 }
 
 function parseJson(input: string): unknown {
@@ -94,14 +137,18 @@ export function describeJwt(input: string, now: number = Date.now()): string {
   const { header, payload, signaturePresent } = decodeJwt(input);
   const lines = ['// header', JSON.stringify(header, null, 2), '// payload', JSON.stringify(payload, null, 2)];
   const claims: string[] = [];
+  // RFC 7519 dates are seconds; some issuers wrongly put milliseconds there
+  const looksLikeMillis = (value: number) => value > 1e11;
   for (const claim of ['iat', 'nbf', 'exp'] as const) {
     const value = payload[claim];
     if (typeof value === 'number') {
-      claims.push(`${claim}: ${new Date(value * 1000).toISOString()}`);
+      const millis = looksLikeMillis(value) ? value : value * 1000;
+      const note = looksLikeMillis(value) ? '  (looks like milliseconds; JWT dates should be seconds)' : '';
+      claims.push(`${claim}: ${new Date(millis).toISOString()}${note}`);
     }
   }
   if (typeof payload.exp === 'number') {
-    const left = payload.exp * 1000 - now;
+    const left = (looksLikeMillis(payload.exp) ? payload.exp : payload.exp * 1000) - now;
     claims.push(left > 0 ? `valid for another ${formatDuration(left)}` : `EXPIRED ${formatDuration(-left)} ago`);
   }
   if (claims.length > 0) {
@@ -127,14 +174,22 @@ function formatDuration(ms: number): string {
  */
 export function convertTimestamp(input: string): string {
   const trimmed = input.trim();
-  if (/^-?\d{1,16}(\.\d+)?$/.test(trimmed)) {
+  if (/^-?\d{1,19}(\.\d+)?$/.test(trimmed)) {
     const value = Number(trimmed);
-    const millis = Math.abs(value) < 1e11 ? value * 1000 : value;
+    // guess the unit from the size: seconds, millis, micros (Go, Postgres) or nanos (OpenTelemetry)
+    const [unit, millis] =
+      Math.abs(value) < 1e11
+        ? ['seconds', value * 1000]
+        : Math.abs(value) < 1e14
+          ? ['milliseconds', value]
+          : Math.abs(value) < 1e17
+            ? ['microseconds', value / 1000]
+            : ['nanoseconds', value / 1e6];
     const date = new Date(millis);
     if (Number.isNaN(date.getTime())) {
       throw new Error('Not a valid timestamp');
     }
-    return [`UTC:   ${date.toISOString()}`, `Local: ${date.toString()}`].join('\n');
+    return [`UTC:   ${date.toISOString()}`, `Local: ${date.toString()}`, `(read as ${unit})`].join('\n');
   }
   const millis = Date.parse(trimmed);
   if (Number.isNaN(millis)) {
@@ -162,15 +217,21 @@ export const toSnakeCase = (s: string) => words(s).join('_');
 export const toKebabCase = (s: string) => words(s).join('-');
 export const toConstantCase = (s: string) => words(s).join('_').toUpperCase();
 
+/** Lines without CRLF leftovers; a final line break is remembered rather than sorted as an empty line. */
+function toLines(input: string): { lines: string[]; trailingNewline: boolean } {
+  const normalized = input.replace(/\r\n?/g, '\n');
+  const trailingNewline = normalized.endsWith('\n');
+  return { lines: (trailingNewline ? normalized.slice(0, -1) : normalized).split('\n'), trailingNewline };
+}
+
 export function sortLines(input: string): string {
-  return input
-    .split('\n')
-    .sort((a, b) => a.localeCompare(b))
-    .join('\n');
+  const { lines, trailingNewline } = toLines(input);
+  return lines.sort((a, b) => a.localeCompare(b)).join('\n') + (trailingNewline ? '\n' : '');
 }
 
 export function uniqueLines(input: string): string {
-  return [...new Set(input.split('\n'))].join('\n');
+  const { lines, trailingNewline } = toLines(input);
+  return [...new Set(lines)].join('\n') + (trailingNewline ? '\n' : '');
 }
 
 /** Masks keys, tokens and passwords, e.g. before pasting a log or config into a chat. */

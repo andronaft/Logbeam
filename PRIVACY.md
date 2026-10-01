@@ -1,6 +1,6 @@
 # Logbeam Privacy Policy
 
-_Last updated: September 29, 2026 (version 0.2.0)_
+_Last updated: October 1, 2026 (version 0.2.1)_
 
 Logbeam is a Chrome extension that runs entirely in your browser.
 
@@ -17,6 +17,8 @@ Logbeam is a Chrome extension that runs entirely in your browser.
 - **Settings.** The lists of sites where you chose "Remember dark mode" or "Open logs automatically" are saved with `chrome.storage.sync`.
   If Chrome sync is on, Google syncs this list between your own browsers, as it does for all extension settings.
   Logbeam itself never receives it.
+- **Popup text box.** Text you paste into the popup's tools is kept in memory (`chrome.storage.session`) so it
+  survives closing the popup. It is never written to disk and is gone when the browser closes.
 - **Clipboard.** The "Copy" buttons write to your clipboard only when you click them.
 
 ## Permissions
@@ -25,7 +27,7 @@ Logbeam is a Chrome extension that runs entirely in your browser.
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `activeTab`, `scripting`  | Running the log viewer or a text tool on the current tab when you click, use the context menu or press a shortcut                                                               |
 | `contextMenus`            | The "Logbeam" right-click menu                                                                                                                                                  |
-| `storage`                 | Remembering your dark-mode sites                                                                                                                                                |
+| `storage`                 | Remembering your per-site settings                                                                                                                                              |
 | Optional access to a site | Requested only when you turn on "Remember dark mode" or "Open logs automatically" for a site, and only for that site. You can revoke it at any time in the extension's settings |
 
 ## Sharing

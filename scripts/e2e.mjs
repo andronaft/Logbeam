@@ -22,7 +22,37 @@ function check(name, ok, detail = '') {
   if (!ok) failures++;
 }
 
+const redosLog = Array.from({ length: 50 }, () => `${'a'.repeat(34)}b`).join('\n');
+const pemLog = [
+  '2026-09-29 10:00:00 DEBUG loaded signing key:',
+  '-----BEGIN EC PRIVATE KEY-----',
+  'MHcCAQEEIFakeKeyBodyLineOneAAAAAAAAAAAAAAAAAAAAAAAA',
+  'oAoGCCqGSM49AwEHoUQDQgAEFakeKeyBodyLineTwoBBBBBBBB==',
+  '-----END EC PRIVATE KEY-----',
+  '2026-09-29 10:00:01 INFO started',
+].join('\n');
+const plainPages = { '/redos.log': redosLog, '/pem.log': pemLog };
+const htmlPages = {
+  '/light': '<!doctype html><body style="background:#fff;color:#111"><p>Light page</p></body>',
+  '/dark': '<!doctype html><body style="background:#0d1117;color:#e6edf3"><p>Already dark</p></body>',
+  '/editors': `<!doctype html><body>
+    <div id="ce" contenteditable="true">{"a":1,"b":[1,2]}</div>
+    <script>window.pageEscapes = 0; document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.pageEscapes++; });</script>
+  </body>`,
+};
+
 const server = createServer((req, res) => {
+  const path = req.url.split('#')[0];
+  if (plainPages[path] !== undefined) {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(plainPages[path]);
+    return;
+  }
+  if (htmlPages[path] !== undefined) {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(htmlPages[path]);
+    return;
+  }
   const url = req.url.split('#')[0];
   if (url === '/csp-big.log') {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Security-Policy': "worker-src 'none'" });
@@ -155,6 +185,85 @@ check(
   (await strict.locator('.status').textContent()) === `${BIG_LINES.toLocaleString()} / ${BIG_LINES.toLocaleString()} lines`,
 );
 await strict.close();
+
+// ---- regex searches can't freeze the tab --------------------------------------------------
+const redos = await context.newPage();
+watch(redos);
+await redos.goto(`${base}/redos.log`);
+await redos.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await redos.waitForSelector('.row');
+await redos.locator('.toggle', { hasText: '.*' }).click();
+await redos.locator('.search').fill('(a+)+$');
+await redos.waitForTimeout(400);
+check('nested quantifiers are refused at once', (await redos.locator('.status').textContent()).includes('Nested quantifiers'));
+await redos.locator('.search').fill('(a|aa)+$');
+const slowStarted = Date.now();
+await redos.waitForFunction(() => document.querySelector('.status').textContent.includes('took over'), null, {
+  timeout: 10_000,
+});
+check('a catastrophic regex is stopped by the worker timeout', true, `${Date.now() - slowStarted} ms`);
+const pingStarted = Date.now();
+await redos.evaluate(() => 1 + 1);
+check('the tab stays responsive', Date.now() - pingStarted < 500, `${Date.now() - pingStarted} ms`);
+await redos.locator('.search').fill('a{3}b');
+await redos.waitForTimeout(500);
+check('normal regex search still works after a stopped one', (await redos.locator('.status').textContent()) === '50 / 50 lines');
+await redos.close();
+
+// ---- private keys are masked as a whole ----------------------------------------------------
+const pem = await context.newPage();
+watch(pem);
+await pem.goto(`${base}/pem.log`);
+await pem.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await pem.waitForSelector('.row');
+check('the key header and every body line are flagged', (await pem.locator('.row.has-secret').count()) === 3);
+await pem.locator('.toggle', { hasText: 'Mask' }).click();
+const pemText = await pem.locator('.rows').textContent();
+check('Mask hides the whole key body', !pemText.includes('FakeKeyBody'), pemText.slice(0, 120));
+await pem.close();
+
+// ---- dark mode leaves already-dark pages alone ----------------------------------------------
+const darkCss = readFileSync(path.join(dist, 'dark.css'), 'utf8');
+for (const [page, expected] of [
+  ['/light', 'on'],
+  ['/dark', 'native-dark'],
+]) {
+  const tab = await context.newPage();
+  watch(tab);
+  await tab.goto(`${base}${page}`);
+  await tab.addStyleTag({ content: darkCss });
+  await tab.addScriptTag({ path: path.join(dist, 'darkApi.js') });
+  const state = await tab.evaluate(() => window.__logbeamDark.set(true));
+  const filtered = await tab.evaluate(() => getComputedStyle(document.documentElement).filter !== 'none');
+  check(`dark mode on ${page}: ${expected}`, state === expected && filtered === (expected === 'on'), `${state}`);
+  const off = await tab.evaluate(() => window.__logbeamDark.set(false));
+  check(
+    `dark mode turns off on ${page} without a reload`,
+    off === 'off' && (await tab.evaluate(() => getComputedStyle(document.documentElement).filter)) === 'none',
+  );
+  await tab.close();
+}
+
+// ---- panel: editors without a selection, Esc stays in the panel -----------------------------
+const editors = await context.newPage();
+watch(editors);
+await editors.goto(`${base}/editors`);
+await editors.addScriptTag({ path: path.join(dist, 'panel.js') });
+await editors.locator('#ce').click();
+await editors.evaluate(() => {
+  const sel = getSelection();
+  sel.collapse(document.getElementById('ce').firstChild, 0);
+});
+await editors.evaluate(() => window.__logbeamPanel.run('json-format'));
+await editors.waitForSelector('logbeam-panel .panel');
+check(
+  'contenteditable without a selection uses all its text',
+  (await editors.locator('logbeam-panel pre').textContent()).includes('"b": ['),
+);
+await editors.keyboard.press('Escape');
+check('Esc closes the panel', (await editors.locator('logbeam-panel').count()) === 0);
+check("Esc doesn't reach the page", (await editors.evaluate(() => window.pageEscapes)) === 0);
+await editors.close();
 
 // ---- text tools ---------------------------------------------------------------------------
 const editor = await context.newPage();

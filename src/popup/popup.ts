@@ -1,10 +1,20 @@
 import { TRANSFORMS } from '../lib/transforms';
-import { autoOpenSites, isAutoOpen, setAutoOpen } from '../shared/autoOpen';
-import { isDarkForTab, markPending, originPattern, rememberedSites, setDarkMode } from '../shared/darkMode';
-import { openLogViewer } from '../shared/inject';
+import { isAutoOpen, setAutoOpen } from '../shared/autoOpen';
+import {
+  DarkResult,
+  isDarkForTab,
+  markPending,
+  originPattern,
+  releaseSiteIfUnused,
+  rememberedSites,
+  setDarkMode,
+} from '../shared/darkMode';
+import { openLogViewer, whyNotAllowed } from '../shared/inject';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
+// chrome.storage.session lives in memory only: pasted tokens never reach the disk and are gone
+// when the browser closes
 const INPUT_KEY = 'popupInput';
 
 async function currentTab(): Promise<chrome.tabs.Tab | undefined> {
@@ -36,6 +46,18 @@ async function setupSite(): Promise<void> {
     return;
   }
 
+  const showNote = (text: string) => {
+    note.hidden = false;
+    note.textContent = text;
+  };
+  const explainDark = async (result: DarkResult) => {
+    if (result.state === 'native-dark') {
+      showNote('This page already has a dark theme, so Logbeam leaves it as it is.');
+    } else if (result.state === null) {
+      showNote(await whyNotAllowed(tab.url));
+    }
+  };
+
   const refresh = async () => {
     darkToggle.checked = await isDarkForTab(tab);
     remember.checked = pattern !== null && (await rememberedSites()).includes(pattern);
@@ -45,7 +67,7 @@ async function setupSite(): Promise<void> {
   await refresh();
 
   darkToggle.addEventListener('change', async () => {
-    await setDarkMode(tab, darkToggle.checked);
+    await explainDark(await setDarkMode(tab, darkToggle.checked));
     await refresh();
   });
 
@@ -59,18 +81,13 @@ async function setupSite(): Promise<void> {
     void markPending(tab, feature);
     return request;
   };
-  const releaseSiteIfUnused = async () => {
-    const stillUsed = (await rememberedSites()).includes(pattern!) || (await autoOpenSites()).includes(pattern!);
-    if (!stillUsed) await chrome.permissions.remove({ origins: [pattern!] }).catch(() => undefined);
-  };
 
   remember.addEventListener('change', async () => {
     if (!pattern) return;
     if (remember.checked) {
-      if (await requestSite('dark')) await setDarkMode(tab, true);
+      if (await requestSite('dark')) await explainDark(await setDarkMode(tab, true, true));
     } else {
-      await setDarkMode(tab, false);
-      await releaseSiteIfUnused();
+      await setDarkMode(tab, false); // forgets the site and releases its permission if unused
     }
     await refresh();
   });
@@ -81,15 +98,36 @@ async function setupSite(): Promise<void> {
       if (await requestSite('auto-open')) await setAutoOpen(tab.url, true);
     } else {
       await setAutoOpen(tab.url, false);
-      await releaseSiteIfUnused();
+      await releaseSiteIfUnused(pattern);
     }
     await refresh();
   });
 
   openViewer.addEventListener('click', async () => {
-    await openLogViewer(tab.id!);
-    window.close();
+    const result = await openLogViewer(tab.id!);
+    if (result.ok) window.close();
+    else showNote(result.reason); // stay open so the reason can be read
   });
+}
+
+/** Shows the shortcuts actually assigned; Chrome leaves one empty when it clashes with another. */
+async function setupShortcuts(): Promise<void> {
+  const commands = await chrome.commands.getAll();
+  const shortcut = (name: string) => commands.find((c) => c.name === name)?.shortcut ?? '';
+  const openShortcuts = (event: Event) => {
+    event.preventDefault();
+    void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+  };
+  for (const [id, name] of [
+    ['viewer-shortcut', 'open-log-viewer'],
+    ['dark-shortcut', 'toggle-dark-mode'],
+  ] as const) {
+    const element = $(id);
+    const keys = shortcut(name);
+    element.textContent = keys || 'set shortcut';
+    element.title = keys ? 'Change on chrome://extensions/shortcuts' : 'No shortcut assigned. Click to set one.';
+    element.addEventListener('click', openShortcuts);
+  }
 }
 
 function setupTools(): void {
@@ -99,17 +137,11 @@ function setupTools(): void {
   const grid = $('transforms');
   const copy = $<HTMLButtonElement>('copy');
 
-  try {
-    input.value = localStorage.getItem(INPUT_KEY) ?? '';
-  } catch {
-    // storage can be unavailable; the popup still works
-  }
+  void chrome.storage.session.get(INPUT_KEY).then((data) => {
+    if (!input.value) input.value = (data[INPUT_KEY] as string | undefined) ?? '';
+  });
   input.addEventListener('input', () => {
-    try {
-      localStorage.setItem(INPUT_KEY, input.value);
-    } catch {
-      // ignore
-    }
+    void chrome.storage.session.set({ [INPUT_KEY]: input.value });
   });
 
   for (const transform of TRANSFORMS) {
@@ -133,8 +165,12 @@ function setupTools(): void {
   }
 
   copy.addEventListener('click', async () => {
-    await navigator.clipboard.writeText(output.textContent ?? '');
-    copy.textContent = 'Copied ✓';
+    try {
+      await navigator.clipboard.writeText(output.textContent ?? '');
+      copy.textContent = 'Copied ✓';
+    } catch {
+      copy.textContent = 'Copy failed';
+    }
   });
   $('use-output').addEventListener('click', () => {
     input.value = output.textContent ?? '';
@@ -145,3 +181,4 @@ function setupTools(): void {
 
 setupTools();
 void setupSite();
+void setupShortcuts();

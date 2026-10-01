@@ -31,6 +31,21 @@ describe('findSecrets', () => {
     expect(values('jwt.token.secret=zuk-secret')).toEqual(['zuk-secret']);
   });
 
+  it('finds framework and OAuth style secrets', () => {
+    expect(values('SECRET_KEY=django-insecure-abc123')).toEqual(['django-insecure-abc123']);
+    expect(values('access_token=ya29.a0AfH6SMBx')).toEqual(['ya29.a0AfH6SMBx']);
+    expect(values('refresh_token: 1//0gLrefresh')).toEqual(['1//0gLrefresh']);
+    expect(values('token=abcdef123456')).toEqual(['abcdef123456']);
+    expect(values('private_key = "MIIEvQIBADAN"')).toEqual(['MIIEvQIBADAN']);
+    expect(values('Authorization: Basic dXNlcjpwYXNzd29yZA==')).toEqual(['dXNlcjpwYXNzd29yZA==']);
+  });
+
+  it('ignores counters and logger names that only look like secrets', () => {
+    expect(hasSecret('tokens_used=1234 prompt_tokens=88')).toBe(false);
+    expect(hasSecret('WARN 4242 --- [main] c.z.security.JwtTokenFilter              : Rejected expired JWT')).toBe(false);
+    expect(hasSecret('INFO o.s.s.web.PasswordEncoderConfig : Using BCrypt')).toBe(false);
+  });
+
   it('finds passwords inside connection URLs', () => {
     expect(values('jdbc:postgresql://admin:s3cretPass@db:5432/app')).toEqual(['s3cretPass']);
     expect(kinds('postgres://user:pa55word@localhost/db')).toEqual(['Password in URL']);
@@ -52,10 +67,21 @@ describe('findSecrets', () => {
 });
 
 describe('maskSecrets', () => {
-  it('masks values but keeps the context readable', () => {
-    expect(maskSecrets('password=hunter2hunter2 user=anna')).toBe('password=hunt********** user=anna');
-    expect(maskSecrets('key AKIAIOSFODNN7EXAMPLE')).toBe('key AKIA****************');
+  it('masks values completely, keeping only a public type prefix', () => {
+    expect(maskSecrets('password=hunter2hunter2 user=anna')).toBe('password=******** user=anna');
+    expect(maskSecrets('key AKIAIOSFODNN7EXAMPLE')).toBe('key AKIA********');
+    expect(maskSecrets(`token ${GITHUB_TOKEN}`)).toBe('token ghp_********');
     expect(maskSecrets('postgres://user:pa55word@localhost/db')).toBe('postgres://user:********@localhost/db');
+  });
+
+  it("doesn't leak the length of a secret", () => {
+    expect(maskSecrets('password=abcd')).toBe(maskSecrets('password=abcdefghijklmnopqrstuvwxyz'));
+  });
+
+  it('masks quoted values with spaces and passwords containing @', () => {
+    expect(maskSecrets('{"password": "p@ss word long"}')).toBe('{"password": "********"}');
+    expect(maskSecrets("password='open sesame'")).toBe("password='********'");
+    expect(maskSecrets('postgres://u:p@ss@host:5432/db')).toBe('postgres://u:********@host:5432/db');
   });
 
   it('masks whole private key blocks', () => {
@@ -68,6 +94,6 @@ describe('maskSecrets', () => {
   });
 
   it('masks short values completely', () => {
-    expect(maskValue('abc12')).toBe('*****');
+    expect(maskValue('abc12')).toBe('********');
   });
 });
