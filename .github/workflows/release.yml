@@ -1,10 +1,12 @@
 name: release
 
-# Push a tag like v0.2.1 to test everything, publish a GitHub Release with the ZIP and, when the
-# Chrome Web Store secrets are set (docs/PUBLISHING.md), upload it to the store and submit it for review.
+# Release by pushing a tag like v0.2.1, or with "Run workflow" on the Actions tab (it tags the
+# version from src/manifest.json itself). Tests everything, publishes a GitHub Release with the ZIP
+# and, when the Chrome Web Store secrets are set (docs/PUBLISHING.md), submits it to the store.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -26,10 +28,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Check that the tag matches the manifest version
+      - name: Work out the release tag
         run: |
           version=$(node -p "require('./src/manifest.json').version")
-          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match manifest version $version"; exit 1; }
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match manifest version $version"; exit 1; }
+          elif git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "v$version is already released; bump the version in src/manifest.json and package.json first"; exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TAG=v$version" >> "$GITHUB_ENV"
       - run: npm run check
       - run: npx playwright install --with-deps chromium
       - name: End-to-end test in Chromium
@@ -37,10 +45,13 @@ jobs:
       - run: npm run package
       - name: Extract release notes from CHANGELOG.md
         run: |
-          version=${GITHUB_REF_NAME#v}
+          version=$VERSION
           awk "/^## \\[?$version\\]?/{flag=1; next} /^## /{flag=0} flag" CHANGELOG.md > notes.md
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Logbeam ${{ env.VERSION }}
           files: logbeam-*.zip
           body_path: notes.md
       - name: Publish to the Chrome Web Store

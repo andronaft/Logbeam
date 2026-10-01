@@ -4,7 +4,8 @@
 
 1. Bump `version` in `src/manifest.json` and `package.json` (the store needs a higher version each time).
 2. Add a `## X.Y.Z` section to `CHANGELOG.md`; it becomes the GitHub Release notes.
-3. Commit, then tag and push:
+3. Commit and push, then either click **Actions → release → Run workflow** on GitHub (it creates the
+   `vX.Y.Z` tag from the manifest version itself), or tag and push from a terminal:
 
    ```bash
    git tag v0.2.1
