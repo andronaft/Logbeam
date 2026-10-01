@@ -134,8 +134,9 @@ npm run store-assets  # Chrome Web Store screenshots and promo tiles from docs/*
 npm run icons         # regenerate the PNG icons (drawn in code, no image editor needed)
 ```
 
-Releases: bump the version in `src/manifest.json` and `package.json`, add a `CHANGELOG.md` entry, then push a
-`vX.Y.Z` tag. The release workflow runs every check and attaches the ZIP to a GitHub Release.
+Releases: bump the version, add a `CHANGELOG.md` entry and push a `vX.Y.Z` tag. The release workflow runs every
+check including the end-to-end test, attaches the ZIP to a GitHub Release, and uploads it to the Chrome Web Store
+for review. Setup and details: [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
 ```
 

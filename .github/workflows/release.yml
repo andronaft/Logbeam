@@ -1,6 +1,7 @@
 name: release
 
-# Push a tag like v0.2.0 to build, test and publish a GitHub Release with the store-ready ZIP.
+# Push a tag like v0.2.1 to test everything, publish a GitHub Release with the ZIP and, when the
+# Chrome Web Store secrets are set (docs/PUBLISHING.md), upload it to the store and submit it for review.
 on:
   push:
     tags: ['v*']
@@ -8,9 +9,16 @@ on:
 permissions:
   contents: write
 
+env:
+  CWS_EXTENSION_ID: kgjadbnghdgmcafdfgjhgfgcgnnnmcpe
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+      CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+      CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,6 +31,9 @@ jobs:
           version=$(node -p "require('./src/manifest.json').version")
           [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match manifest version $version"; exit 1; }
       - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - name: End-to-end test in Chromium
+        run: npm run e2e
       - run: npm run package
       - name: Extract release notes from CHANGELOG.md
         run: |
@@ -32,3 +43,9 @@ jobs:
         with:
           files: logbeam-*.zip
           body_path: notes.md
+      - name: Publish to the Chrome Web Store
+        if: env.CWS_REFRESH_TOKEN != ''
+        run: node scripts/publish-cws.mjs logbeam-*.zip
+      - name: Chrome Web Store skipped
+        if: env.CWS_REFRESH_TOKEN == ''
+        run: echo "::notice::CWS_* secrets are not set, so the store wasn't updated. See docs/PUBLISHING.md."
