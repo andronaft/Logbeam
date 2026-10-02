@@ -1,5 +1,5 @@
 // Zips the built extensions for the stores (manifest.json must be at the archive root):
-//   logbeam-<version>.zip          dist/          Chrome Web Store, Edge Add-ons, Opera add-ons
+//   logbeam-<version>.zip          dist/          Chrome Web Store (also loads in Edge, Opera, Brave)
 //   logbeam-firefox-<version>.zip  dist-firefox/  addons.mozilla.org
 //   logbeam-source-<version>.zip   the sources, which AMO asks for because the code is bundled
 import { execFileSync } from 'node:child_process';

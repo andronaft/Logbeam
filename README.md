@@ -111,7 +111,7 @@ Logbeam never asks for access to all sites up front. See the [privacy policy](PR
 
 **From the Chrome Web Store:** [Logbeam on the Chrome Web Store](https://chromewebstore.google.com/detail/logbeam/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe),
 one click and it updates itself. Works in Chrome, Edge, Brave, Opera and other Chromium browsers.
-Listings on Microsoft Edge Add-ons, Opera add-ons and Firefox Add-ons are on the way.
+A Firefox Add-ons listing is on the way.
 
 **Firefox** (140 or newer) gets its own build: the dark-mode shortcut there is **Ctrl+Shift+.**, because
 Ctrl+Shift+K opens Firefox's Web Console.
@@ -138,7 +138,7 @@ npm run e2e           # load the extension into Chromium with Playwright, click 
 npm run e2e:firefox   # the same for the Firefox build, with Selenium (needs Firefox and geckodriver)
 npm run lint:firefox  # the checks addons.mozilla.org runs on upload
 npm run check         # lint + format + typecheck + unit tests + build (what CI runs)
-npm run package       # logbeam-<version>.zip (Chrome, Edge, Opera), logbeam-firefox-<version>.zip, sources for AMO
+npm run package       # logbeam-<version>.zip (Chrome), logbeam-firefox-<version>.zip, sources for AMO
 npm run store-assets  # Chrome Web Store screenshots and promo tiles from docs/*.png
 npm run icons         # regenerate the PNG icons (drawn in code, no image editor needed)
 ```

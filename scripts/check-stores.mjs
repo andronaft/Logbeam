@@ -32,21 +32,6 @@ async function chrome() {
   ok('Chrome Web Store', `signed in; item ${item.id}, upload state ${item.uploadState}`);
 }
 
-async function edge() {
-  const names = ['EDGE_PRODUCT_ID', 'EDGE_CLIENT_ID', 'EDGE_API_KEY'];
-  if (missing(names).length) return console.log(`- Edge Add-ons: not set (${missing(names).join(', ')})`);
-  // there is no read-only endpoint; asking for an operation that doesn't exist tells a bad key (401/403)
-  // from a good one (404)
-  const response = await fetch(
-    `https://api.addons.microsoftedge.microsoft.com/v1/products/${env.EDGE_PRODUCT_ID}/submissions/operations/${randomUUID()}`,
-    { headers: { Authorization: `ApiKey ${env.EDGE_API_KEY}`, 'X-ClientID': env.EDGE_CLIENT_ID } },
-  );
-  if (response.status === 401 || response.status === 403) {
-    return bad('Edge Add-ons', `the API key or client ID was rejected (HTTP ${response.status})`);
-  }
-  ok('Edge Add-ons', `the API key is accepted (HTTP ${response.status} for a test request)`);
-}
-
 function amoToken() {
   const base64url = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
   const now = Math.floor(Date.now() / 1000);
@@ -75,7 +60,7 @@ async function firefox() {
   );
 }
 
-for (const check of [chrome, edge, firefox]) {
+for (const check of [chrome, firefox]) {
   try {
     await check();
   } catch (error) {

@@ -2,8 +2,8 @@ name: release
 
 # Release by pushing a tag like v0.2.1, or with "Run workflow" on the Actions tab (it tags the
 # version from src/manifest.json itself). Tests everything in Chromium and Firefox, publishes a
-# GitHub Release with the ZIPs and submits them to every store whose secrets are set
-# (docs/PUBLISHING.md): Chrome Web Store, Microsoft Edge Add-ons and addons.mozilla.org.
+# GitHub Release with the ZIPs and submits them to the Chrome Web Store and addons.mozilla.org
+# when their secrets are set (docs/PUBLISHING.md).
 on:
   push:
     tags: ['v*']
@@ -22,9 +22,6 @@ jobs:
       CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
       CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
       CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-      EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
-      EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
-      EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
       AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
       AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
     steps:
@@ -67,13 +64,10 @@ jobs:
             logbeam-firefox-${{ env.VERSION }}.zip
           body_path: notes.md
 
-      # Each store is tried even if another one fails; the job still fails if any of them did.
+      # Each store is tried even if the other one fails; the job still fails if either did.
       - name: Publish to the Chrome Web Store
         if: ${{ !cancelled() && steps.github-release.outcome == 'success' && env.CWS_REFRESH_TOKEN != '' }}
         run: node scripts/publish-cws.mjs "logbeam-$VERSION.zip"
-      - name: Publish to Microsoft Edge Add-ons
-        if: ${{ !cancelled() && steps.github-release.outcome == 'success' && env.EDGE_API_KEY != '' }}
-        run: node scripts/publish-edge.mjs "logbeam-$VERSION.zip"
       - name: Publish to addons.mozilla.org
         if: ${{ !cancelled() && steps.github-release.outcome == 'success' && env.AMO_JWT_ISSUER != '' }}
         # --approval-timeout 0: submit for review without waiting for it
@@ -85,6 +79,4 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           [ -n "$CWS_REFRESH_TOKEN" ] || echo "::notice::Chrome Web Store skipped: CWS_* secrets are not set."
-          [ -n "$EDGE_API_KEY" ] || echo "::notice::Edge Add-ons skipped: EDGE_* secrets are not set."
           [ -n "$AMO_JWT_ISSUER" ] || echo "::notice::addons.mozilla.org skipped: AMO_* secrets are not set."
-          echo "See docs/PUBLISHING.md. Opera add-ons has no upload API: upload logbeam-$VERSION.zip by hand."

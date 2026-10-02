@@ -16,14 +16,12 @@ The [release workflow](../.github/workflows/release.yml) then runs lint, unit te
 Chromium and Firefox, builds the ZIPs, creates a GitHub Release, and submits the new version to every store whose
 secrets are set:
 
-| Store                   | Package                         | Goes live after review, usually |
-| ----------------------- | ------------------------------- | ------------------------------- |
-| Chrome Web Store        | `logbeam-<version>.zip`         | a few days                      |
-| Microsoft Edge Add-ons  | `logbeam-<version>.zip`         | up to 7 business days           |
-| addons.mozilla.org      | `logbeam-firefox-<version>.zip` | a day to a few days             |
-| Opera add-ons (by hand) | `logbeam-<version>.zip`         | a few days to weeks             |
+| Store              | Package                         | Goes live after review, usually |
+| ------------------ | ------------------------------- | ------------------------------- |
+| Chrome Web Store   | `logbeam-<version>.zip`         | a few days                      |
+| addons.mozilla.org | `logbeam-firefox-<version>.zip` | a day to a few days             |
 
-A store without secrets is skipped with a notice, and one store failing doesn't stop the others.
+A store without secrets is skipped with a notice, and one store failing doesn't stop the other.
 
 If a version is still waiting for review, a store refuses a new upload; wait for the review or cancel it in that
 store's dashboard, then re-run the workflow.
@@ -63,18 +61,6 @@ The extension ID (`kgjadbnghdgmcafdfgjhgfgcgnnnmcpe`) isn't secret and is set in
 Treat the refresh token like a password: it lets anyone with the client secret publish new versions of the
 extension. To revoke it, remove "Logbeam publishing" at [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
 
-## One-time setup: Microsoft Edge Add-ons
-
-1. Register at [Partner Center](https://partner.microsoft.com/dashboard/microsoftedge/overview) (free) and submit
-   the first version **by hand**: upload `logbeam-<version>.zip` and fill in the listing (the text and screenshots
-   from `docs/store-listing.md` and `docs/store/` work as they are). The API can only update an existing product.
-2. Open _Publish API_ in the Edge dashboard and create an API key. Copy the **Client ID** and the **API key**.
-3. The **Product ID** is on the extension's _Overview_ page in Partner Center.
-4. Add the GitHub secrets `EDGE_PRODUCT_ID`, `EDGE_CLIENT_ID` and `EDGE_API_KEY`.
-
-Microsoft expires API keys after a while (the dashboard shows the date); create a new one and update
-`EDGE_API_KEY` when it does.
-
 ## One-time setup: addons.mozilla.org (Firefox)
 
 1. Sign in at [addons.mozilla.org/developers](https://addons.mozilla.org/developers/) and accept the developer
@@ -89,14 +75,8 @@ bundled, every upload includes `logbeam-source-<version>.zip` (made with `git ar
 
 To check that the secrets work without publishing anything, run **Actions → check-stores → Run workflow**.
 
-## Opera add-ons
-
-Opera has no upload API. Upload `logbeam-<version>.zip` from the GitHub Release at
-[addons.opera.com/developer](https://addons.opera.com/developer/), and mention in the notes for moderators that
-the code is bundled from https://github.com/andronaft/Logbeam (`npm ci && npm run build`).
-
 ## Manual upload
 
-`npm run package` creates `logbeam-<version>.zip` (Chrome, Edge, Opera) and `logbeam-firefox-<version>.zip`; upload
+`npm run package` creates `logbeam-<version>.zip` (Chrome) and `logbeam-firefox-<version>.zip`; upload
 them in each store's dashboard, e.g. under _Package_ in the
 [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole).

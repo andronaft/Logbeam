@@ -6,7 +6,7 @@
 
 - **Firefox build** (Firefox 140+), tested in Firefox on every change. The dark-mode shortcut there is
   Ctrl+Shift+. because Ctrl+Shift+K opens the Web Console.
-- Releases are also published to **Microsoft Edge Add-ons** and **addons.mozilla.org**.
+- Releases are also published to **addons.mozilla.org**.
 
 ### Changed
 
