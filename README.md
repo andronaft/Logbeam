@@ -111,6 +111,10 @@ Logbeam never asks for access to all sites up front. See the [privacy policy](PR
 
 **From the Chrome Web Store:** [Logbeam on the Chrome Web Store](https://chromewebstore.google.com/detail/logbeam/kgjadbnghdgmcafdfgjhgfgcgnnnmcpe),
 one click and it updates itself. Works in Chrome, Edge, Brave, Opera and other Chromium browsers.
+Listings on Microsoft Edge Add-ons, Opera add-ons and Firefox Add-ons are on the way.
+
+**Firefox** (140 or newer) gets its own build: the dark-mode shortcut there is **Ctrl+Shift+.**, because
+Ctrl+Shift+K opens Firefox's Web Console.
 
 **From source:**
 
@@ -122,14 +126,19 @@ npm run build
 Then open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `dist/`
 folder. To open local `file://` logs, also enable **Allow access to file URLs** on the extension's details page.
 
+In Firefox, open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on** and pick
+`dist-firefox/manifest.json`.
+
 ## Development
 
 ```bash
 npm run watch         # rebuild on change, then press ↻ on chrome://extensions
 npm test              # unit tests (Vitest)
 npm run e2e           # load the extension into Chromium with Playwright, click through it, save docs/*.png
+npm run e2e:firefox   # the same for the Firefox build, with Selenium (needs Firefox and geckodriver)
+npm run lint:firefox  # the checks addons.mozilla.org runs on upload
 npm run check         # lint + format + typecheck + unit tests + build (what CI runs)
-npm run package       # dist/ → logbeam-<version>.zip for the Chrome Web Store
+npm run package       # logbeam-<version>.zip (Chrome, Edge, Opera), logbeam-firefox-<version>.zip, sources for AMO
 npm run store-assets  # Chrome Web Store screenshots and promo tiles from docs/*.png
 npm run icons         # regenerate the PNG icons (drawn in code, no image editor needed)
 ```

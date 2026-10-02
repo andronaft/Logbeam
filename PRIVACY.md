@@ -2,7 +2,7 @@
 
 _Last updated: October 1, 2026 (version 0.2.1)_
 
-Logbeam is a Chrome extension that runs entirely in your browser.
+Logbeam is a browser extension for Chrome, Edge, Opera and Firefox that runs entirely in your browser.
 
 ## Data we collect
 

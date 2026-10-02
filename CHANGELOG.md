@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Firefox build** (Firefox 140+), tested in Firefox on every change. The dark-mode shortcut there is
+  Ctrl+Shift+. because Ctrl+Shift+K opens the Web Console.
+- Releases are also published to **Microsoft Edge Add-ons** and **addons.mozilla.org**.
+
+### Changed
+
+- Messages about pages an extension can't run on name Edge, Firefox and Opera pages and stores too, and the
+  shortcut link in the popup opens the right settings page in each browser.
+
 ## 0.2.1
 
 Fixes from two rounds of testing in Chromium.

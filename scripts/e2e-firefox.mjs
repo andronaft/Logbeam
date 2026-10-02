@@ -3,7 +3,8 @@
 // Exits with code 1 if any check fails. Needs Firefox and geckodriver (GitHub's runners have both).
 //
 // A test copy of the add-on asks for <all_urls> up front, so the extension can be driven from its
-// own popup page without the clicks that grant activeTab to real users.
+// own popup page without the clicks that grant activeTab to real users. WebDriver isn't allowed to
+// navigate to moz-extension:// pages, so the test copy opens its popup page in a tab by itself.
 import { Builder, By, until } from 'selenium-webdriver';
 import firefox from 'selenium-webdriver/firefox.js';
 import { execFileSync } from 'node:child_process';
@@ -12,8 +13,6 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-const ADDON_ID = 'logbeam@zhukovskyi.space';
-const UUID = '6f1c1c55-5f2e-4b55-9d7e-0123456789ab';
 const BIG_LINES = 150_000;
 
 let failures = 0;
@@ -28,7 +27,9 @@ const addonDir = path.join(work, 'addon');
 cpSync('dist-firefox', addonDir, { recursive: true });
 const manifest = JSON.parse(readFileSync(path.join(addonDir, 'manifest.json'), 'utf8'));
 manifest.host_permissions = ['<all_urls>'];
+manifest.background.scripts.push('e2e-open-popup.js');
 writeFileSync(path.join(addonDir, 'manifest.json'), JSON.stringify(manifest));
+writeFileSync(path.join(addonDir, 'e2e-open-popup.js'), "browser.tabs.create({ url: browser.runtime.getURL('popup.html') });");
 const xpi = path.join(work, 'logbeam.xpi');
 execFileSync('zip', ['-r', '-q', xpi, '.'], { cwd: addonDir });
 
@@ -65,7 +66,6 @@ const base = `http://localhost:${server.address().port}`;
 // ---- browser ------------------------------------------------------------------------------
 const options = new firefox.Options()
   .addArguments('-headless')
-  .setPreference('extensions.webextensions.uuids', JSON.stringify({ [ADDON_ID]: UUID }))
   // grant the test copy's host permission at install, as if the user had allowed it
   .setPreference('extensions.originControls.grantByDefault', true);
 const driver = await new Builder().forBrowser('firefox').setFirefoxOptions(options).build();
@@ -104,8 +104,13 @@ try {
   check('add-on installs', true);
 
   // ---- popup --------------------------------------------------------------------------------
-  await driver.get(`moz-extension://${UUID}/popup.html`);
-  popupHandle = await driver.getWindowHandle();
+  popupHandle = await driver.wait(async () => {
+    for (const handle of await driver.getAllWindowHandles()) {
+      await driver.switchTo().window(handle);
+      if ((await driver.getCurrentUrl()).startsWith('moz-extension://')) return handle;
+    }
+    return null;
+  }, 10_000);
   await driver.wait(until.elementLocated(By.css('#transforms button')), 5000);
   await driver.findElement(By.id('input')).sendKeys('0 */15 * * * *');
   await driver.findElement(By.xpath('//button[normalize-space()="Explain cron"]')).click();
