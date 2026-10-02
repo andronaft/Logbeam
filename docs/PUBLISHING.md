@@ -87,6 +87,8 @@ The first release creates the listing from [`docs/amo-metadata.json`](amo-metada
 category, licence, notes for the reviewer); add screenshots on the add-on's page afterwards. Because the code is
 bundled, every upload includes `logbeam-source-<version>.zip` (made with `git archive`) so reviewers can rebuild it.
 
+To check that the secrets work without publishing anything, run **Actions → check-stores → Run workflow**.
+
 ## Opera add-ons
 
 Opera has no upload API. Upload `logbeam-<version>.zip` from the GitHub Release at
