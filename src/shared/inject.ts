@@ -1,21 +1,26 @@
 /** Injects Logbeam's page scripts on demand, using the activeTab grant from the click or shortcut. */
 
+import { EXTENSIONS_PAGE, IS_FIREFOX } from './browser';
+
 export type InjectResult = { ok: true } | { ok: false; reason: string };
 
-/** Explains why Chrome won't let an extension run on a page, in words a user can act on. */
+/** Explains why the browser won't let an extension run on a page, in words a user can act on. */
 export async function whyNotAllowed(url: string | undefined, error?: unknown): Promise<string> {
   const u = url ?? '';
   if (
-    /^(chrome|edge|brave|opera|about|chrome-extension|devtools|view-source):/.test(u) ||
-    /^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore)/.test(u)
+    /^(chrome|edge|brave|opera|about|chrome-extension|moz-extension|resource|devtools|view-source):/.test(u) ||
+    /^https:\/\/(chromewebstore\.google\.com|chrome\.google\.com\/webstore|microsoftedge\.microsoft\.com\/addons|addons\.mozilla\.org|addons\.opera\.com)/.test(
+      u,
+    )
   ) {
-    return 'Chrome doesn’t let extensions run on its own pages and the Web Store.';
+    return 'The browser doesn’t let extensions run on its own pages and add-on stores.';
   }
-  if (u.startsWith('file:') && !(await chrome.extension.isAllowedFileSchemeAccess())) {
-    return 'To open local files, turn on “Allow access to file URLs” for Logbeam on chrome://extensions → Details.';
+  // Firefox has no such switch: activeTab already covers local files there
+  if (u.startsWith('file:') && !IS_FIREFOX && !(await chrome.extension.isAllowedFileSchemeAccess())) {
+    return `To open local files, turn on “Allow access to file URLs” for Logbeam on ${EXTENSIONS_PAGE} → Details.`;
   }
   if (/\.pdf($|[?#])/i.test(u)) {
-    return 'Chrome’s PDF viewer can’t be used by extensions.';
+    return 'The browser’s PDF viewer can’t be used by extensions.';
   }
   const message = error instanceof Error ? error.message : '';
   return message ? `Logbeam can’t run on this page: ${message}` : 'Logbeam can’t run on this page.';

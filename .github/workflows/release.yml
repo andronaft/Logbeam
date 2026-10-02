@@ -1,8 +1,9 @@
 name: release
 
 # Release by pushing a tag like v0.2.1, or with "Run workflow" on the Actions tab (it tags the
-# version from src/manifest.json itself). Tests everything, publishes a GitHub Release with the ZIP
-# and, when the Chrome Web Store secrets are set (docs/PUBLISHING.md), submits it to the store.
+# version from src/manifest.json itself). Tests everything in Chromium and Firefox, publishes a
+# GitHub Release with the ZIPs and submits them to every store whose secrets are set
+# (docs/PUBLISHING.md): Chrome Web Store, Microsoft Edge Add-ons and addons.mozilla.org.
 on:
   push:
     tags: ['v*']
@@ -21,6 +22,11 @@ jobs:
       CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
       CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
       CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+      EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+      EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+      EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,21 +48,43 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: End-to-end test in Chromium
         run: npm run e2e
+      - run: npm run lint:firefox
+      - name: End-to-end test in Firefox
+        run: npm run e2e:firefox
       - run: npm run package
       - name: Extract release notes from CHANGELOG.md
         run: |
           version=$VERSION
           awk "/^## \\[?$version\\]?/{flag=1; next} /^## /{flag=0} flag" CHANGELOG.md > notes.md
       - uses: softprops/action-gh-release@v2
+        id: github-release
         with:
           tag_name: ${{ env.TAG }}
           target_commitish: ${{ github.sha }}
           name: Logbeam ${{ env.VERSION }}
-          files: logbeam-*.zip
+          files: |
+            logbeam-${{ env.VERSION }}.zip
+            logbeam-firefox-${{ env.VERSION }}.zip
           body_path: notes.md
+
+      # Each store is tried even if another one fails; the job still fails if any of them did.
       - name: Publish to the Chrome Web Store
-        if: env.CWS_REFRESH_TOKEN != ''
-        run: node scripts/publish-cws.mjs logbeam-*.zip
-      - name: Chrome Web Store skipped
-        if: env.CWS_REFRESH_TOKEN == ''
-        run: echo "::notice::CWS_* secrets are not set, so the store wasn't updated. See docs/PUBLISHING.md."
+        if: ${{ !cancelled() && steps.github-release.outcome == 'success' && env.CWS_REFRESH_TOKEN != '' }}
+        run: node scripts/publish-cws.mjs "logbeam-$VERSION.zip"
+      - name: Publish to Microsoft Edge Add-ons
+        if: ${{ !cancelled() && steps.github-release.outcome == 'success' && env.EDGE_API_KEY != '' }}
+        run: node scripts/publish-edge.mjs "logbeam-$VERSION.zip"
+      - name: Publish to addons.mozilla.org
+        if: ${{ !cancelled() && steps.github-release.outcome == 'success' && env.AMO_JWT_ISSUER != '' }}
+        # --approval-timeout 0: submit for review without waiting for it
+        run: >-
+          npx web-ext sign --channel listed --source-dir dist-firefox
+          --upload-source-code "logbeam-source-$VERSION.zip" --amo-metadata docs/amo-metadata.json
+          --approval-timeout 0 --api-key "$AMO_JWT_ISSUER" --api-secret "$AMO_JWT_SECRET"
+      - name: Stores without secrets
+        if: ${{ !cancelled() }}
+        run: |
+          [ -n "$CWS_REFRESH_TOKEN" ] || echo "::notice::Chrome Web Store skipped: CWS_* secrets are not set."
+          [ -n "$EDGE_API_KEY" ] || echo "::notice::Edge Add-ons skipped: EDGE_* secrets are not set."
+          [ -n "$AMO_JWT_ISSUER" ] || echo "::notice::addons.mozilla.org skipped: AMO_* secrets are not set."
+          echo "See docs/PUBLISHING.md. Opera add-ons has no upload API: upload logbeam-$VERSION.zip by hand."

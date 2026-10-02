@@ -1,6 +1,8 @@
 node_modules/
 dist/
+dist-firefox/
 *.zip
 .DS_Store
 .idea/
 .vscode/
+web-ext-artifacts/

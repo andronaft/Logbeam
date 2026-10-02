@@ -9,6 +9,7 @@ import {
   rememberedSites,
   setDarkMode,
 } from '../shared/darkMode';
+import { openShortcutSettings } from '../shared/browser';
 import { openLogViewer, whyNotAllowed } from '../shared/inject';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -110,13 +111,13 @@ async function setupSite(): Promise<void> {
   });
 }
 
-/** Shows the shortcuts actually assigned; Chrome leaves one empty when it clashes with another. */
+/** Shows the shortcuts actually assigned; the browser leaves one empty when it clashes with another. */
 async function setupShortcuts(): Promise<void> {
   const commands = await chrome.commands.getAll();
   const shortcut = (name: string) => commands.find((c) => c.name === name)?.shortcut ?? '';
   const openShortcuts = (event: Event) => {
     event.preventDefault();
-    void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    void openShortcutSettings();
   };
   for (const [id, name] of [
     ['viewer-shortcut', 'open-log-viewer'],
@@ -125,7 +126,7 @@ async function setupShortcuts(): Promise<void> {
     const element = $(id);
     const keys = shortcut(name);
     element.textContent = keys || 'set shortcut';
-    element.title = keys ? 'Change on chrome://extensions/shortcuts' : 'No shortcut assigned. Click to set one.';
+    element.title = keys ? 'Click to change' : 'No shortcut assigned. Click to set one.';
     element.addEventListener('click', openShortcuts);
   }
 }

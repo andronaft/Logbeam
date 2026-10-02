@@ -1,4 +1,6 @@
 dist/
+dist-firefox/
 node_modules/
 package-lock.json
 docs/sample.log
+web-ext-artifacts/

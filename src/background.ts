@@ -9,7 +9,8 @@ const MENU_DARK = 'logbeam:dark';
 const TRANSFORM_PREFIX = 'logbeam:transform:';
 
 function createMenus(): void {
-  chrome.contextMenus.removeAll(() => {
+  // promise form (missing from @types/chrome): Firefox builds use browser.*, which has no callbacks
+  void (chrome.contextMenus.removeAll() as unknown as Promise<void>).then(() => {
     chrome.contextMenus.create({ id: MENU_ROOT, title: 'Logbeam', contexts: ['selection', 'editable', 'page'] });
     for (const transform of TRANSFORMS) {
       chrome.contextMenus.create({

@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs && node scripts/build.mjs --firefox",
     "watch": "node scripts/build.mjs --watch",
     "icons": "node scripts/icons.mjs",
     "typecheck": "tsc --noEmit",
@@ -18,7 +18,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "e2e": "npm run build && node scripts/e2e.mjs"
+    "e2e": "npm run build && node scripts/e2e.mjs",
+    "watch:firefox": "node scripts/build.mjs --watch --firefox",
+    "lint:firefox": "web-ext lint --source-dir dist-firefox",
+    "e2e:firefox": "node scripts/e2e-firefox.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -28,8 +31,10 @@
     "globals": "^15.15.0",
     "playwright": "^1.56.1",
     "prettier": "^3.9.9",
+    "selenium-webdriver": "^4.50.0",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.71.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "web-ext": "^10.7.0"
   }
 }

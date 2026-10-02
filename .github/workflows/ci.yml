@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -23,7 +24,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: logbeam-extension
-          path: logbeam-*.zip
+          path: |
+            logbeam-*.zip
+            !logbeam-source-*.zip
 
   e2e:
     runs-on: ubuntu-latest
@@ -42,3 +45,18 @@ jobs:
         with:
           name: e2e-screenshots
           path: docs/*.png
+
+  firefox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # the checks addons.mozilla.org runs on upload
+      - run: npm run lint:firefox
+      # installs dist-firefox/ into the runner's Firefox with Selenium and clicks through it
+      - run: npm run e2e:firefox
