@@ -205,10 +205,11 @@ try {
     () => driver.executeScript("return document.querySelector('logbeam-panel')?.shadowRoot?.querySelector('pre')?.textContent"),
     5000,
   );
+  // compared in full: GitHub masks password-like text in CI logs, so the printed detail can show ***
   check(
     'Mask secrets on a page',
-    panelText.includes('AKIA********') && !panelText.includes('Sup3rS3cretPass'),
-    panelText.replace('\n', ' | '),
+    panelText === 'spring.datasource.password=********\naws.key=AKIA********',
+    JSON.stringify(panelText),
   );
 
   // ---- dark mode ----------------------------------------------------------------------------
