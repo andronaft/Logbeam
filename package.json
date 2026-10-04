@@ -1,6 +1,6 @@
 {
   "name": "logbeam",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "Chrome extension for developers & platform engineers: readable logs, dark mode everywhere, and one-click JSON / JWT / Base64 / timestamp / cron tools.",
   "license": "MIT",

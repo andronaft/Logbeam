@@ -25,6 +25,7 @@ for (const file of [
   cpSync(`src/${file}`, `${outdir}/${file.split('/').pop()}`);
 }
 cpSync('icons', `${outdir}/icons`, { recursive: true });
+cpSync('_locales', `${outdir}/_locales`, { recursive: true });
 
 const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8'));
 if (firefox) {

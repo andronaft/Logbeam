@@ -1,6 +1,7 @@
 import { TRANSFORMS } from './lib/transforms';
 import { setAutoOpen, syncAutoOpenRegistrations } from './shared/autoOpen';
 import { COMPARE_ADD, compareText } from './shared/compare';
+import { t, toolKey } from './shared/i18n';
 import { SETTINGS_KEY, loadSettings } from './shared/settings';
 import { completePending, forgetTab, setDarkMode, syncRegistrations, toggleDarkMode } from './shared/darkMode';
 import { clearIconReport, openLogViewer, readTextForCompare, reportOnIcon, runTransformInTab } from './shared/inject';
@@ -20,7 +21,7 @@ async function createMenus(): Promise<void> {
       chrome.contextMenus.create({
         id: TRANSFORM_PREFIX + transform.id,
         parentId: MENU_ROOT,
-        title: transform.title,
+        title: t(toolKey(transform.id, 'title'), transform.title),
         contexts: ['selection', 'editable'],
       });
     }
@@ -33,19 +34,19 @@ async function createMenus(): Promise<void> {
     chrome.contextMenus.create({
       id: MENU_LOG_VIEWER,
       parentId: MENU_ROOT,
-      title: 'Open page in log viewer',
+      title: t('menuOpenViewer', 'Open page in log viewer'),
       contexts: ['page', 'selection', 'editable'],
     });
     chrome.contextMenus.create({
       id: MENU_COMPARE,
       parentId: MENU_ROOT,
-      title: 'Compare…',
+      title: t('menuCompare', 'Compare…'),
       contexts: ['page', 'selection', 'editable'],
     });
     chrome.contextMenus.create({
       id: MENU_DARK,
       parentId: MENU_ROOT,
-      title: 'Toggle dark mode for this site',
+      title: t('menuDarkMode', 'Toggle dark mode for this site'),
       contexts: ['page', 'selection', 'editable'],
     });
   });

@@ -1,0 +1,200 @@
+{
+  "extDescription": {
+    "message": "Зручні логи, темна тема для будь-якого сайту та інструменти для JSON / JWT / Base64 / міток часу / cron в один клік. Усе локально."
+  },
+  "cmdOpenLogViewer": {
+    "message": "Відкрити сторінку в переглядачі логів"
+  },
+  "cmdToggleDarkMode": {
+    "message": "Увімкнути або вимкнути темну тему у вкладці"
+  },
+  "menuOpenViewer": {
+    "message": "Відкрити сторінку як лог"
+  },
+  "menuCompare": {
+    "message": "Порівняти…"
+  },
+  "menuDarkMode": {
+    "message": "Темна тема для цього сайту"
+  },
+  "popupThisPage": {
+    "message": "Ця сторінка"
+  },
+  "popupDarkMode": {
+    "message": "Темна тема"
+  },
+  "popupAppliesToTab": {
+    "message": "Лише для цієї вкладки"
+  },
+  "popupRememberedForSite": {
+    "message": "Запам’ятано для сайту"
+  },
+  "popupRememberFor": {
+    "message": "Запам’ятати для"
+  },
+  "popupThisSite": {
+    "message": "цього сайту"
+  },
+  "popupOpenAsLog": {
+    "message": "Відкрити як лог"
+  },
+  "popupAutoOpen": {
+    "message": "Автоматично відкривати текстові логи на цьому сайті"
+  },
+  "popupTextTools": {
+    "message": "Інструменти для тексту"
+  },
+  "popupInputPlaceholder": {
+    "message": "Вставте JSON, JWT, Base64, мітку часу, cron-вираз…"
+  },
+  "popupOpenTextAsLog": {
+    "message": "Відкрити текст як лог"
+  },
+  "popupOpenTextAsLogTitle": {
+    "message": "Відкрити текст вище в переглядачі логів у новій вкладці"
+  },
+  "popupCopy": {
+    "message": "Копіювати"
+  },
+  "popupUseAsInput": {
+    "message": "Взяти як вхід"
+  },
+  "popupCompare": {
+    "message": "Порівняти два логи…"
+  },
+  "popupOpenFile": {
+    "message": "Відкрити файл логу…"
+  },
+  "popupOpenFileTitle": {
+    "message": "Відкрити файл .log або .gz у переглядачі логів"
+  },
+  "popupFooter": {
+    "message": "Виділіть текст на будь-якій сторінці → правий клік →"
+  },
+  "popupSettings": {
+    "message": "Налаштування"
+  },
+  "popupSetShortcut": {
+    "message": "задати клавіші"
+  },
+  "popupPasteFirst": {
+    "message": "Спершу вставте лог у поле вище."
+  },
+  "popupTooBig": {
+    "message": "Завеликий текст для вставки. Скористайтеся «Відкрити файл логу…»."
+  },
+  "tool_mask_secrets_short": {
+    "message": "Маскувати"
+  },
+  "tool_mask_secrets_title": {
+    "message": "Сховати секрети (ключі, токени, паролі)"
+  },
+  "tool_json_format_short": {
+    "message": "Формат JSON"
+  },
+  "tool_json_format_title": {
+    "message": "Форматувати JSON"
+  },
+  "tool_json_minify_short": {
+    "message": "Стиснути JSON"
+  },
+  "tool_json_minify_title": {
+    "message": "Стиснути JSON в один рядок"
+  },
+  "tool_jwt_decode_short": {
+    "message": "Розібрати JWT"
+  },
+  "tool_jwt_decode_title": {
+    "message": "Розібрати JWT"
+  },
+  "tool_base64_encode_short": {
+    "message": "У Base64"
+  },
+  "tool_base64_encode_title": {
+    "message": "Закодувати в Base64"
+  },
+  "tool_base64_decode_short": {
+    "message": "З Base64"
+  },
+  "tool_base64_decode_title": {
+    "message": "Розкодувати Base64"
+  },
+  "tool_url_encode_short": {
+    "message": "URL-кодування"
+  },
+  "tool_url_encode_title": {
+    "message": "Закодувати для URL"
+  },
+  "tool_url_decode_short": {
+    "message": "З URL"
+  },
+  "tool_url_decode_title": {
+    "message": "Розкодувати URL"
+  },
+  "tool_timestamp_short": {
+    "message": "Мітка часу"
+  },
+  "tool_timestamp_title": {
+    "message": "Мітка часу ⇄ дата"
+  },
+  "tool_cron_short": {
+    "message": "Пояснити cron"
+  },
+  "tool_cron_title": {
+    "message": "Пояснити cron-вираз"
+  },
+  "tool_camel_short": {
+    "message": "camelCase"
+  },
+  "tool_camel_title": {
+    "message": "camelCase"
+  },
+  "tool_snake_short": {
+    "message": "snake_case"
+  },
+  "tool_snake_title": {
+    "message": "snake_case"
+  },
+  "tool_kebab_short": {
+    "message": "kebab-case"
+  },
+  "tool_kebab_title": {
+    "message": "kebab-case"
+  },
+  "tool_constant_short": {
+    "message": "CONSTANT"
+  },
+  "tool_constant_title": {
+    "message": "CONSTANT_CASE"
+  },
+  "tool_sort_lines_short": {
+    "message": "Сортувати"
+  },
+  "tool_sort_lines_title": {
+    "message": "Сортувати рядки"
+  },
+  "tool_unique_lines_short": {
+    "message": "Без повторів"
+  },
+  "tool_unique_lines_title": {
+    "message": "Прибрати рядки, що повторюються"
+  },
+  "popupHttpOnly": {
+    "message": "Темна тема працює на сторінках http(s). Переглядач логів працює і з текстовими файлами."
+  },
+  "popupAlreadyDark": {
+    "message": "Ця сторінка вже темна, тож Logbeam її не змінює."
+  },
+  "notAllowedBrowserPages": {
+    "message": "Браузер не дозволяє розширенням працювати на своїх сторінках і в магазинах доповнень."
+  },
+  "notAllowedFiles": {
+    "message": "Щоб відкривати локальні файли, увімкніть «Дозволити доступ до URL-адрес файлів» для Logbeam на {page} → Деталі."
+  },
+  "notAllowedPdf": {
+    "message": "Розширення не можуть працювати в переглядачі PDF браузера."
+  },
+  "notAllowedGeneric": {
+    "message": "Logbeam не може працювати на цій сторінці."
+  }
+}

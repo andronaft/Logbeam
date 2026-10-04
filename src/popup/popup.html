@@ -12,49 +12,77 @@
     </header>
 
     <section class="site">
-      <h2>This page</h2>
+      <h2 data-i18n="popupThisPage">This page</h2>
       <label class="switch-row">
         <span>
-          Dark mode
-          <small><span id="dark-hint">Applies to this tab</span> · <a href="#" id="dark-shortcut" class="shortcut"></a></small>
+          <span data-i18n="popupDarkMode">Dark mode</span>
+          <small
+            ><span id="dark-hint" data-i18n="popupAppliesToTab">Applies to this tab</span> ·
+            <a href="#" id="dark-shortcut" class="shortcut"></a
+          ></small>
         </span>
         <input type="checkbox" id="dark-toggle" role="switch" />
       </label>
       <label class="check-row">
         <input type="checkbox" id="dark-remember" />
-        <span>Remember for <b id="site-name">this site</b></span>
+        <span
+          ><span data-i18n="popupRememberFor">Remember for</span> <b id="site-name" data-i18n="popupThisSite">this site</b></span
+        >
       </label>
       <div class="viewer-row">
-        <button id="open-viewer" class="wide">Open as log</button>
+        <button id="open-viewer" class="wide" data-i18n="popupOpenAsLog">Open as log</button>
         <a href="#" id="viewer-shortcut" class="shortcut"></a>
       </div>
       <label class="check-row auto-row">
         <input type="checkbox" id="auto-open" />
-        <span>Open plain-text logs on this site automatically</span>
+        <span data-i18n="popupAutoOpen">Open plain-text logs on this site automatically</span>
       </label>
       <p id="site-note" class="note" hidden></p>
     </section>
 
     <section class="tools">
-      <h2>Text tools</h2>
-      <textarea id="input" placeholder="Paste JSON, a JWT, Base64, a timestamp, a cron expression…" spellcheck="false"></textarea>
+      <h2 data-i18n="popupTextTools">Text tools</h2>
+      <textarea
+        id="input"
+        placeholder="Paste JSON, a JWT, Base64, a timestamp, a cron expression…"
+        data-i18n-placeholder="popupInputPlaceholder"
+        spellcheck="false"
+      ></textarea>
       <div id="transforms" class="grid"></div>
-      <button id="open-pasted" class="wide" title="Open the text above in the log viewer, in a new tab">Open as log</button>
+      <button
+        id="open-pasted"
+        class="wide"
+        title="Open the text above in the log viewer, in a new tab"
+        data-i18n="popupOpenTextAsLog"
+        data-i18n-title="popupOpenTextAsLogTitle"
+      >
+        Open text as log
+      </button>
       <pre id="output" class="output" hidden></pre>
       <div class="row" id="output-actions" hidden>
-        <button id="copy">Copy</button>
-        <button id="use-output">Use as input</button>
+        <button id="copy" data-i18n="popupCopy">Copy</button>
+        <button id="use-output" data-i18n="popupUseAsInput">Use as input</button>
       </div>
     </section>
 
     <section class="compare">
       <div class="row">
-        <button id="open-compare">Compare two logs…</button>
-        <button id="open-file" title="Open a .log or .gz file in the log viewer">Open a log file…</button>
+        <button id="open-compare" data-i18n="popupCompare">Compare two logs…</button>
+        <button
+          id="open-file"
+          title="Open a .log or .gz file in the log viewer"
+          data-i18n="popupOpenFile"
+          data-i18n-title="popupOpenFileTitle"
+        >
+          Open a log file…
+        </button>
       </div>
     </section>
 
-    <footer>Select text on any page → right-click → <b>Logbeam</b> · <a href="#" id="open-settings">Settings</a></footer>
+    <footer>
+      <span data-i18n="popupFooter">Select text on any page → right-click →</span> <b>Logbeam</b> ·
+      <a href="#" id="open-settings" data-i18n="popupSettings">Settings</a>
+    </footer>
 
     <script src="popup.js"></script>
   </body>

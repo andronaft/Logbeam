@@ -49,6 +49,11 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Pasted text and files**: open a log pasted into the popup, or a `.log` / **`.gz`** file (unpacked in the
   browser); drop a file onto any viewer to open it
 - **Save** the visible lines as a file
+- **Bookmarks and notes** (`m`, `b`): **Report** copies them as Markdown for a ticket, with times and links
+- **Field statistics**: the most common values of a field (`status: 200 ×1520, 502 ×37`), one click to filter
+- **Error groups**: each different error once, with its count, pods and first and last time
+- **Follow** a log that is still being written: new lines are added every 3 seconds
+- **JSON table** with the columns you choose, and **local time** instead of UTC
 - **Compare** this log with another one, e.g. a passing and a failing CI run (see below)
 - **Pauses between entries**: `+5.5s` next to lines where the app stalled
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge
@@ -62,6 +67,7 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 
 <p align="center"><img src="docs/log-viewer-filtered.png" alt="Only errors and warnings, repeated retries collapsed" width="860"></p>
 <p align="center"><img src="docs/highlights.png" alt="Two highlights in their own colours" width="860"></p>
+<p align="center"><img src="docs/table.png" alt="JSON log as a table, with bookmarks" width="860"></p>
 
 ### 🔑 Secret detection
 
@@ -222,7 +228,8 @@ src/
 - [x] Parsing large logs in a Web Worker
 - [x] Settings page (gap threshold, your own secret patterns, which tools to show)
 - [x] Field filters, time ranges, highlights, pods, `.gz` files
-- [ ] Bookmarks and notes on lines
+- [x] Bookmarks and notes, field statistics, error groups, Follow, JSON table, local time
+- [x] Ukrainian for the popup and menus ([help translate the rest](https://github.com/andronaft/Logbeam/labels/translation))
 - [x] Diff two JSON documents or two logs
 - [x] Multi-line JSON log records
 - [x] Firefox build

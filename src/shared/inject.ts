@@ -1,6 +1,7 @@
 /** Injects Logbeam's page scripts on demand, using the activeTab grant from the click or shortcut. */
 
 import { EXTENSIONS_PAGE, IS_FIREFOX } from './browser';
+import { t } from './i18n';
 
 export type InjectResult = { ok: true } | { ok: false; reason: string };
 
@@ -13,17 +14,21 @@ export async function whyNotAllowed(url: string | undefined, error?: unknown): P
       u,
     )
   ) {
-    return 'The browser doesn’t let extensions run on its own pages and add-on stores.';
+    return t('notAllowedBrowserPages', 'The browser doesn’t let extensions run on its own pages and add-on stores.');
   }
   // Firefox has no such switch: activeTab already covers local files there
   if (u.startsWith('file:') && !IS_FIREFOX && !(await chrome.extension.isAllowedFileSchemeAccess())) {
-    return `To open local files, turn on “Allow access to file URLs” for Logbeam on ${EXTENSIONS_PAGE} → Details.`;
+    return t(
+      'notAllowedFiles',
+      'To open local files, turn on “Allow access to file URLs” for Logbeam on {page} → Details.',
+    ).replace('{page}', EXTENSIONS_PAGE);
   }
   if (/\.pdf($|[?#])/i.test(u)) {
-    return 'The browser’s PDF viewer can’t be used by extensions.';
+    return t('notAllowedPdf', 'The browser’s PDF viewer can’t be used by extensions.');
   }
   const message = error instanceof Error ? error.message : '';
-  return message ? `Logbeam can’t run on this page: ${message}` : 'Logbeam can’t run on this page.';
+  const reason = t('notAllowedGeneric', 'Logbeam can’t run on this page.');
+  return message ? `${reason.replace(/\.$/, '')}: ${message}` : reason;
 }
 
 async function tabUrl(tabId: number): Promise<string | undefined> {

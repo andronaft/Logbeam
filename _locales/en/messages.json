@@ -1,0 +1,200 @@
+{
+  "extDescription": {
+    "message": "Readable logs, dark mode for any site, and one-click JSON / JWT / Base64 / timestamp / cron tools. 100% local."
+  },
+  "cmdOpenLogViewer": {
+    "message": "Open the current page in the log viewer"
+  },
+  "cmdToggleDarkMode": {
+    "message": "Toggle dark mode for the current tab"
+  },
+  "menuOpenViewer": {
+    "message": "Open page in log viewer"
+  },
+  "menuCompare": {
+    "message": "Compare…"
+  },
+  "menuDarkMode": {
+    "message": "Toggle dark mode for this site"
+  },
+  "popupThisPage": {
+    "message": "This page"
+  },
+  "popupDarkMode": {
+    "message": "Dark mode"
+  },
+  "popupAppliesToTab": {
+    "message": "Applies to this tab"
+  },
+  "popupRememberedForSite": {
+    "message": "Remembered for this site"
+  },
+  "popupRememberFor": {
+    "message": "Remember for"
+  },
+  "popupThisSite": {
+    "message": "this site"
+  },
+  "popupOpenAsLog": {
+    "message": "Open as log"
+  },
+  "popupAutoOpen": {
+    "message": "Open plain-text logs on this site automatically"
+  },
+  "popupTextTools": {
+    "message": "Text tools"
+  },
+  "popupInputPlaceholder": {
+    "message": "Paste JSON, a JWT, Base64, a timestamp, a cron expression…"
+  },
+  "popupOpenTextAsLog": {
+    "message": "Open text as log"
+  },
+  "popupOpenTextAsLogTitle": {
+    "message": "Open the text above in the log viewer, in a new tab"
+  },
+  "popupCopy": {
+    "message": "Copy"
+  },
+  "popupUseAsInput": {
+    "message": "Use as input"
+  },
+  "popupCompare": {
+    "message": "Compare two logs…"
+  },
+  "popupOpenFile": {
+    "message": "Open a log file…"
+  },
+  "popupOpenFileTitle": {
+    "message": "Open a .log or .gz file in the log viewer"
+  },
+  "popupFooter": {
+    "message": "Select text on any page → right-click →"
+  },
+  "popupSettings": {
+    "message": "Settings"
+  },
+  "popupSetShortcut": {
+    "message": "set shortcut"
+  },
+  "popupPasteFirst": {
+    "message": "Paste a log into the box above first."
+  },
+  "popupTooBig": {
+    "message": "That’s too big to paste. Use “Open a log file…”."
+  },
+  "tool_mask_secrets_short": {
+    "message": "Mask secrets"
+  },
+  "tool_mask_secrets_title": {
+    "message": "Mask secrets (keys, tokens, passwords)"
+  },
+  "tool_json_format_short": {
+    "message": "Format JSON"
+  },
+  "tool_json_format_title": {
+    "message": "Format JSON"
+  },
+  "tool_json_minify_short": {
+    "message": "Minify JSON"
+  },
+  "tool_json_minify_title": {
+    "message": "Minify JSON"
+  },
+  "tool_jwt_decode_short": {
+    "message": "Decode JWT"
+  },
+  "tool_jwt_decode_title": {
+    "message": "Decode JWT"
+  },
+  "tool_base64_encode_short": {
+    "message": "To Base64"
+  },
+  "tool_base64_encode_title": {
+    "message": "Base64 encode"
+  },
+  "tool_base64_decode_short": {
+    "message": "From Base64"
+  },
+  "tool_base64_decode_title": {
+    "message": "Base64 decode"
+  },
+  "tool_url_encode_short": {
+    "message": "URL encode"
+  },
+  "tool_url_encode_title": {
+    "message": "URL encode"
+  },
+  "tool_url_decode_short": {
+    "message": "URL decode"
+  },
+  "tool_url_decode_title": {
+    "message": "URL decode"
+  },
+  "tool_timestamp_short": {
+    "message": "Timestamp"
+  },
+  "tool_timestamp_title": {
+    "message": "Timestamp ⇄ date"
+  },
+  "tool_cron_short": {
+    "message": "Explain cron"
+  },
+  "tool_cron_title": {
+    "message": "Explain cron expression"
+  },
+  "tool_camel_short": {
+    "message": "camelCase"
+  },
+  "tool_camel_title": {
+    "message": "camelCase"
+  },
+  "tool_snake_short": {
+    "message": "snake_case"
+  },
+  "tool_snake_title": {
+    "message": "snake_case"
+  },
+  "tool_kebab_short": {
+    "message": "kebab-case"
+  },
+  "tool_kebab_title": {
+    "message": "kebab-case"
+  },
+  "tool_constant_short": {
+    "message": "CONSTANT"
+  },
+  "tool_constant_title": {
+    "message": "CONSTANT_CASE"
+  },
+  "tool_sort_lines_short": {
+    "message": "Sort lines"
+  },
+  "tool_sort_lines_title": {
+    "message": "Sort lines"
+  },
+  "tool_unique_lines_short": {
+    "message": "Unique lines"
+  },
+  "tool_unique_lines_title": {
+    "message": "Remove duplicate lines"
+  },
+  "popupHttpOnly": {
+    "message": "Dark mode works on http(s) pages. The log viewer also works on plain-text files."
+  },
+  "popupAlreadyDark": {
+    "message": "This page already has a dark theme, so Logbeam leaves it as it is."
+  },
+  "notAllowedBrowserPages": {
+    "message": "The browser doesn’t let extensions run on its own pages and add-on stores."
+  },
+  "notAllowedFiles": {
+    "message": "To open local files, turn on “Allow access to file URLs” for Logbeam on {page} → Details."
+  },
+  "notAllowedPdf": {
+    "message": "The browser’s PDF viewer can’t be used by extensions."
+  },
+  "notAllowedGeneric": {
+    "message": "Logbeam can’t run on this page."
+  }
+}

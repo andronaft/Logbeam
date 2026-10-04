@@ -11,6 +11,10 @@
 * {
   box-sizing: border-box;
 }
+/* display: flex on .row would otherwise show hidden rows (the Copy / Use as input buttons) */
+[hidden] {
+  display: none !important;
+}
 body {
   width: 380px;
   margin: 0;

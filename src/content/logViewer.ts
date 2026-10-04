@@ -9,10 +9,26 @@ import {
   countByLevel,
   filterLines,
   formatGap,
+  LogParser,
+  splitLines,
   splitSource,
 } from '../lib/logs';
+import {
+  Bookmark,
+  TimeMode,
+  appendedText,
+  bookmarkReport,
+  defaultColumns,
+  fieldStats,
+  formatTime,
+  groupErrors,
+  isMostlyJson,
+  lineFields,
+  localizeTimestamp,
+  tableCells,
+} from '../lib/insights';
 import { findSecrets, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
-import { loadSettings } from '../shared/settings';
+import { loadSettings, saveSettings } from '../shared/settings';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
 import { parseLogAsync } from './parseAsync';
@@ -55,7 +71,17 @@ interface State {
   hiddenSources: Set<string>;
   /** Terms pinned with their own colour, independent of the search. */
   highlights: string[];
+  /** Bookmarked line numbers and their notes. */
+  bookmarks: Map<number, string>;
+  timeMode: TimeMode;
+  /** Only the entries of this error group (see Groups). */
+  group: { key: string; lines: Set<number>; label: string } | null;
+  /** JSON records as a table with these columns. */
+  table: string[] | null;
 }
+
+/** How often Follow reads the page again. */
+const FOLLOW_INTERVAL_MS = 3000;
 
 type Child = Node | string;
 
@@ -133,7 +159,13 @@ export async function openViewer(text: string = readPageText(), name?: string): 
     }
   }
   body.replaceChildren();
-  buildViewer(body, lines, { text, title, gapThreshold: settings.gapThresholdMs, signal: viewer.signal });
+  buildViewer(body, lines, {
+    text,
+    title,
+    gapThreshold: settings.gapThresholdMs,
+    timeMode: settings.timeMode,
+    signal: viewer.signal,
+  });
 }
 
 /** Opens a dropped or chosen file (plain or gzip) in the viewer, replacing the current log. */
@@ -145,6 +177,7 @@ interface ViewerOptions {
   text: string;
   title: string;
   gapThreshold: number;
+  timeMode: TimeMode;
   signal: AbortSignal;
 }
 
@@ -164,9 +197,10 @@ function entryTimes(lines: LogLine[]): Float64Array {
 
 function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOptions): void {
   const { signal, gapThreshold } = options;
-  const counts = countByLevel(allLines);
-  const secretCount = allLines.filter((l) => l.secret).length;
-  const timeline = buildTimeline(allLines);
+  // these change when Follow adds lines
+  let counts = countByLevel(allLines);
+  let secretCount = allLines.filter((l) => l.secret).length;
+  let timeline = buildTimeline(allLines);
 
   const state: State = {
     levels: new Set(LEVELS),
@@ -183,21 +217,23 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     timeRange: null,
     hiddenSources: new Set(),
     highlights: [],
+    bookmarks: new Map(),
+    timeMode: options.timeMode,
+    group: null,
+    table: null,
   };
-  const times = entryTimes(allLines);
+  let times = entryTimes(allLines);
   const sources = [...new Set(allLines.map((l) => l.source).filter((s): s is string => s !== null))];
   const sourceIndex = new Map(sources.map((source, i) => [source, i]));
   const fields = commonFields(allLines);
   let visible: CollapsedLine[] = [];
 
   // ---- toolbar ----------------------------------------------------------------------------
+  const chipCounts: Partial<Record<Level | 'UNKNOWN', [HTMLButtonElement, HTMLSpanElement]>> = {};
   const chip = (key: Level | 'UNKNOWN', text: string) => {
-    const button = el(
-      'button',
-      { className: `chip lvl-${key} on`, title: `Show/hide ${text}` },
-      `${text} `,
-      el('span', { className: 'count' }, String(counts[key])),
-    );
+    const count = el('span', { className: 'count' }, String(counts[key]));
+    const button = el('button', { className: `chip lvl-${key} on`, title: `Show/hide ${text}` }, `${text} `, count);
+    chipCounts[key] = [button, count];
     button.addEventListener('click', () => {
       if (key === 'UNKNOWN') state.includeUnknown = !state.includeUnknown;
       else if (state.levels.has(key)) state.levels.delete(key);
@@ -287,6 +323,31 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   openButton.hidden = !ON_EXTENSION_PAGE;
   const status = el('span', { className: 'status' });
 
+  const timeButton = el('button', {
+    className: 'toggle',
+    title: 'Show times in UTC or in your time zone (timestamps with a zone, the inspector and the timeline)',
+  });
+  const bookmarksButton = el('button', { className: 'toggle bookmarks', title: 'Jump to the next bookmark ( b )' });
+  const reportButton = el(
+    'button',
+    { className: 'toggle', title: 'Copy the bookmarked lines with times and notes, as Markdown for a ticket' },
+    'Report',
+  );
+  const groupsButton = el(
+    'button',
+    { className: 'toggle', title: 'The same error grouped: how often, in which pods, first and last time' },
+    'Groups',
+  );
+  const tableToggle = el('button', { className: 'toggle', title: 'Show JSON records as a table' }, 'Table');
+  tableToggle.hidden = !isMostlyJson(allLines);
+  const followToggle = el(
+    'button',
+    { className: 'toggle', title: `Read the page again every ${FOLLOW_INTERVAL_MS / 1000}s and add new lines` },
+    'Follow',
+  );
+  // only a log served over http(s) can be read again
+  followToggle.hidden = ON_EXTENSION_PAGE || !/^https?:$/.test(location.protocol);
+
   // second row: what narrows the view besides levels and search
   const rangeChip = el('button', { className: 'toggle on range', title: 'Show all times again' });
   const highlightChips = el('span', { className: 'group' });
@@ -302,7 +363,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     return button;
   });
   sourceChips.append(...sourceButtons);
-  const subbar = el('div', { className: 'subbar' }, rangeChip, highlightChips, sourceChips);
+  const groupChip = el('button', { className: 'toggle on group-chip', title: 'Show all lines again' });
+  const columnsInput = el('input', {
+    className: 'columns',
+    title: 'Table columns, separated by commas',
+    spellcheck: false,
+  });
+  const columnsLabel = el('label', { className: 'columns-label' }, 'Columns ', columnsInput);
+  const subbar = el('div', { className: 'subbar' }, rangeChip, groupChip, columnsLabel, highlightChips, sourceChips);
 
   const toolbar = el(
     'header',
@@ -320,6 +388,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     timelineToggle,
     secretsGroup,
     nextError,
+    groupsButton,
+    tableToggle,
+    timeButton,
+    el('span', { className: 'group' }, bookmarksButton, reportButton),
+    followToggle,
     copyButton,
     saveButton,
     compareButton,
@@ -333,10 +406,13 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   // ---- timeline -------------------------------------------------------------------------
   const timelineEl = el('div', { className: 'timeline' });
   timelineEl.hidden = !state.showTimeline;
-  if (timeline) {
-    const fmt = (t: number) => new Date(t).toISOString().replace('T', ' ').slice(0, 19);
-    timeline.buckets.forEach((bucket, i) => {
-      const height = (n: number) => `${Math.round((n / timeline.max) * 100)}%`;
+  function drawTimeline(): void {
+    timelineEl.replaceChildren();
+    const current = timeline;
+    if (!current) return;
+    const fmt = (t: number) => formatTime(t, state.timeMode).slice(0, 19);
+    current.buckets.forEach((bucket, i) => {
+      const height = (n: number) => `${Math.round((n / current.max) * 100)}%`;
       const other = bucket.total - bucket.errors - bucket.warnings;
       const bar = el(
         'button',
@@ -364,30 +440,32 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       });
       timelineEl.append(bar);
     });
-    document.addEventListener(
-      'pointerup',
-      () => {
-        if (!drag) return;
-        const [first, last] = [Math.min(drag.from, drag.to), Math.max(drag.from, drag.to)];
-        drag = null;
-        markDrag();
-        if (first === last) {
-          const index = visible.findIndex((l) => l.time !== null && l.time >= timeline.buckets[first].from);
-          if (index >= 0) scrollToIndex(index, true);
-          return;
-        }
-        state.timeRange = [timeline.buckets[first].from, timeline.buckets[last].to];
-        void refresh();
-      },
-      { signal },
-    );
   }
+  drawTimeline();
+  document.addEventListener(
+    'pointerup',
+    () => {
+      const current = timeline;
+      if (!drag || !current) return;
+      const [first, last] = [Math.min(drag.from, drag.to), Math.max(drag.from, drag.to)];
+      drag = null;
+      markDrag();
+      if (first === last) {
+        const index = visible.findIndex((l) => l.time !== null && l.time >= current.buckets[first].from);
+        if (index >= 0) scrollToIndex(index, true);
+        return;
+      }
+      state.timeRange = [current.buckets[first].from, current.buckets[last].to];
+      void refresh();
+    },
+    { signal },
+  );
   let drag: { from: number; to: number } | null = null;
   function markDrag(): void {
     const buckets = timelineEl.children;
     const range = state.timeRange;
-    for (let i = 0; i < buckets.length; i++) {
-      const bucket = timeline!.buckets[i];
+    for (let i = 0; i < buckets.length && timeline; i++) {
+      const bucket = timeline.buckets[i];
       const dragging = drag !== null && i >= Math.min(drag.from, drag.to) && i <= Math.max(drag.from, drag.to);
       const inRange = range !== null && bucket.to > range[0] && bucket.from < range[1];
       buckets[i].classList.toggle('dragging', dragging);
@@ -401,14 +479,17 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const scroller = el('main', { className: 'scroller', tabIndex: 0 }, spacer, rows);
   const inspector = el('aside', { className: 'inspector' });
   inspector.hidden = true;
+  const groupsPanel = el('aside', { className: 'groups' });
+  groupsPanel.hidden = true;
   const toast = el('div', { className: 'toast' });
   const dropHint = el('div', { className: 'drop-hint' }, 'Drop a .log or .gz file to open it');
-  body.append(toolbar, subbar, timelineEl, scroller, inspector, toast, dropHint);
+  body.append(toolbar, subbar, timelineEl, groupsPanel, scroller, inspector, toast, dropHint);
 
   const displayText = (line: LogLine) => {
-    if (!state.maskSecrets || !line.secret) return line.text;
+    const text = localizeTimestamp(line.text, state.timeMode);
+    if (!state.maskSecrets || !line.secret) return text;
     // a line of a private key's base64 body has nothing recognisable to mask piece by piece
-    return line.secretBlock ? '****' : maskSecrets(line.text);
+    return line.secretBlock ? '****' : maskSecrets(text);
   };
 
   async function copy(text: string, message: string): Promise<void> {
@@ -460,7 +541,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     if (!line) return;
     const facts: Child[] = [`Line ${line.number}`];
     if (line.level) facts.push(' · ', el('b', { className: `lvl-${line.level}` }, line.level));
-    if (line.time !== null) facts.push(` · ${new Date(line.time).toISOString()}`);
+    if (line.time !== null) facts.push(` · ${formatTime(line.time, state.timeMode)}`);
     if (line.gap !== null) facts.push(` · ${formatGap(line.gap)} after previous entry`);
     if (line.secret) facts.push(' · ', el('b', { className: 'secret-note' }, '🔑 contains a secret'));
 
@@ -470,18 +551,147 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     copyLink.addEventListener('click', () => void copy(lineLink(line.number), 'Link copied'));
     const close = el('button', { className: 'toggle', title: 'Close ( Esc )' }, '×');
     close.addEventListener('click', () => select(null));
+    const marked = state.bookmarks.has(line.number);
+    const bookmark = el(
+      'button',
+      { className: `toggle${marked ? ' on' : ''}`, title: 'Bookmark this line for the report ( m )' },
+      marked ? '★ Bookmarked' : '☆ Bookmark',
+    );
+    bookmark.addEventListener('click', () => toggleBookmark(line.number));
 
     const text = el('pre', { className: 'full-text' });
     appendText(text, line);
     const parts: Child[] = [
-      el('div', { className: 'inspector-head' }, el('span', { className: 'facts' }, ...facts), copyLine, copyLink, close),
+      el(
+        'div',
+        { className: 'inspector-head' },
+        el('span', { className: 'facts' }, ...facts),
+        bookmark,
+        copyLine,
+        copyLink,
+        close,
+      ),
       text,
     ];
+    if (marked) {
+      const note = el('input', {
+        className: 'note',
+        value: state.bookmarks.get(line.number) ?? '',
+        placeholder: 'Note for the report, e.g. “the timeout starts here”',
+      });
+      note.addEventListener('input', () => {
+        state.bookmarks.set(line.number, note.value);
+        saveBookmarks();
+      });
+      parts.push(note);
+    }
+    const keys = lineFields(line);
+    if (keys.length > 0) {
+      const statsBox = el('div', { className: 'stats' });
+      const buttons = keys.slice(0, 40).map((key) => {
+        const button = el('button', { className: 'field', title: `Most common values of ${key} in the shown lines` }, key);
+        button.addEventListener('click', () => showStats(statsBox, key));
+        return button;
+      });
+      parts.push(el('div', { className: 'fields' }, el('span', { className: 'facts' }, 'Fields: '), ...buttons), statsBox);
+    }
     if (line.json) {
       const json = JSON.stringify(line.json, null, 2);
       parts.push(el('pre', { className: 'json' }, state.maskSecrets ? maskSecrets(json) : json));
     }
     inspector.replaceChildren(...parts);
+  }
+
+  /** Top values of a field over the lines shown now; click a value to filter by it. */
+  function showStats(box: HTMLElement, key: string): void {
+    const { values, total } = fieldStats(visible, key);
+    const max = values[0]?.count ?? 1;
+    box.replaceChildren(
+      el('div', { className: 'stats-head' }, `${key}: ${total.toLocaleString()} of the shown entries have it`),
+      ...values.map(({ value, count }) => {
+        const bar = el('span', { className: 'bar' });
+        bar.style.width = `${Math.max(2, Math.round((count / max) * 100))}%`;
+        const row = el(
+          'button',
+          { className: 'stat', title: `Show only ${key}=${value}` },
+          el('span', { className: 'value' }, value || '""'),
+          el('span', { className: 'bar-wrap' }, bar),
+          el('span', { className: 'n' }, `×${count.toLocaleString()}`),
+        );
+        row.addEventListener('click', () => {
+          const quoted = /[\s"]/.test(value) || value === '' ? JSON.stringify(value) : value;
+          search.value = `${key}=${quoted}`;
+          state.query = search.value;
+          void refresh();
+        });
+        return row;
+      }),
+    );
+  }
+
+  // bookmarks are kept for this page while the browser is open (in memory, not on disk)
+  const bookmarksKey = `bookmarks:${location.href.split('#')[0]}`;
+  function saveBookmarks(): void {
+    try {
+      void chrome.storage.session.set({ [bookmarksKey]: [...state.bookmarks] }).catch(() => undefined);
+    } catch {
+      // the viewer injected into a page without extension APIs (tests)
+    }
+  }
+  async function loadBookmarks(): Promise<void> {
+    try {
+      const data = await chrome.storage.session.get(bookmarksKey);
+      const saved = data[bookmarksKey] as [number, string][] | undefined;
+      if (saved?.length && !ON_EXTENSION_PAGE) {
+        state.bookmarks = new Map(saved.filter(([line]) => line <= allLines.length));
+        updateBookmarkButtons();
+        render();
+      }
+    } catch {
+      // as above
+    }
+  }
+  function toggleBookmark(number: number): void {
+    if (state.bookmarks.has(number)) state.bookmarks.delete(number);
+    else state.bookmarks.set(number, '');
+    saveBookmarks();
+    updateBookmarkButtons();
+    renderInspector();
+    render();
+  }
+  function updateBookmarkButtons(): void {
+    bookmarksButton.textContent = `★ ${state.bookmarks.size}`;
+    bookmarksButton.hidden = reportButton.hidden = state.bookmarks.size === 0;
+  }
+
+  function renderGroups(): void {
+    const groups = groupErrors(allLines);
+    const items = groups.slice(0, 50).map((group) => {
+      const where = group.sources.length ? ` · ${group.sources.length} pod${group.sources.length > 1 ? 's' : ''}` : '';
+      const when =
+        group.first !== null && group.last !== null && group.last > group.first
+          ? ` · ${formatTime(group.first, state.timeMode).slice(11, 19)}–${formatTime(group.last, state.timeMode).slice(11, 19)}`
+          : '';
+      const item = el(
+        'button',
+        { className: 'group-item', title: 'Show only this error' },
+        el('span', { className: 'n' }, `×${group.count}`),
+        el('span', { className: 'sample' }, group.sample),
+        el('span', { className: 'meta' }, `${where}${when}`),
+      );
+      item.addEventListener('click', () => {
+        state.group = { key: group.key, lines: new Set(group.lines), label: `×${group.count} ${group.sample.slice(0, 60)}` };
+        void refresh().then(() => {
+          const index = visible.findIndex((l) => l.number === group.lines[0]);
+          if (index >= 0) scrollToIndex(index, true);
+        });
+      });
+      return item;
+    });
+    groupsPanel.replaceChildren(
+      el('div', { className: 'groups-head' }, `${groups.length} different errors`),
+      ...(items.length ? items : [el('div', { className: 'facts' }, 'No errors in this log.')]),
+    );
   }
 
   function select(number: number | null): void {
@@ -565,6 +775,122 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   );
 
   nextError.addEventListener('click', () => jumpToNext((l) => l.level === 'ERROR' && !l.continuation));
+  bookmarksButton.addEventListener('click', () => jumpToNext((l) => state.bookmarks.has(l.number)));
+  reportButton.addEventListener('click', () => {
+    const bookmarks: Bookmark[] = [...state.bookmarks].map(([line, note]) => ({ line, note }));
+    const report = bookmarkReport(bookmarks, allLines, {
+      title: options.title,
+      url: ON_EXTENSION_PAGE ? '' : location.href.split('#')[0],
+      timeMode: state.timeMode,
+      mask: state.maskSecrets ? maskSecrets : undefined,
+    });
+    void copy(report, `Report with ${bookmarks.length} line${bookmarks.length > 1 ? 's' : ''} copied`);
+  });
+  groupsButton.addEventListener('click', () => {
+    groupsPanel.hidden = !groupsPanel.hidden;
+    groupsButton.classList.toggle('on', !groupsPanel.hidden);
+    if (!groupsPanel.hidden) renderGroups();
+  });
+  groupChip.addEventListener('click', () => {
+    state.group = null;
+    void refresh();
+  });
+  tableToggle.addEventListener('click', () => {
+    state.table = state.table ? null : defaultColumns(allLines);
+    tableToggle.classList.toggle('on', state.table !== null);
+    columnsInput.value = state.table?.join(', ') ?? '';
+    void refresh();
+  });
+  columnsInput.addEventListener('change', () => {
+    const columns = columnsInput.value
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean);
+    state.table = columns.length ? columns : defaultColumns(allLines);
+    void refresh();
+  });
+  const showTimeMode = () => {
+    timeButton.textContent = state.timeMode === 'utc' ? 'UTC' : 'Local time';
+    timeButton.classList.toggle('on', state.timeMode === 'local');
+  };
+  showTimeMode();
+  timeButton.addEventListener('click', () => {
+    state.timeMode = state.timeMode === 'utc' ? 'local' : 'utc';
+    showTimeMode();
+    drawTimeline();
+    if (!groupsPanel.hidden) renderGroups();
+    void refresh();
+    // remembered for next time, like the other settings
+    void loadSettings()
+      .then((settings) => saveSettings({ ...settings, timeMode: state.timeMode }))
+      .catch(() => undefined);
+  });
+
+  // Follow: read the page again and add what was written since
+  let followTimer: number | undefined;
+  let consumed = options.text.length;
+  let followedText = options.text;
+  let lastHeads = new LogParser();
+  async function followOnce(): Promise<void> {
+    let text: string;
+    try {
+      const response = await fetch(location.href.split('#')[0], { cache: 'no-store', credentials: 'include' });
+      text = await response.text();
+    } catch (error) {
+      showToast(`Follow: couldn’t read the page again (${(error as Error).message})`);
+      return;
+    }
+    if (signal.aborted) return;
+    const appended = appendedText(followedText.slice(0, consumed), text);
+    if (!appended) {
+      stopFollowing();
+      showToast('The log was replaced, not added to. Reload the page to see it.');
+      return;
+    }
+    consumed = appended.consumed;
+    followedText = text;
+    if (!appended.added) return;
+    const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - ROW_HEIGHT * 2;
+    const offset = allLines.length;
+    const added = lastHeads.push(splitLines(appended.added)).map((line, i) => ({ ...line, number: offset + i + 1 }));
+    allLines.push(...added);
+    times = entryTimes(allLines);
+    counts = countByLevel(allLines);
+    secretCount = allLines.filter((l) => l.secret).length;
+    timeline = buildTimeline(allLines);
+    regexSearch.dispose();
+    regexSearch = new RegexSearch(allLines.map((l) => l.text));
+    for (const [key, entry] of Object.entries(chipCounts)) {
+      const [button, count] = entry!;
+      count.textContent = String(counts[key as Level | 'UNKNOWN']);
+      button.hidden = counts[key as Level | 'UNKNOWN'] === 0;
+    }
+    secretsButton.textContent = `🔑 ${secretCount}`;
+    secretsGroup.hidden = secretCount === 0;
+    timelineToggle.hidden = timeline === null;
+    drawTimeline();
+    if (!groupsPanel.hidden) renderGroups();
+    await refresh();
+    if (atBottom) scroller.scrollTop = scroller.scrollHeight;
+    showToast(`${added.length.toLocaleString()} new line${added.length > 1 ? 's' : ''}`);
+  }
+  function stopFollowing(): void {
+    clearInterval(followTimer);
+    followTimer = undefined;
+    followToggle.classList.remove('on');
+  }
+  followToggle.addEventListener('click', () => {
+    if (followTimer !== undefined) return stopFollowing();
+    // new lines are parsed from where the first parse ended (its last entry's level carries over)
+    lastHeads = new LogParser();
+    lastHeads.push(splitLines(options.text).slice(-200));
+    followToggle.classList.add('on');
+    scroller.scrollTop = scroller.scrollHeight;
+    void followOnce();
+    followTimer = window.setInterval(() => void followOnce(), FOLLOW_INTERVAL_MS);
+  });
+  signal.addEventListener('abort', () => clearInterval(followTimer));
+
   secretsButton.addEventListener('click', () => jumpToNext((l) => l.secret));
   copyButton.addEventListener(
     'click',
@@ -615,6 +941,10 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         jumpToNext((l) => l.level === 'ERROR' && !l.continuation);
       } else if (event.key === 's' && secretCount > 0) {
         jumpToNext((l) => l.secret);
+      } else if (event.key === 'm' && state.selected !== null) {
+        toggleBookmark(state.selected);
+      } else if (event.key === 'b' && state.bookmarks.size > 0) {
+        jumpToNext((l) => state.bookmarks.has(l.number));
       } else if (event.key === 'Escape' && state.selected !== null) {
         select(null);
       }
@@ -643,12 +973,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   }
 
   let fieldMode = false;
-  const clock = (t: number) => new Date(t).toISOString().slice(11, 19);
+  const clock = (t: number) => formatTime(t, state.timeMode).slice(11, 19);
 
   function renderSubbar(): void {
     const range = state.timeRange;
     rangeChip.hidden = range === null;
     if (range) rangeChip.textContent = `⏱ ${clock(range[0])} – ${clock(range[1])} ×`;
+    groupChip.hidden = state.group === null;
+    if (state.group) groupChip.textContent = `Only ${state.group.label} ×`;
+    columnsLabel.hidden = state.table === null;
     highlightChips.replaceChildren(
       ...state.highlights.map((term, i) => {
         const chip = el('button', { className: `toggle hl-chip hl-${i}`, title: 'Remove this highlight' }, `${term} ×`);
@@ -659,12 +992,13 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         return chip;
       }),
     );
-    subbar.hidden = range === null && state.highlights.length === 0 && sourceButtons.length < 2;
+    subbar.hidden =
+      range === null && state.group === null && state.table === null && state.highlights.length === 0 && sourceButtons.length < 2;
     sourceChips.hidden = sourceButtons.length < 2;
-    if (timeline) markDrag();
+    markDrag();
   }
 
-  const regexSearch = new RegexSearch(allLines.map((l) => l.text));
+  let regexSearch = new RegexSearch(allLines.map((l) => l.text));
   let refreshId = 0;
 
   /**
@@ -694,6 +1028,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const range = state.timeRange;
     if (range) base = base.filter((l) => times[l.number - 1] >= range[0] && times[l.number - 1] < range[1]);
     if (state.hiddenSources.size > 0) base = base.filter((l) => l.source === null || !state.hiddenSources.has(l.source));
+    if (state.group) {
+      // the group's error lines and their stack traces
+      const heads = state.group.lines;
+      let keep = false;
+      base = base.filter((l) => {
+        if (!l.continuation) keep = heads.has(l.number);
+        return keep;
+      });
+    }
 
     let filtered: LogLine[];
     if (error) {
@@ -725,6 +1068,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         if (line.continuation) classes.push('cont');
         if (line.secret) classes.push('has-secret');
         if (line.number === state.selected) classes.push('selected');
+        if (state.bookmarks.has(line.number)) classes.push('bookmarked');
         const row = el('div', { className: classes.join(' ') });
         row.dataset.number = String(line.number);
 
@@ -738,14 +1082,24 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         if (line.repeat > 1) {
           txt.append(el('span', { className: 'repeat', title: 'Similar consecutive lines' }, `×${line.repeat}`));
         }
-        appendText(txt, line);
+        if (state.table && line.json) {
+          const { cells, rest } = tableCells(line, state.table);
+          txt.classList.add('table');
+          for (const cell of cells)
+            txt.append(el('span', { className: 'cell', title: cell }, localizeTimestamp(cell, state.timeMode)));
+          txt.append(el('span', { className: 'rest' }, state.maskSecrets ? maskSecrets(rest) : rest));
+        } else {
+          appendText(txt, line);
+        }
         row.append(el('span', { className: 'ln', title: 'Copy a link to this line' }, String(line.number)), gap, txt);
         return row;
       }),
     );
   }
 
+  updateBookmarkButtons();
   void refresh();
+  void loadBookmarks();
   scroller.focus();
 
   // #L120 in the address opens the viewer on that line

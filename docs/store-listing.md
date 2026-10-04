@@ -47,6 +47,13 @@ FILTER, HIGHLIGHT, PODS
 • kubectl and docker compose logs: a coloured chip per pod
 • Open pasted logs and .log / .gz files; save the filtered lines
 
+BOOKMARKS, GROUPS, FOLLOW
+• Bookmark lines with notes and copy a Markdown report for a ticket
+• Field statistics: the most common values, one click to filter
+• The same error grouped: count, pods, first and last time
+• Follow a log that is still being written
+• JSON as a table, and local time instead of UTC
+
 COMPARE TWO LOGS OR JSON DOCUMENTS
 • Line diff with the changed words marked; unchanged parts folded
 • Ignore timestamps, IDs and durations to compare two runs of the same CI job

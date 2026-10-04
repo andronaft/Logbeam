@@ -10,6 +10,7 @@ import {
   setDarkMode,
 } from '../shared/darkMode';
 import { openShortcutSettings } from '../shared/browser';
+import { localizePage, t, toolKey } from '../shared/i18n';
 import { openCompare } from '../shared/compare';
 import { setCustomSecretPatterns } from '../lib/secrets';
 import { loadSettings } from '../shared/settings';
@@ -42,7 +43,7 @@ async function setupSite(): Promise<void> {
     remember.disabled = true;
     autoOpen.disabled = true;
     note.hidden = false;
-    note.textContent = 'Dark mode works on http(s) pages. The log viewer also works on plain-text files.';
+    note.textContent = t('popupHttpOnly', 'Dark mode works on http(s) pages. The log viewer also works on plain-text files.');
   } else {
     $('site-name').textContent = new URL(tab.url!).hostname;
   }
@@ -57,7 +58,7 @@ async function setupSite(): Promise<void> {
   };
   const explainDark = async (result: DarkResult) => {
     if (result.state === 'native-dark') {
-      showNote('This page already has a dark theme, so Logbeam leaves it as it is.');
+      showNote(t('popupAlreadyDark', 'This page already has a dark theme, so Logbeam leaves it as it is.'));
     } else if (result.state === null) {
       showNote(await whyNotAllowed(tab.url));
     }
@@ -67,7 +68,9 @@ async function setupSite(): Promise<void> {
     darkToggle.checked = await isDarkForTab(tab);
     remember.checked = pattern !== null && (await rememberedSites()).includes(pattern);
     autoOpen.checked = await isAutoOpen(tab.url);
-    hint.textContent = remember.checked ? 'Remembered for this site' : 'Applies to this tab';
+    hint.textContent = remember.checked
+      ? t('popupRememberedForSite', 'Remembered for this site')
+      : t('popupAppliesToTab', 'Applies to this tab');
   };
   await refresh();
 
@@ -129,7 +132,7 @@ async function setupShortcuts(): Promise<void> {
   ] as const) {
     const element = $(id);
     const keys = shortcut(name);
-    element.textContent = keys || 'set shortcut';
+    element.textContent = keys || t('popupSetShortcut', 'set shortcut');
     element.title = keys ? 'Click to change' : 'No shortcut assigned. Click to set one.';
     element.addEventListener('click', openShortcuts);
   }
@@ -151,8 +154,8 @@ function setupTools(): void {
 
   for (const transform of TRANSFORMS) {
     const button = document.createElement('button');
-    button.textContent = transform.short;
-    button.title = transform.title;
+    button.textContent = t(toolKey(transform.id, 'short'), transform.short);
+    button.title = t(toolKey(transform.id, 'title'), transform.title);
     button.addEventListener('click', () => {
       output.hidden = false;
       try {
@@ -184,6 +187,7 @@ function setupTools(): void {
   });
 }
 
+localizePage();
 setupTools();
 $('open-compare').addEventListener('click', () => void openCompare().then(() => window.close()));
 $('open-file').addEventListener('click', () => void openFileViewer().then(() => window.close()));
@@ -199,8 +203,9 @@ function toolsNote(text: string): void {
 }
 $('open-pasted').addEventListener('click', () => {
   const text = $<HTMLTextAreaElement>('input').value;
-  if (!text.trim()) return toolsNote('Paste a log into the box above first.');
-  if (new Blob([text]).size > MAX_PASTED_BYTES) return toolsNote('That’s too big to paste. Use “Open a log file…”.');
+  if (!text.trim()) return toolsNote(t('popupPasteFirst', 'Paste a log into the box above first.'));
+  if (new Blob([text]).size > MAX_PASTED_BYTES)
+    return toolsNote(t('popupTooBig', 'That’s too big to paste. Use “Open a log file…”.'));
   void openTextInViewer(text).then(() => window.close());
 });
 // the user's own secret patterns for "Mask secrets"

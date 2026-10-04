@@ -12,12 +12,15 @@ export interface Settings {
   customSecrets: CustomSecret[];
   /** Text tools left out of the right-click menu. */
   hiddenTools: string[];
+  /** Times in the viewer: as UTC, or in the browser's time zone. */
+  timeMode: 'utc' | 'local';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   gapThresholdMs: 1000,
   customSecrets: [],
   hiddenTools: [],
+  timeMode: 'utc',
 };
 
 export const SETTINGS_KEY = 'settings';

@@ -1,6 +1,6 @@
 # Logbeam Privacy Policy
 
-_Last updated: October 4, 2026 (version 0.4.0)_
+_Last updated: October 4, 2026 (version 0.5.0)_
 
 Logbeam is a browser extension for Chrome, Edge, Opera and Firefox that runs entirely in your browser.
 
@@ -18,6 +18,9 @@ Logbeam is a browser extension for Chrome, Edge, Opera and Firefox that runs ent
   settings page (pause threshold, your own secret patterns, which tools to show), are saved with `chrome.storage.sync`.
   If Chrome sync is on, Google syncs this list between your own browsers, as it does for all extension settings.
   Logbeam itself never receives it.
+- **Bookmarks and notes** on a log's lines are kept in memory (`chrome.storage.session`) for that page and are gone
+  when the browser closes. **Report** copies them to your clipboard only when you click it.
+- **Follow** reads the same page again from the same address you opened; nothing is sent anywhere else.
 - **Files you open.** Log files you open or drop are read and unpacked in your browser and are not stored.
 - **Popup text box, pasted logs and Compare.** Text you paste into the popup's tools or open as a log, and the two
   texts on the Compare page, are

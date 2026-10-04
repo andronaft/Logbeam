@@ -293,6 +293,12 @@ try {
   await driver.wait(async () => (await status()).startsWith('2 /'), 5000).catch(() => undefined);
   check('field filters', (await status()) === '2 / 5 lines · 2 field conditions', await status());
   check('each pod gets a chip', (await driver.findElements(By.css('.sources .chip'))).length === 2);
+  await driver.findElement(By.css('.search')).clear();
+  await driver.findElement(By.xpath('//button[normalize-space()="Groups"]')).click();
+  check('errors are grouped', (await driver.findElements(By.css('.group-item'))).length === 2);
+  await driver.findElement(By.css('.row[data-number="1"] .txt')).click();
+  await driver.findElement(By.css('body')).sendKeys('m');
+  check('a line can be bookmarked', (await driver.findElement(By.css('.bookmarks')).getText()) === '★ 1');
 
   // ---- the viewer page for pasted text ---------------------------------------------------------
   await command({ cmd: 'paste', text: 'INFO one\nERROR two timeout\nINFO three missing' });

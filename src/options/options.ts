@@ -1,6 +1,7 @@
 import { maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
 import { TRANSFORMS } from '../lib/transforms';
 import { openShortcutSettings } from '../shared/browser';
+import { t, toolKey } from '../shared/i18n';
 import { CustomSecret, Settings, loadSettings, saveSettings } from '../shared/settings';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -75,7 +76,7 @@ function renderTools(): void {
           : [...settings.hiddenTools, transform.id];
         save();
       });
-      return el('label', {}, box, transform.title);
+      return el('label', {}, box, t(toolKey(transform.id, 'title'), transform.title));
     }),
   );
 }

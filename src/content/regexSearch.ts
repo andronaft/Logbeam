@@ -67,6 +67,12 @@ export class RegexSearch {
     }
   }
 
+  /** Stops the worker, e.g. when Follow replaces this search with one over more lines. */
+  dispose(): void {
+    this.worker?.terminate();
+    this.worker = null;
+  }
+
   private restart(): void {
     this.worker?.terminate();
     this.worker = null; // a fresh worker is created (and sent the texts) on the next search

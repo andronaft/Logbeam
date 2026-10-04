@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.0
+
+### Added
+
+- **Bookmarks and notes.** Press `m` (or ★ Bookmark in the inspector) to bookmark a line and add a note;
+  `b` jumps between bookmarks. **Report** copies them as Markdown for a ticket: each line with its time,
+  the pause since the previous one, your note and a link to the line.
+- **Field statistics.** The inspector lists a line's fields; click one to see its most common values in the
+  shown lines (`status: 200 ×1520, 502 ×37`), and click a value to filter by it.
+- **Error groups.** **Groups** lists each different error once: how often it happened, in which pods, and
+  between which times. Click a group to see only that error and its stack traces.
+- **Follow** a log that is still being written (a running CI job, a Jenkins console): the page is read
+  again every 3 seconds and new lines are added; the view stays at the bottom if it was there.
+- **JSON table**: for JSON logs, **Table** shows time, level, service and message as columns (choose
+  others in the Columns box); the remaining fields follow on the same row.
+- **Local time**: the UTC button switches timestamps with a zone, the inspector, the timeline and reports
+  to your time zone, and remembers the choice.
+- **Ukrainian**: the popup, the right-click menu, the shortcuts and the extension's description, with
+  the translation files in `_locales` for more languages.
+
+### Fixed
+
+- The popup's Copy and Use as input buttons showed before there was any result.
+
 ## 0.4.0
 
 ### Added

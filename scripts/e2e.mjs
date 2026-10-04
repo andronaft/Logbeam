@@ -73,8 +73,15 @@ const htmlPages = {
   </body>`,
 };
 
+// a log that is still being written, for Follow
+const growing = ['2026-10-04T10:00:00Z INFO job started', '2026-10-04T10:00:01Z INFO step 1'];
 const server = createServer((req, res) => {
   const path = req.url.split('#')[0];
+  if (path === '/growing.log') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(growing.join('\n') + '\n');
+    return;
+  }
   if (plainPages[path] !== undefined) {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end(plainPages[path]);
@@ -111,6 +118,8 @@ const context = await chromium.launchPersistentContext(mkdtempSync(path.join(tmp
   channel: 'chromium',
   headless: true,
   viewport: { width: 1280, height: 800 },
+  // a time zone other than UTC, so "Local time" visibly changes the times
+  timezoneId: 'Europe/Kyiv',
   args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
 });
 const errors = [];
@@ -434,6 +443,86 @@ check(
 );
 await logs.close();
 
+// ---- bookmarks, field statistics, error groups, table, time zone -----------------------------
+const insights = await context.newPage();
+watch(insights);
+await insights.goto(`${base}/fields.log`);
+await insights.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await insights.waitForSelector('.row');
+await insights.evaluate(() => {
+  // keep what Report copies (the clipboard isn't readable in a headless test)
+  navigator.clipboard.writeText = async (text) => void (window.__copied = text);
+});
+const insightStatus = () => insights.locator('.status').textContent();
+
+await insights.locator('.row[data-number="2"] .txt').click();
+await insights.keyboard.press('m');
+await insights.locator('.inspector .note').fill('the timeout starts here');
+await insights.locator('.row[data-number="5"] .txt').click();
+await insights.locator('.inspector button', { hasText: 'Bookmark' }).click();
+check('bookmarks are counted', (await insights.locator('.bookmarks').textContent()) === '★ 2');
+check('bookmarked rows are marked', (await insights.locator('.row.bookmarked').count()) === 2);
+await insights.locator('.toggle', { hasText: 'Report' }).click();
+const report = await insights.evaluate(() => window.__copied);
+check(
+  'Report copies the bookmarks with times and notes',
+  report.startsWith('### fields') &&
+    report.includes('#L2)** · 2026-10-04 10:00:10.000Z — the timeout starts here') &&
+    report.includes('#L5)'),
+  report.split('\n')[2],
+);
+
+await insights.locator('.inspector .field', { hasText: 'service' }).click();
+const stats = await insights.locator('.inspector .stat').allTextContents();
+check('field statistics list the top values', stats.join(' | ') === 'payments×4 | search×2', stats.join(' | '));
+await insights.locator('.inspector .stat').first().click();
+check('a value filters by it', (await insights.locator('.search').inputValue()) === 'service=payments');
+await insights.locator('.search').fill('');
+await insights.keyboard.press('Escape');
+
+await insights.locator('.toggle', { hasText: 'Groups' }).click();
+const groupItems = await insights.locator('.group-item .n').allTextContents();
+check('errors are grouped', groupItems.join(',') === '×1,×1,×1', groupItems.join(','));
+await insights.locator('.group-item').nth(2).click();
+await insights.waitForSelector('.group-chip:not([hidden])');
+check('a group shows only its error and stack trace', (await insightStatus()).startsWith('2 /'), await insightStatus());
+await insights.locator('.group-chip').click();
+await insights.locator('.toggle', { hasText: 'Groups' }).click();
+
+await insights.locator('.toggle', { hasText: 'Table' }).click();
+check(
+  'the table picks time, level, service and message',
+  (await insights.locator('.columns').inputValue()) === 'time, level, service, msg',
+);
+check('JSON records become table rows', (await insights.locator('.row[data-number="1"] .cell').count()) === 4);
+await insights.screenshot({ path: 'docs/table.png' });
+await insights.locator('.toggle', { hasText: 'Table' }).click();
+
+await insights.locator('.toggle', { hasText: 'UTC' }).click();
+const firstRow = await insights.locator('.row[data-number="4"] .txt').textContent();
+check('Local time shows timestamps in the browser’s zone', firstRow.startsWith('2026-10-04 13:10:00.000+03:00 WARN'), firstRow);
+await insights.locator('.toggle', { hasText: 'Local time' }).click();
+await insights.close();
+
+// ---- Follow -------------------------------------------------------------------------------
+const tail = await context.newPage();
+watch(tail);
+await tail.goto(`${base}/growing.log`);
+await tail.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await tail.waitForSelector('.row');
+await tail.locator('.toggle', { hasText: 'Follow' }).click();
+growing.push('2026-10-04T10:00:05Z ERROR step 2 failed', '\tat Job.run(Job.java:7)', '2026-10-04T10:00:06Z INFO retrying');
+await tail.waitForFunction(() => document.querySelector('.status').textContent.startsWith('5 /'), null, { timeout: 10_000 });
+check('Follow adds new lines as they are written', true, await tail.locator('.status').textContent());
+check('their levels and stack traces are read', (await tail.locator('.chip.lvl-ERROR .count').textContent()) === '2');
+growing.splice(0, growing.length, 'a different log');
+await tail.waitForTimeout(3500);
+check(
+  'Follow stops when the log is replaced',
+  !(await tail.locator('.toggle', { hasText: 'Follow' }).getAttribute('class')).includes(' on'),
+);
+await tail.close();
+
 // ---- pods ---------------------------------------------------------------------------------
 const pods = await context.newPage();
 watch(pods);
@@ -566,6 +655,26 @@ const fallback = await popup.evaluate(async () => {
   return text;
 });
 check('clearing a tab badge shows the global one again', fallback === 'G', fallback);
+
+// ---- Ukrainian --------------------------------------------------------------------------------
+const ukContext = await chromium.launchPersistentContext(mkdtempSync(path.join(tmpdir(), 'logbeam-uk-')), {
+  channel: 'chromium',
+  headless: true,
+  args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`, '--lang=uk'],
+});
+let [ukWorker] = ukContext.serviceWorkers();
+ukWorker ??= await ukContext.waitForEvent('serviceworker');
+const ukPopup = await ukContext.newPage();
+await ukPopup.goto(`chrome-extension://${new URL(ukWorker.url()).host}/popup.html`);
+await ukPopup.waitForSelector('#transforms button');
+check(
+  'the popup speaks Ukrainian',
+  (await ukPopup.locator('h2').first().textContent()) === 'Ця сторінка',
+  await ukPopup.locator('h2').first().textContent(),
+);
+check('text tools are translated', (await ukPopup.locator('#transforms button').first().textContent()) === 'Маскувати');
+await ukPopup.screenshot({ path: 'docs/popup-uk.png', fullPage: true });
+await ukContext.close();
 
 check('no page errors', errors.length === 0, errors.join('; '));
 await context.close();

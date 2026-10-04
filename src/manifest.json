@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Logbeam",
   "short_name": "Logbeam",
-  "version": "0.4.0",
-  "description": "Readable logs, dark mode for any site, and one-click JSON / JWT / Base64 / timestamp / cron tools. 100% local.",
+  "version": "0.5.0",
+  "description": "__MSG_extDescription__",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -32,15 +32,16 @@
         "default": "Ctrl+Shift+L",
         "mac": "MacCtrl+Shift+L"
       },
-      "description": "Open the current page in the log viewer"
+      "description": "__MSG_cmdOpenLogViewer__"
     },
     "toggle-dark-mode": {
       "suggested_key": {
         "default": "Ctrl+Shift+K",
         "mac": "MacCtrl+Shift+K"
       },
-      "description": "Toggle dark mode for the current tab"
+      "description": "__MSG_cmdToggleDarkMode__"
     }
   },
-  "minimum_chrome_version": "110"
+  "minimum_chrome_version": "110",
+  "default_locale": "en"
 }
