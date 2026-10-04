@@ -3,6 +3,7 @@ import { findSecrets, maskSecrets } from '../lib/secrets';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
 import { parseLogAsync } from './parseAsync';
+import { COMPARE_ADD } from '../shared/compare';
 import { RegexSearch } from './regexSearch';
 import { VIEWER_CSS } from './viewerStyles';
 
@@ -72,6 +73,8 @@ function resetDocument(title: string): HTMLBodyElement {
 }
 
 export async function openViewer(text: string = readPageText()): Promise<void> {
+  // the page is about to be replaced; "Compare…" in the context menu reads the log from here
+  (window as unknown as { __logbeamLogText?: string }).__logbeamLogText = text;
   const title = document.title || location.pathname.split('/').pop() || 'log';
   const body = resetDocument(title);
 
@@ -92,10 +95,10 @@ export async function openViewer(text: string = readPageText()): Promise<void> {
     label.textContent = `Parsing log… ${done.toLocaleString()} / ${total.toLocaleString()} lines`;
   });
   body.replaceChildren();
-  buildViewer(body, lines);
+  buildViewer(body, lines, text);
 }
 
-function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
+function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: string): void {
   const counts = countByLevel(allLines);
   const secretCount = allLines.filter((l) => l.secret).length;
   const timeline = buildTimeline(allLines);
@@ -178,6 +181,13 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
   secretsGroup.hidden = secretCount === 0;
   const nextError = el('button', { className: 'toggle', title: 'Jump to the next error ( e )' }, 'Next error');
   const copyButton = el('button', { className: 'toggle', title: 'Copy visible lines' }, 'Copy');
+  const compareButton = el(
+    'button',
+    { className: 'toggle', title: 'Compare this log with another one, e.g. a passing and a failing CI run' },
+    'Compare',
+  );
+  // only as an extension content script (not when a test injects the viewer into the page)
+  compareButton.hidden = typeof chrome === 'undefined' || !chrome.runtime?.id;
   const rawButton = el('button', { className: 'toggle', title: 'Back to the original page' }, 'Raw');
   const status = el('span', { className: 'status' });
 
@@ -198,6 +208,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     secretsGroup,
     nextError,
     copyButton,
+    compareButton,
     rawButton,
     status,
   );
@@ -337,6 +348,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[]): void {
     () => void copy(visible.map(displayText).join('\n'), `${visible.length.toLocaleString()} lines copied`),
   );
   rawButton.addEventListener('click', () => location.reload());
+  compareButton.addEventListener('click', async () => {
+    try {
+      const side = await chrome.runtime.sendMessage({ type: COMPARE_ADD, text: originalText, name: document.title });
+      if (side === 'left') showToast('Added as “Before”. Open the other log and press Compare there.');
+    } catch {
+      showToast('Compare isn’t available here');
+    }
+  });
 
   rows.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;

@@ -227,23 +227,167 @@ export function splitLines(text: string): string[] {
   return lines;
 }
 
-/**
- * Parses lines one chunk at a time. It keeps the state that crosses chunk borders (the
- * level of the current entry, the previous timestamp), so a big log can be parsed in a
- * Web Worker or between animation frames with progress updates.
- */
 const PEM_BEGIN = /-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----/;
 const PEM_END = /-----END (?:[A-Z]+ )*PRIVATE KEY-----/;
 
+/** Where a JSON value is while it's read line by line: bracket depth and whether inside a string. */
+interface JsonScan {
+  depth: number;
+  inString: boolean;
+  escaped: boolean;
+}
+
+function scanJson(text: string, scan: JsonScan): void {
+  for (const char of text) {
+    if (scan.inString) {
+      if (scan.escaped) scan.escaped = false;
+      else if (char === '\\') scan.escaped = true;
+      else if (char === '"') scan.inString = false;
+    } else if (char === '"') scan.inString = true;
+    else if (char === '{' || char === '[') scan.depth++;
+    else if (char === '}' || char === ']') scan.depth--;
+  }
+}
+
+/** A JSON object printed over several lines, e.g. by JSON.stringify(record, null, 2). */
+interface JsonBlock {
+  head: LogLine;
+  /** The JSON starts here in the head line; 0 when the whole entry is the JSON record. */
+  start: number;
+  body: LogLine[];
+  raw: string[];
+  scan: JsonScan;
+  /** Parser state right after the head, to replay the body as ordinary lines if it isn't JSON. */
+  levelAfterHead: Level | null;
+  timeBeforeHead: number | null;
+  timeAfterHead: number | null;
+}
+
+/** A pretty-printed record longer than this is more likely an unbalanced brace than JSON. */
+const MAX_JSON_BLOCK_LINES = 5000;
+
+/**
+ * Parses lines one chunk at a time. It keeps the state that crosses chunk borders (the
+ * level of the current entry, the previous timestamp, an unfinished multi-line JSON record),
+ * so a big log can be parsed in a Web Worker or between animation frames with progress updates.
+ */
 export class LogParser {
   /** Inside a PEM private key: its body lines don't look like secrets on their own. */
   private inPem = false;
   private currentLevel: Level | null = null;
   private lastTime: number | null = null;
   private count = 0;
+  private block: JsonBlock | null = null;
 
   push(rawLines: string[]): LogLine[] {
-    return rawLines.map((raw) => this.parseLine(raw));
+    return rawLines.map((raw) => this.next(raw));
+  }
+
+  private next(raw: string): LogLine {
+    if (this.block) {
+      const line = this.continueBlock(raw);
+      if (line) return line;
+    }
+    const line = this.parseLine(raw);
+    if (!line.continuation && !this.inPem) this.maybeOpenBlock(line, raw);
+    return line;
+  }
+
+  /**
+   * Starts a block when a line opens a JSON object that it doesn't close: a line that is just
+   * "{", or an entry ending in "{" like "INFO Request body: {".
+   */
+  private maybeOpenBlock(head: LogLine, raw: string): void {
+    const trimmed = raw.trim();
+    const wholeRecord = trimmed.startsWith('{');
+    if (!wholeRecord && !trimmed.endsWith('{')) return;
+    const start = raw.indexOf('{');
+    const scan: JsonScan = { depth: 0, inString: false, escaped: false };
+    scanJson(raw.slice(start), scan);
+    if (scan.depth <= 0) return;
+    this.block = {
+      head,
+      start: wholeRecord ? 0 : start,
+      body: [],
+      raw: [raw],
+      scan,
+      levelAfterHead: this.currentLevel,
+      // lastTime already counts the head's own timestamp, if it had one
+      timeBeforeHead: head.time === null ? this.lastTime : head.gap === null ? null : head.time - head.gap,
+      timeAfterHead: this.lastTime,
+    };
+  }
+
+  /** Adds a line to the open block, or returns null after giving the block up. */
+  private continueBlock(raw: string): LogLine | null {
+    const block = this.block!;
+    // pretty-printed JSON is indented until its closing bracket; anything else at the start of
+    // a line is a new entry, so the "{" wasn't the start of a record after all
+    if ((!/^[\s}\]]/.test(raw) && raw !== '') || block.body.length >= MAX_JSON_BLOCK_LINES) {
+      this.abandonBlock();
+      return null;
+    }
+    scanJson(raw, block.scan);
+    const line: LogLine = {
+      number: ++this.count,
+      text: raw,
+      level: block.head.level,
+      continuation: true,
+      time: null,
+      gap: null,
+      json: null,
+      secret: hasSecret(raw),
+      secretBlock: false,
+    };
+    block.body.push(line);
+    block.raw.push(raw);
+    if (block.scan.depth <= 0) this.closeBlock();
+    return line;
+  }
+
+  private closeBlock(): void {
+    const block = this.block!;
+    this.block = null;
+    const text = block.raw.join('\n').slice(block.start);
+    let record: Record<string, unknown> | null = null;
+    try {
+      const value = JSON.parse(text);
+      if (value && typeof value === 'object' && !Array.isArray(value)) record = value;
+    } catch {
+      // not JSON (e.g. a JavaScript object printed by console.log): still one entry, no fields
+    }
+    const head = block.head;
+    if (record) {
+      head.json = record;
+      if (block.start === 0) {
+        // the record is the whole entry: take its level, time and message like a one-line JSON log
+        head.text = formatJsonRecord(record);
+        head.secret = hasSecret(head.text);
+        head.level = jsonLevel(record) ?? head.level;
+        const time = jsonTime(record);
+        if (time !== null) {
+          head.time = time;
+          head.gap = block.timeBeforeHead !== null ? time - block.timeBeforeHead : null;
+          this.lastTime = time;
+        }
+      }
+    }
+    for (const line of block.body) line.level = head.level;
+    this.currentLevel = head.level;
+  }
+
+  /** The "{" didn't start a record: parse the lines read since then as ordinary lines. */
+  private abandonBlock(): void {
+    const block = this.block!;
+    this.block = null;
+    this.currentLevel = block.levelAfterHead;
+    this.lastTime = block.timeAfterHead;
+    const count = this.count;
+    for (const line of block.body) {
+      this.count = line.number - 1;
+      Object.assign(line, this.parseLine(line.text));
+    }
+    this.count = count;
   }
 
   private parseLine(raw: string): LogLine {

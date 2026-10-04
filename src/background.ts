@@ -1,11 +1,13 @@
 import { TRANSFORMS } from './lib/transforms';
 import { setAutoOpen, syncAutoOpenRegistrations } from './shared/autoOpen';
+import { COMPARE_ADD, compareText } from './shared/compare';
 import { completePending, forgetTab, setDarkMode, syncRegistrations, toggleDarkMode } from './shared/darkMode';
-import { clearIconReport, openLogViewer, reportOnIcon, runTransformInTab } from './shared/inject';
+import { clearIconReport, openLogViewer, readTextForCompare, reportOnIcon, runTransformInTab } from './shared/inject';
 
 const MENU_ROOT = 'logbeam';
 const MENU_LOG_VIEWER = 'logbeam:log-viewer';
 const MENU_DARK = 'logbeam:dark';
+const MENU_COMPARE = 'logbeam:compare';
 const TRANSFORM_PREFIX = 'logbeam:transform:';
 
 function createMenus(): void {
@@ -30,6 +32,12 @@ function createMenus(): void {
       id: MENU_LOG_VIEWER,
       parentId: MENU_ROOT,
       title: 'Open page in log viewer',
+      contexts: ['page', 'selection', 'editable'],
+    });
+    chrome.contextMenus.create({
+      id: MENU_COMPARE,
+      parentId: MENU_ROOT,
+      title: 'Compare…',
       contexts: ['page', 'selection', 'editable'],
     });
     chrome.contextMenus.create({
@@ -79,6 +87,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     void openLogViewer(tabId).then((result) => reportOnIcon(tabId, result));
   } else if (id === MENU_DARK) {
     void toggleDarkMode(tab).then((result) => reportOnIcon(tabId, result));
+  } else if (id === MENU_COMPARE) {
+    void readTextForCompare(tabId, info.frameId).then(async (text) => {
+      if (text) await compareText(text, tab.title);
+      else await reportOnIcon(tabId, { ok: false, reason: 'Logbeam couldn’t read text on this page to compare.' });
+    });
   } else if (id.startsWith(TRANSFORM_PREFIX)) {
     void runTransformInTab(tabId, id.slice(TRANSFORM_PREFIX.length), info.frameId).then((result) => reportOnIcon(tabId, result));
   }
@@ -92,4 +105,11 @@ chrome.commands.onCommand.addListener((command, tab) => {
   } else if (command === 'toggle-dark-mode') {
     void toggleDarkMode(tab).then((result) => reportOnIcon(tabId, result));
   }
+});
+
+// the log viewer's Compare button (a content script can't open extension pages itself)
+chrome.runtime.onMessage.addListener((message: { type?: string; text?: string; name?: string }, _sender, sendResponse) => {
+  if (message?.type !== COMPARE_ADD || typeof message.text !== 'string') return;
+  void compareText(message.text, message.name).then(sendResponse);
+  return true; // answered asynchronously
 });

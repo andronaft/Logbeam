@@ -280,3 +280,87 @@ describe('fixes from the 0.2.0 bug report', () => {
     expect(formatGap(Infinity)).toBe('');
   });
 });
+
+describe('multi-line JSON records', () => {
+  const PRETTY = `2026-10-04 10:00:00 INFO started
+{
+  "@timestamp": "2026-10-04T10:00:05.000Z",
+  "level": "error",
+  "message": "payment failed",
+  "order": { "id": 7781, "note": "has } and { inside" }
+}
+2026-10-04 10:00:06 INFO next`;
+
+  it('groups a pretty-printed record into one entry with its fields', () => {
+    const lines = parseLog(PRETTY);
+    const head = lines[1];
+    expect(head.text).toBe('2026-10-04T10:00:05.000Z error payment failed {"order":{"id":7781,"note":"has } and { inside"}}');
+    expect(head.level).toBe('ERROR');
+    expect(head.json?.order).toEqual({ id: 7781, note: 'has } and { inside' });
+    expect(head.gap).toBe(5000);
+    expect(head.continuation).toBe(false);
+    expect(lines.slice(2, 7).every((line) => line.continuation && line.level === 'ERROR')).toBe(true);
+    expect(lines[7]).toMatchObject({ continuation: false, level: 'INFO', gap: 1000 });
+  });
+
+  it('keeps the record together when filtering and collapsing', () => {
+    const errors = filterLines(parseLog(PRETTY), {
+      levels: new Set(['ERROR']),
+      includeUnknown: false,
+      query: '',
+      regex: false,
+      caseSensitive: false,
+    });
+    expect(errors).toHaveLength(6);
+  });
+
+  it('attaches JSON that follows a log line to that line', () => {
+    const lines = parseLog('2026-10-04 10:00:00 WARN Request body: {\n  "user": "anna",\n  "retries": 3\n}');
+    expect(lines[0].text).toBe('2026-10-04 10:00:00 WARN Request body: {');
+    expect(lines[0].json).toEqual({ user: 'anna', retries: 3 });
+    expect(lines.slice(1).every((line) => line.continuation && line.level === 'WARN')).toBe(true);
+  });
+
+  it('groups objects that are not strict JSON without fields', () => {
+    const lines = parseLog('2026-10-04 10:00:00 DEBUG state {\n  user: { name: "anna" },\n}\n2026-10-04 10:00:01 INFO ok');
+    expect(lines[0].json).toBeNull();
+    expect(lines.slice(1, 3).every((line) => line.continuation)).toBe(true);
+    expect(lines[3].continuation).toBe(false);
+  });
+
+  it("gives up when a '{' isn't followed by an indented record", () => {
+    const text = '2026-10-04 10:00:00 INFO template {\n2026-10-04 10:00:01 ERROR boom\nplain text';
+    const lines = parseLog(text);
+    expect(lines.map((line) => [line.level, line.continuation])).toEqual([
+      ['INFO', false],
+      ['ERROR', false],
+      ['ERROR', false],
+    ]);
+  });
+
+  it('reparses the lines it read before giving up', () => {
+    const text = '2026-10-04 10:00:00 INFO config {\n  ERROR not json\n2026-10-04 10:00:01 INFO next';
+    expect(parseLog(text)).toEqual(
+      new LogParser()
+        .push(['2026-10-04 10:00:00 INFO config', '  ERROR not json', '2026-10-04 10:00:01 INFO next'])
+        .map((line, i) => ({ ...line, text: splitLines(text)[i] })),
+    );
+  });
+
+  it('works across chunk borders', () => {
+    const rawLines = splitLines(PRETTY);
+    const parser = new LogParser();
+    const chunked = [
+      ...parser.push(rawLines.slice(0, 3)),
+      ...parser.push(rawLines.slice(3, 6)),
+      ...parser.push(rawLines.slice(6)),
+    ];
+    expect(chunked).toEqual(parseLog(PRETTY));
+  });
+
+  it('masks secrets inside the record', () => {
+    const lines = parseLog('{\n  "level": "info",\n  "password": "hunter2hunter2"\n}');
+    expect(lines[2].secret).toBe(true);
+    expect(lines[0].secret).toBe(true);
+  });
+});

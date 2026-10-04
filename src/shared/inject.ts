@@ -74,6 +74,34 @@ export async function reportOnIcon(tabId: number, result: InjectResult | { state
 }
 
 export async function clearIconReport(tabId: number): Promise<void> {
-  await chrome.action.setBadgeText({ tabId, text: '' }).catch(() => undefined);
+  // null drops the tab's own badge, so the global one ("1" while a compare waits) shows again
+  await chrome.action.setBadgeText({ tabId, text: null as unknown as string }).catch(() => undefined);
   await chrome.action.setTitle({ tabId, title: 'Logbeam' }).catch(() => undefined);
+}
+
+/**
+ * What "Compare…" in the context menu compares: the selection (in a text field or the page), or
+ * else the whole page, using the original log when the viewer has replaced the page.
+ */
+export async function readTextForCompare(tabId: number, frameId?: number): Promise<string | null> {
+  const target = frameId !== undefined ? { tabId, frameIds: [frameId] } : { tabId };
+  try {
+    const [result] = await chrome.scripting.executeScript({
+      target,
+      func: () => {
+        const active = document.activeElement;
+        if (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) {
+          const selected = active.value.slice(active.selectionStart ?? 0, active.selectionEnd ?? 0);
+          if (selected) return selected;
+        }
+        const selection = getSelection()?.toString();
+        if (selection) return selection;
+        const viewer = (window as unknown as { __logbeamLogText?: string }).__logbeamLogText;
+        return viewer ?? document.body?.innerText ?? '';
+      },
+    });
+    return typeof result?.result === 'string' ? result.result : null;
+  } catch {
+    return null;
+  }
 }

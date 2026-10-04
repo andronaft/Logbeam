@@ -39,7 +39,9 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Stack traces stay with their error**: Java `at …` / `Caused by:`, Python tracebacks and Go goroutines are
   grouped with the entry above, so filtering by `ERROR` shows the whole trace
 - **Search** as plain text or **regex**, case-sensitive if you like, with highlighted matches
-- **JSON logs** (Logback/Logstash, pino, bunyan, zap…) shown as `time LEVEL message {fields}`
+- **JSON logs** (Logback/Logstash, pino, bunyan, zap…) shown as `time LEVEL message {fields}`, including
+  records pretty-printed over several lines
+- **Compare** this log with another one, e.g. a passing and a failing CI run (see below)
 - **Pauses between entries**: `+5.5s` next to lines where the app stalled
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge
 - **Error timeline**: a histogram of entries, errors and warnings over time; click a bar to jump there
@@ -77,7 +79,7 @@ Select text on any page → right-click → **Logbeam**, or paste it into the po
 
 | Tool                      | Example                                                                           |
 | ------------------------- | --------------------------------------------------------------------------------- |
-| Mask secrets              | `password=hunter2hunter2` → `password=hunt**********`                             |
+| Mask secrets              | `password=hunter2hunter2` → `password=********`                                   |
 | Format / minify JSON      | `{"a":1}` → pretty-printed, or back to one line                                   |
 | Decode JWT                | header, payload, `iat`/`exp` as dates, "valid for another 59m" / "EXPIRED 3h ago" |
 | Base64 encode / decode    | UTF-8 safe, understands URL-safe Base64 without padding                           |
@@ -93,6 +95,20 @@ In an input, textarea or rich editor, **Replace selection** writes the result ba
   <img src="docs/jwt.png" alt="Decoding a JWT from the page" width="560">
   <img src="docs/popup.png" alt="Popup with dark mode and text tools" width="250">
 </p>
+
+### ⚖️ Compare
+
+Open **Compare** from the popup, or use **Compare…** in the right-click menu (or the log viewer's Compare
+button) on one text and then on the other:
+
+- **Logs**: a line diff with the changed words marked and unchanged parts folded. **Ignore timestamps, IDs and
+  durations** lines up two runs of the same job, so `2026-10-03T09:00:20Z Tests: 120 passed` against
+  `2026-10-04T11:30:20Z Tests: 119 passed, 1 failed` shows only the test result as changed
+- **JSON**: compared by key, so key order doesn't matter, with a list of changed paths (`$.env.LOG_LEVEL`,
+  `$.ports[1]`) and exact comparison of numbers too big for JavaScript (`12345678901234567890`)
+- Open or drop files, swap sides, ignore whitespace, mask secrets in the output
+
+<p align="center"><img src="docs/compare.png" alt="Comparing two CI logs with timestamps and IDs ignored" width="860"></p>
 
 ## Privacy and permissions
 
@@ -196,9 +212,9 @@ src/
 - [x] Secret detection and masking
 - [x] Parsing large logs in a Web Worker
 - [ ] Settings page (gap threshold, custom levels, which tools to show)
-- [ ] Diff two JSON documents or two logs
-- [ ] Multi-line JSON log records
-- [ ] Firefox build
+- [x] Diff two JSON documents or two logs
+- [x] Multi-line JSON log records
+- [x] Firefox build
 
 ## License
 

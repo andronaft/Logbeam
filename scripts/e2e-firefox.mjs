@@ -24,7 +24,9 @@ function check(name, ok, detail = '') {
 
 const E2E_HOOK = `
 browser.tabs.create({ url: browser.runtime.getURL('popup.html') });
-browser.runtime.onMessage.addListener(async (msg) => {
+// only commands for this hook; other messages (e.g. Compare) are for the add-on itself
+browser.runtime.onMessage.addListener((msg) => (msg && msg.cmd ? handle(msg) : undefined));
+async function handle(msg) {
   // match patterns can't hold a port, so compare whole URLs
   const tab = msg.url && (await browser.tabs.query({})).find((t) => t.url === msg.url);
   const target = tab && { tabId: tab.id };
@@ -47,11 +49,14 @@ browser.runtime.onMessage.addListener(async (msg) => {
         js: ['darkAuto.js'], runAt: 'document_start', allFrames: true, persistAcrossSessions: true }]);
       return true;
   }
-});`;
+}`;
 const E2E_BRIDGE = `
 window.addEventListener('message', (event) => {
   if (event.source !== window || !event.data || !event.data.e2eCommand) return;
-  browser.runtime.sendMessage(event.data.e2eCommand).then(
+  const command = event.data.e2eCommand;
+  // 'compare' sends what the log viewer's Compare button sends
+  const message = command.cmd === 'compare' ? { type: 'logbeam:compare-add', text: command.text, name: command.name } : command;
+  browser.runtime.sendMessage(message).then(
     (result) => window.postMessage({ e2eResult: { result } }, '*'),
     (error) => window.postMessage({ e2eResult: { error: String(error) } }, '*'),
   );
@@ -79,6 +84,15 @@ const bigLog = Array.from(
 const text = {
   '/app.log': readFileSync('docs/sample.log', 'utf8'),
   '/big.log': bigLog,
+  '/pretty.log': [
+    '2026-10-04 10:00:00 INFO started',
+    '{',
+    '  "level": "error",',
+    '  "message": "payment failed",',
+    '  "order": { "id": 7781 }',
+    '}',
+    '2026-10-04 10:00:06 INFO next',
+  ].join('\n'),
   '/redos.log': Array.from({ length: 50 }, () => `${'a'.repeat(34)}b`).join('\n'),
 };
 const html = {
@@ -232,6 +246,29 @@ try {
     'remembered site loads dark',
     await driver.executeScript("return document.documentElement.classList.contains('logbeam-dark')"),
   );
+
+  // ---- multi-line JSON records --------------------------------------------------------------
+  const pretty = await openPage('/pretty.log');
+  await command({ cmd: 'viewer', url: pretty.url });
+  await driver.switchTo().window(pretty.handle);
+  await driver.wait(until.elementLocated(By.css('.row')), 10_000);
+  const record = await driver.findElement(By.xpath('//*[contains(@class,"row")][contains(., "error payment failed")]'));
+  check('a pretty-printed JSON record is read as one entry', Boolean(record));
+  check('its lines take the record’s level', (await driver.findElement(By.css('.chip.lvl-ERROR .count')).getText()) === '5');
+
+  // ---- compare ------------------------------------------------------------------------------
+  check('first text goes to Before', (await command({ cmd: 'compare', text: 'a\nb\nc', name: 'one' })) === 'left');
+  check('second text goes to After', (await command({ cmd: 'compare', text: 'a\nB\nc', name: 'two' })) === 'right');
+  const compareHandle = await driver.wait(async () => {
+    for (const handle of await driver.getAllWindowHandles()) {
+      await driver.switchTo().window(handle);
+      if ((await driver.getCurrentUrl()).endsWith('/diff.html')) return handle;
+    }
+    return null;
+  }, 10_000);
+  check('the Compare page opens', Boolean(compareHandle));
+  const summary = await driver.wait(until.elementLocated(By.css('#summary:not([hidden])')), 5000);
+  check('it shows the difference', (await summary.getText()).includes('+1 −1'), await summary.getText());
 } catch (error) {
   check('test run', false, error.stack);
 } finally {

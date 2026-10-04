@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Logbeam",
   "short_name": "Logbeam",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Readable logs, dark mode for any site, and one-click JSON / JWT / Base64 / timestamp / cron tools. 100% local.",
   "icons": {
     "16": "icons/icon16.png",

@@ -11,7 +11,7 @@ const target = firefox ? 'firefox140' : 'chrome110';
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(outdir, { recursive: true });
 
-for (const file of ['dark.css', 'popup/popup.html', 'popup/popup.css']) {
+for (const file of ['dark.css', 'popup/popup.html', 'popup/popup.css', 'diff/diff.html', 'diff/diff.css']) {
   cpSync(`src/${file}`, `${outdir}/${file.split('/').pop()}`);
 }
 cpSync('icons', `${outdir}/icons`, { recursive: true });
@@ -55,6 +55,7 @@ const options = {
   entryPoints: {
     background: 'src/background.ts',
     popup: 'src/popup/popup.ts',
+    diff: 'src/diff/diff.ts',
     logViewer: 'src/content/viewerEntry.ts',
     autoOpen: 'src/content/autoOpen.ts',
     panel: 'src/content/panel.ts',

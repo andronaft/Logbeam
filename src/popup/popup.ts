@@ -10,6 +10,7 @@ import {
   setDarkMode,
 } from '../shared/darkMode';
 import { openShortcutSettings } from '../shared/browser';
+import { openCompare } from '../shared/compare';
 import { openLogViewer, whyNotAllowed } from '../shared/inject';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -181,5 +182,6 @@ function setupTools(): void {
 }
 
 setupTools();
+$('open-compare').addEventListener('click', () => void openCompare().then(() => window.close()));
 void setupSite();
 void setupShortcuts();

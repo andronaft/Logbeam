@@ -1,9 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 ### Added
 
+- **Compare two logs or JSON documents.** A new Compare page (popup → "Compare two texts or logs…") shows
+  what changed line by line, marks the changed words, and folds unchanged parts. JSON is compared by key, so
+  key order doesn't matter, with a list of changed paths like `$.env.LOG_LEVEL`. **Ignore timestamps, IDs and
+  durations** compares two runs of the same CI job and shows only what really happened differently.
+- **Compare…** in the right-click menu and a **Compare** button in the log viewer: use it on one log, then on
+  the other, and the Compare page opens with both. Files can be opened or dropped on the page too.
+- **Multi-line JSON log records.** A record printed over several lines (`JSON.stringify(record, null, 2)`, or
+  `Request body: {` followed by the JSON) is one entry: it takes the record's level and time, its fields
+  are in the inspector, and filtering and Collapse keep its lines together.
 - **Firefox build** (Firefox 140+), tested in Firefox on every change. The dark-mode shortcut there is
   Ctrl+Shift+. because Ctrl+Shift+K opens the Web Console.
 - Releases are also published to **addons.mozilla.org**.

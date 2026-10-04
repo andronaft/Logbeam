@@ -17,7 +17,7 @@ export default tseslint.config(
   {
     files: ['scripts/e2e.mjs'],
     // page.evaluate() callbacks run in the browser
-    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    languageOptions: { globals: { ...globals.node, ...globals.browser, chrome: 'readonly' } },
   },
   {
     rules: {

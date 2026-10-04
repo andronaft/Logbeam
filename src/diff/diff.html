@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Compare · Logbeam</title>
+    <link rel="icon" href="icons/icon16.png" />
+    <link rel="stylesheet" href="diff.css" />
+  </head>
+  <body>
+    <header>
+      <img src="icons/icon48.png" alt="" width="22" height="22" />
+      <h1>Logbeam <span>Compare</span></h1>
+      <div class="options">
+        <label>
+          Compare as
+          <select id="mode">
+            <option value="auto">Auto</option>
+            <option value="json">JSON</option>
+            <option value="text">Text / log</option>
+          </select>
+        </label>
+        <label title="Timestamps, UUIDs, commit and trace IDs, durations like 3.2s"
+          ><input type="checkbox" id="ignore-volatile" /> Ignore timestamps, IDs and durations</label
+        >
+        <label><input type="checkbox" id="ignore-space" /> Ignore whitespace</label>
+        <label><input type="checkbox" id="mask" /> Mask secrets</label>
+        <button id="swap" title="Swap the two sides">⇄ Swap</button>
+        <button id="clear">Clear</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="inputs">
+        <div class="side">
+          <div class="side-head">
+            <b>Before</b>
+            <label class="file">Open file…<input type="file" id="left-file" /></label>
+          </div>
+          <textarea id="left" spellcheck="false" placeholder="Paste or drop the first JSON document or log here"></textarea>
+        </div>
+        <div class="side">
+          <div class="side-head">
+            <b>After</b>
+            <label class="file">Open file…<input type="file" id="right-file" /></label>
+          </div>
+          <textarea id="right" spellcheck="false" placeholder="…and the second one here"></textarea>
+        </div>
+      </div>
+
+      <section id="summary" class="summary" hidden></section>
+      <section id="changes" class="changes" hidden></section>
+      <section id="result" class="result" hidden></section>
+    </main>
+
+    <script src="diff.js"></script>
+  </body>
+</html>

@@ -31,7 +31,17 @@ const pemLog = [
   '-----END EC PRIVATE KEY-----',
   '2026-09-29 10:00:01 INFO started',
 ].join('\n');
-const plainPages = { '/redos.log': redosLog, '/pem.log': pemLog };
+const prettyLog = [
+  '2026-10-04 10:00:00 INFO started',
+  '{',
+  '  "@timestamp": "2026-10-04T10:00:05.000Z",',
+  '  "level": "error",',
+  '  "message": "payment failed",',
+  '  "order": { "id": 7781, "amount": 12.5 }',
+  '}',
+  '2026-10-04 10:00:06 INFO next',
+].join('\n');
+const plainPages = { '/redos.log': redosLog, '/pem.log': pemLog, '/pretty.log': prettyLog };
 const htmlPages = {
   '/light': '<!doctype html><body style="background:#fff;color:#111"><p>Light page</p></body>',
   '/dark': '<!doctype html><body style="background:#0d1117;color:#e6edf3"><p>Already dark</p></body>',
@@ -303,6 +313,86 @@ await popup.locator('#input').fill('0 */15 * * * *');
 await popup.locator('button', { hasText: 'Explain cron' }).click();
 check('popup explains cron', (await popup.locator('#output').textContent()) === 'Every 15 minutes');
 await popup.screenshot({ path: 'docs/popup.png', fullPage: true });
+
+// ---- multi-line JSON records ----------------------------------------------------------------
+const pretty = await context.newPage();
+watch(pretty);
+await pretty.goto(`${base}/pretty.log`);
+await pretty.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await pretty.waitForSelector('.row');
+// the chips count lines, like the lines of a stack trace
+check('every line of the record takes its level', (await pretty.locator('.chip.lvl-ERROR .count').textContent()) === '6');
+await pretty.locator('.chip.lvl-INFO').click();
+check(
+  'filtering keeps the whole record',
+  (await pretty.locator('.status').textContent()) === '6 / 8 lines',
+  await pretty.locator('.status').textContent(),
+);
+await pretty.locator('.row', { hasText: 'error payment failed' }).locator('.txt').click();
+check(
+  'the record’s fields are in the inspector',
+  (await pretty.locator('.inspector .json').textContent()).includes('"amount": 12.5'),
+);
+check('Compare is hidden outside the extension', await pretty.locator('.toggle', { hasText: 'Compare' }).isHidden());
+await pretty.close();
+
+// ---- compare ----------------------------------------------------------------------------
+const runLog = (stamp, result) =>
+  [
+    `${stamp}:01.123Z Checking out 9f8e7d6c5b4a3f2e1d0c`,
+    `${stamp}:05.456Z Installing dependencies took 3.2s`,
+    `${stamp}:20.000Z Tests: ${result}`,
+    `${stamp}:21.000Z Done`,
+  ].join('\n');
+const passing = runLog('2026-10-03T09:00', '120 passed');
+const failing = runLog('2026-10-04T11:30', '119 passed, 1 failed').replace('9f8e7d6c5b4a3f2e1d0c', '0a1b2c3d4e5f60718293');
+
+// what the log viewer's Compare button sends to the background
+const send = (text, name) =>
+  popup.evaluate(([text, name]) => chrome.runtime.sendMessage({ type: 'logbeam:compare-add', text, name }), [text, name]);
+const badge = () => popup.evaluate(() => chrome.action.getBadgeText({}));
+check('first log goes to Before', (await send(passing, 'run #41')) === 'left');
+check('the icon shows a text is waiting', (await badge()) === '1');
+const comparePage = context.waitForEvent('page');
+check('second log goes to After', (await send(failing, 'run #42')) === 'right');
+const compare = await comparePage;
+watch(compare);
+await compare.waitForSelector('#summary:not([hidden])');
+check('Compare opens with both logs', compare.url().endsWith('/diff.html'), compare.url());
+check('the waiting badge is cleared', (await badge()) === '');
+const summary = () => compare.locator('#summary').textContent();
+check('every line differs before ignoring timestamps', (await summary()).includes('+4 −4'), await summary());
+await compare.locator('#ignore-volatile').check();
+await compare.waitForFunction(() => document.querySelector('#summary').textContent.includes('+1 −1'));
+check('only the test result differs after ignoring timestamps, IDs and durations', true, await summary());
+const marked = (await compare.locator('.line.add mark').allTextContents()).join(' | ');
+check('only the changed words are marked', marked === '119 | , 1 failed', marked);
+check('the log names are shown', (await summary()).includes('run #41 → run #42'));
+await compare.setViewportSize({ width: 1280, height: 800 });
+await compare.screenshot({ path: 'docs/compare.png' });
+
+await compare.locator('#clear').click();
+await compare.locator('#left').fill('{"service":"payments","replicas":3,"env":{"LOG_LEVEL":"info"},"id":12345678901234567890}');
+await compare.locator('#right').fill('{"env":{"LOG_LEVEL":"debug"},"id":12345678901234567891,"service":"payments","replicas":3}');
+await compare.waitForSelector('#changes:not([hidden]) tr');
+const paths = await compare.locator('#changes .path').allTextContents();
+check('JSON is compared by key, not by order', paths.join(',') === '$.env.LOG_LEVEL,$.id', paths.join(','));
+check(
+  'big numbers are compared exactly',
+  (await compare.locator('#changes .after').last().textContent()) === '12345678901234567891',
+);
+
+// a tab's own badge, once cleared, falls back to the global one (used while a compare waits)
+const fallback = await popup.evaluate(async () => {
+  const [tab] = await chrome.tabs.query({});
+  await chrome.action.setBadgeText({ text: 'G' });
+  await chrome.action.setBadgeText({ tabId: tab.id, text: '!' });
+  await chrome.action.setBadgeText({ tabId: tab.id, text: null });
+  const text = await chrome.action.getBadgeText({ tabId: tab.id });
+  await chrome.action.setBadgeText({ text: '' });
+  return text;
+});
+check('clearing a tab badge shows the global one again', fallback === 'G', fallback);
 
 check('no page errors', errors.length === 0, errors.join('; '));
 await context.close();

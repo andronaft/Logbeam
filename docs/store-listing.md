@@ -40,6 +40,12 @@ DARK MODE FOR ANY SITE (Ctrl+Shift+K)
 • Photos and videos keep their real colours
 • Sites that already have a dark theme are left alone
 
+COMPARE TWO LOGS OR JSON DOCUMENTS
+• Line diff with the changed words marked; unchanged parts folded
+• Ignore timestamps, IDs and durations to compare two runs of the same CI job
+• JSON compared by key, with a list of changed paths
+• Right-click → Compare… on one text, then on the other
+
 TEXT TOOLS: select text, right-click, then Logbeam
 • Format / minify JSON
 • Decode JWT with expiry status
