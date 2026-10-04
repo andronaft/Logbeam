@@ -10,7 +10,8 @@ import {
   previewJson,
 } from '../lib/diff';
 import { splitLines } from '../lib/logs';
-import { maskSecrets } from '../lib/secrets';
+import { maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
+import { loadSettings } from '../shared/settings';
 import { COMPARE_UPDATED, CompareInputs, loadCompareInputs, saveCompareInputs } from '../shared/compare';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -280,4 +281,7 @@ chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendR
   sendResponse(true);
 });
 
-void loadInputs();
+void loadSettings().then((settings) => {
+  setCustomSecretPatterns(settings.customSecrets);
+  return loadInputs();
+});

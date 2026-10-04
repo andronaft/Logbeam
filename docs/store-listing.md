@@ -40,6 +40,13 @@ DARK MODE FOR ANY SITE (Ctrl+Shift+K)
 • Photos and videos keep their real colours
 • Sites that already have a dark theme are left alone
 
+FILTER, HIGHLIGHT, PODS
+• Filter by fields: level=error service=payments duration>500, on JSON and key=value lines
+• Drag across the timeline to keep one time range
+• Pin highlights in their own colours
+• kubectl and docker compose logs: a coloured chip per pod
+• Open pasted logs and .log / .gz files; save the filtered lines
+
 COMPARE TWO LOGS OR JSON DOCUMENTS
 • Line diff with the changed words marked; unchanged parts folded
 • Ignore timestamps, IDs and durations to compare two runs of the same CI job

@@ -39,6 +39,7 @@
       <h2>Text tools</h2>
       <textarea id="input" placeholder="Paste JSON, a JWT, Base64, a timestamp, a cron expression…" spellcheck="false"></textarea>
       <div id="transforms" class="grid"></div>
+      <button id="open-pasted" class="wide" title="Open the text above in the log viewer, in a new tab">Open as log</button>
       <pre id="output" class="output" hidden></pre>
       <div class="row" id="output-actions" hidden>
         <button id="copy">Copy</button>
@@ -47,10 +48,13 @@
     </section>
 
     <section class="compare">
-      <button id="open-compare" class="wide">Compare two texts or logs…</button>
+      <div class="row">
+        <button id="open-compare">Compare two logs…</button>
+        <button id="open-file" title="Open a .log or .gz file in the log viewer">Open a log file…</button>
+      </div>
     </section>
 
-    <footer>Select text on any page → right-click → <b>Logbeam</b></footer>
+    <footer>Select text on any page → right-click → <b>Logbeam</b> · <a href="#" id="open-settings">Settings</a></footer>
 
     <script src="popup.js"></script>
   </body>

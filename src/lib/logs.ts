@@ -22,6 +22,22 @@ export interface LogLine {
   secret: boolean;
   /** The whole line is part of a secret, e.g. the base64 body of a PEM private key. */
   secretBlock: boolean;
+  /** Which pod or container wrote the line, from `kubectl logs --prefix` or `docker compose logs`. */
+  source: string | null;
+}
+
+// kubectl logs --prefix: "[pod/payments-7d9f8-x2k4p/app] …"
+const KUBECTL_PREFIX = /^\[pod\/([^/\]\s]+)\/([^\]\s]+)\] /;
+// docker compose logs: "payments-1  | …" (the replica number tells it from "INFO | …")
+const COMPOSE_PREFIX = /^([a-z0-9][\w.-]*-\d+)\s+\| ?/;
+
+/** Splits off a kubectl or docker compose prefix, so the rest is read like any log line. */
+export function splitSource(raw: string): { source: string | null; rest: string } {
+  const kubectl = KUBECTL_PREFIX.exec(raw);
+  if (kubectl) return { source: `${kubectl[1]}/${kubectl[2]}`, rest: raw.slice(kubectl[0].length) };
+  const compose = COMPOSE_PREFIX.exec(raw);
+  if (compose) return { source: compose[1], rest: raw.slice(compose[0].length) };
+  return { source: null, rest: raw };
 }
 
 const LEVEL_ALIASES: Record<string, Level> = {
@@ -338,6 +354,7 @@ export class LogParser {
       json: null,
       secret: hasSecret(raw),
       secretBlock: false,
+      source: null,
     };
     block.body.push(line);
     block.raw.push(raw);
@@ -405,22 +422,25 @@ export class LogParser {
         json: null,
         secret: body,
         secretBlock: body,
+        source: null,
       };
     }
     if (PEM_BEGIN.test(raw) && !PEM_END.test(raw)) {
       this.inPem = true;
     }
 
-    const json = parseJsonRecord(raw);
-    const continuation = json === null && CONTINUATION_RE.test(raw);
+    // a pod's lines are read without the "[pod/…]" prefix, which stays in the shown text
+    const { source, rest } = splitSource(raw);
+    const json = parseJsonRecord(rest);
+    const continuation = json === null && CONTINUATION_RE.test(rest);
 
     let level: Level | null;
     let time: number | null = null;
     if (continuation) {
       level = this.currentLevel;
     } else {
-      level = json ? jsonLevel(json) : detectLevel(raw);
-      time = json ? jsonTime(json) : parseTimestamp(raw);
+      level = json ? jsonLevel(json) : detectLevel(rest);
+      time = json ? jsonTime(json) : parseTimestamp(rest);
       // a line without its own level but with a timestamp starts a new, unknown-level entry
       if (level !== null || time !== null) {
         this.currentLevel = level;
@@ -434,7 +454,8 @@ export class LogParser {
       this.lastTime = time;
     }
 
-    const text = json ? formatJsonRecord(json) : raw;
+    const formatted = json ? formatJsonRecord(json) : rest;
+    const text = source !== null ? raw.slice(0, raw.length - rest.length) + formatted : formatted;
     return {
       number: ++this.count,
       text,
@@ -445,6 +466,7 @@ export class LogParser {
       json,
       secret: hasSecret(text),
       secretBlock: false,
+      source,
     };
   }
 }

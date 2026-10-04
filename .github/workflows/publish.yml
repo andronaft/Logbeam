@@ -1,0 +1,52 @@
+name: publish
+
+# Sends an already released version to a store again, e.g. when the Chrome Web Store refused the
+# upload because the previous version was still in review. Builds the tag and uploads that build.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Released tag to publish, e.g. v0.4.0
+        required: true
+      store:
+        description: Store
+        type: choice
+        options: [chrome, firefox, both]
+        default: chrome
+
+permissions:
+  contents: read
+
+env:
+  CWS_EXTENSION_ID: kgjadbnghdgmcafdfgjhgfgcgnnnmcpe
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+      CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+      CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package
+      - name: Version
+        run: echo "VERSION=$(node -p "require('./src/manifest.json').version")" >> "$GITHUB_ENV"
+      - name: Publish to the Chrome Web Store
+        if: inputs.store != 'firefox'
+        run: node scripts/publish-cws.mjs "logbeam-$VERSION.zip"
+      - name: Publish to addons.mozilla.org
+        if: ${{ !cancelled() && inputs.store != 'chrome' }}
+        run: >-
+          npx web-ext sign --channel listed --source-dir dist-firefox
+          --upload-source-code "logbeam-source-$VERSION.zip" --amo-metadata docs/amo-metadata.json
+          --approval-timeout 0 --api-key "$AMO_JWT_ISSUER" --api-secret "$AMO_JWT_SECRET"

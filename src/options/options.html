@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Settings · Logbeam</title>
+    <link rel="icon" href="icons/icon16.png" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <h1><img src="icons/icon48.png" alt="" width="26" height="26" /> Logbeam settings</h1>
+      <p class="saved" id="saved" aria-live="polite"></p>
+
+      <section>
+        <h2>Log viewer</h2>
+        <label class="row">
+          Show pauses between entries longer than
+          <input type="number" id="gap" min="0.1" max="3600" step="0.1" /> seconds
+        </label>
+      </section>
+
+      <section>
+        <h2>Your own secret patterns</h2>
+        <p class="help">
+          Regular expressions for keys and tokens Logbeam doesn't know, such as an internal token format. The whole match is
+          treated as the secret, or its first group if it has one: <code>acme_[A-Za-z0-9]{32}</code>,
+          <code>X-Internal-Key: (\S+)</code>. They are used by the log viewer, Compare and "Mask secrets".
+        </p>
+        <div id="patterns"></div>
+        <button id="add-pattern">Add pattern</button>
+        <p class="problems" id="problems"></p>
+        <label class="test">
+          Try them:
+          <input type="text" id="test" placeholder="Paste a line with a secret" spellcheck="false" />
+        </label>
+        <pre id="test-result" class="result"></pre>
+      </section>
+
+      <section>
+        <h2>Right-click menu</h2>
+        <p class="help">Text tools to show under <b>Logbeam</b> when you right-click selected text.</p>
+        <div id="tools" class="tools"></div>
+      </section>
+
+      <section>
+        <h2>Keyboard shortcuts</h2>
+        <p class="help"><a href="#" id="shortcuts">Change the shortcuts</a> in the browser's settings.</p>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>

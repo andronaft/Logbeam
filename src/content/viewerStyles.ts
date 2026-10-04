@@ -32,7 +32,7 @@ button:hover { border-color: var(--accent); }
 [hidden] { display: none !important; }
 .group { display: inline-flex; gap: 2px; margin: 0 4px; }
 .search {
-  width: 180px; font: 12.5px ui-monospace, Menlo, Consolas, monospace; color: var(--fg);
+  width: 240px; font: 12.5px ui-monospace, Menlo, Consolas, monospace; color: var(--fg);
   background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;
 }
 .search:focus { outline: none; border-color: var(--accent); }
@@ -112,4 +112,33 @@ button:hover { border-color: var(--accent); }
   display: inline-block; margin-right: 8px; padding: 0 6px; border-radius: 8px;
   background: var(--panel); color: var(--accent); font-size: 11px; line-height: 16px;
 }
+
+.subbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 5px 12px; background: var(--bg-alt); border-bottom: 1px solid var(--border);
+}
+.search.fields { border-color: var(--info); color: var(--info); }
+.range { color: var(--accent); }
+.bucket.dragging { background: #3a2f1c; }
+.bucket.outside { opacity: .3; }
+
+/* pinned highlights */
+.hl { color: #0f1419; border-radius: 2px; }
+.hl-0 { background: #ffd866; } .hl-1 { background: #78dce8; } .hl-2 { background: #a9dc76; }
+.hl-3 { background: #fc9867; } .hl-4 { background: #ab9df2; }
+.hl-chip { color: #0f1419; border-color: transparent; font-weight: 600; }
+
+/* pods and containers */
+.sources .chip { opacity: .4; font: 12px ui-monospace, Menlo, Consolas, monospace; }
+.sources .chip.on { opacity: 1; }
+.src-0 { color: #59c2ff; } .src-1 { color: #aad94c; } .src-2 { color: #f29668; } .src-3 { color: #d2a6ff; }
+.src-4 { color: #95e6cb; } .src-5 { color: #ffb454; } .src-6 { color: #f07178; } .src-7 { color: #e6b673; }
+.txt .src { font-weight: 600; }
+
+.drop-hint {
+  position: fixed; inset: 12px; display: none; align-items: center; justify-content: center;
+  border: 2px dashed var(--accent); border-radius: 12px; background: rgba(15, 20, 25, .85);
+  color: var(--accent); font-size: 18px; font-weight: 600; pointer-events: none; z-index: 10;
+}
+.drop-hint.show { display: flex; }
 `;

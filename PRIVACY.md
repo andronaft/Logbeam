@@ -1,6 +1,6 @@
 # Logbeam Privacy Policy
 
-_Last updated: October 4, 2026 (version 0.3.0)_
+_Last updated: October 4, 2026 (version 0.4.0)_
 
 Logbeam is a browser extension for Chrome, Edge, Opera and Firefox that runs entirely in your browser.
 
@@ -14,10 +14,13 @@ Logbeam is a browser extension for Chrome, Edge, Opera and Firefox that runs ent
   the page text or your selection _inside your browser_ to show the result. The text is never stored or sent anywhere.
 - **Secret detection.** Looking for keys, tokens and passwords in a log also happens only inside your browser;
   nothing found is stored or sent anywhere.
-- **Settings.** The lists of sites where you chose "Remember dark mode" or "Open logs automatically" are saved with `chrome.storage.sync`.
+- **Settings.** The lists of sites where you chose "Remember dark mode" or "Open logs automatically", and the
+  settings page (pause threshold, your own secret patterns, which tools to show), are saved with `chrome.storage.sync`.
   If Chrome sync is on, Google syncs this list between your own browsers, as it does for all extension settings.
   Logbeam itself never receives it.
-- **Popup text box and Compare.** Text you paste into the popup's tools, and the two texts on the Compare page, are
+- **Files you open.** Log files you open or drop are read and unpacked in your browser and are not stored.
+- **Popup text box, pasted logs and Compare.** Text you paste into the popup's tools or open as a log, and the two
+  texts on the Compare page, are
   kept in memory (`chrome.storage.session`) so they survive closing the popup or the tab. They are never written
   to disk and are gone when the browser closes.
 - **Clipboard.** The "Copy" buttons write to your clipboard only when you click them.
@@ -28,7 +31,7 @@ Logbeam is a browser extension for Chrome, Edge, Opera and Firefox that runs ent
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `activeTab`, `scripting`  | Running the log viewer or a text tool on the current tab when you click, use the context menu or press a shortcut                                                               |
 | `contextMenus`            | The "Logbeam" right-click menu                                                                                                                                                  |
-| `storage`                 | Remembering your per-site settings                                                                                                                                              |
+| `storage`                 | Remembering your settings and per-site choices                                                                                                                                  |
 | Optional access to a site | Requested only when you turn on "Remember dark mode" or "Open logs automatically" for a site, and only for that site. You can revoke it at any time in the extension's settings |
 
 ## Sharing

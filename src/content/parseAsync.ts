@@ -1,4 +1,5 @@
 import { LogLine, LogParser, splitLines } from '../lib/logs';
+import { workerUrl } from './workerUrl';
 
 /** Code of parseWorker.ts, inlined at build time (see scripts/build.mjs). */
 declare const __PARSE_WORKER__: string;
@@ -37,7 +38,7 @@ export async function parseLogAsync(text: string, onProgress: Progress): Promise
 
 function parseInWorker(text: string, onProgress: Progress): Promise<LogLine[]> {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(new Blob([__PARSE_WORKER__], { type: 'text/javascript' }));
+    const url = workerUrl(__PARSE_WORKER__, 'parseWorker.js');
     let worker: Worker;
     try {
       worker = new Worker(url);

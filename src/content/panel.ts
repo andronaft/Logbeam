@@ -1,4 +1,6 @@
+import { setCustomSecretPatterns } from '../lib/secrets';
 import { findTransform } from '../lib/transforms';
+import { loadSettings } from '../shared/settings';
 
 /**
  * Result panel for the context-menu tools. It reads the exact selection (Chrome's menu
@@ -26,7 +28,7 @@ function deepActiveElement(): Element | null {
 }
 
 interface PanelApi {
-  run(id: string): void;
+  run(id: string): Promise<void>;
 }
 
 declare global {
@@ -205,10 +207,12 @@ function show(title: string, output: string, isError: boolean, source: Source): 
   document.addEventListener('keydown', onKeyDown, true);
 }
 
-function run(id: string): void {
+async function run(id: string): Promise<void> {
   const transform = findTransform(id);
   if (!transform) return;
   const { text, source } = captureSelection();
+  // the user's own secret patterns, from the settings page
+  if (id === 'mask-secrets') setCustomSecretPatterns((await loadSettings()).customSecrets);
   if (!text.trim()) {
     show(transform.title, 'Select some text first.', true, source);
     return;

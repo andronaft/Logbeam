@@ -75,6 +75,9 @@ bundled, every upload includes `logbeam-source-<version>.zip` (made with `git ar
 
 To check that the secrets work without publishing anything, run **Actions → check-stores → Run workflow**.
 
+If a store refused a release (for example because the previous version was still in review), send that
+version again later with **Actions → publish → Run workflow**: enter the tag (`v0.4.0`) and pick the store.
+
 ## Manual upload
 
 `npm run package` creates `logbeam-<version>.zip` (Chrome) and `logbeam-firefox-<version>.zip`; upload

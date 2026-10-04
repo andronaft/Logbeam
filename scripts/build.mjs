@@ -11,7 +11,17 @@ const target = firefox ? 'firefox140' : 'chrome110';
 rmSync(outdir, { recursive: true, force: true });
 mkdirSync(outdir, { recursive: true });
 
-for (const file of ['dark.css', 'popup/popup.html', 'popup/popup.css', 'diff/diff.html', 'diff/diff.css']) {
+for (const file of [
+  'dark.css',
+  'popup/popup.html',
+  'popup/popup.css',
+  'diff/diff.html',
+  'diff/diff.css',
+  'viewer/viewer.html',
+  'viewer/viewer.css',
+  'options/options.html',
+  'options/options.css',
+]) {
   cpSync(`src/${file}`, `${outdir}/${file.split('/').pop()}`);
 }
 cpSync('icons', `${outdir}/icons`, { recursive: true });
@@ -50,12 +60,17 @@ const bundleWorker = async (entry) => {
 };
 const parseWorkerCode = await bundleWorker('src/content/parseWorker.ts');
 const searchWorkerCode = await bundleWorker('src/content/searchWorker.ts');
+// the extension's own pages load the workers from files instead (their CSP blocks blob: workers)
+writeFileSync(`${outdir}/parseWorker.js`, parseWorkerCode);
+writeFileSync(`${outdir}/searchWorker.js`, searchWorkerCode);
 
 const options = {
   entryPoints: {
     background: 'src/background.ts',
     popup: 'src/popup/popup.ts',
     diff: 'src/diff/diff.ts',
+    viewer: 'src/viewer/viewerPage.ts',
+    options: 'src/options/options.ts',
     logViewer: 'src/content/viewerEntry.ts',
     autoOpen: 'src/content/autoOpen.ts',
     panel: 'src/content/panel.ts',

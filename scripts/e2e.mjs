@@ -4,6 +4,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -41,7 +42,28 @@ const prettyLog = [
   '}',
   '2026-10-04 10:00:06 INFO next',
 ].join('\n');
-const plainPages = { '/redos.log': redosLog, '/pem.log': pemLog, '/pretty.log': prettyLog };
+const fieldsLog = [
+  '{"time":"2026-10-04T10:00:00Z","level":"info","service":"payments","duration":120,"msg":"charged order 7781"}',
+  '{"time":"2026-10-04T10:00:10Z","level":"error","service":"payments","duration":950,"msg":"upstream timeout for order 7781"}',
+  '{"time":"2026-10-04T10:05:00Z","level":"error","service":"search","duration":40,"msg":"index missing"}',
+  '2026-10-04T10:10:00Z WARN slow request service=payments duration=1.2s userId=42',
+  '2026-10-04T10:20:00Z ERROR failed service=payments duration=30ms userId=42',
+  '\tat com.example.Pay.charge(Pay.java:42)',
+  '2026-10-04T10:30:00Z INFO done service=search duration=5ms',
+].join('\n');
+const podsLog = [
+  '[pod/payments-7d9f8-x2k4p/app] 2026-10-04 10:00:00 INFO started',
+  '[pod/payments-7d9f8-q9z1m/app] 2026-10-04 10:00:01 INFO started',
+  '[pod/payments-7d9f8-x2k4p/app] 2026-10-04 10:00:02 ERROR connection refused',
+  '[pod/payments-7d9f8-q9z1m/app] 2026-10-04 10:00:03 INFO ok',
+].join('\n');
+const plainPages = {
+  '/redos.log': redosLog,
+  '/pem.log': pemLog,
+  '/pretty.log': prettyLog,
+  '/fields.log': fieldsLog,
+  '/pods.log': podsLog,
+};
 const htmlPages = {
   '/light': '<!doctype html><body style="background:#fff;color:#111"><p>Light page</p></body>',
   '/dark': '<!doctype html><body style="background:#0d1117;color:#e6edf3"><p>Already dark</p></body>',
@@ -305,7 +327,7 @@ check('JWT decoded from a page selection', (await editor.locator('logbeam-panel 
 await editor.screenshot({ path: 'docs/jwt.png' });
 
 // ---- popup ------------------------------------------------------------------------------
-const popup = await context.newPage();
+let popup = await context.newPage();
 watch(popup);
 await popup.setViewportSize({ width: 380, height: 700 });
 await popup.goto(`chrome-extension://${extensionId}/popup.html`);
@@ -335,6 +357,157 @@ check(
 );
 check('Compare is hidden outside the extension', await pretty.locator('.toggle', { hasText: 'Compare' }).isHidden());
 await pretty.close();
+
+// ---- field filters, highlights, time range, export, files ------------------------------------
+const logs = await context.newPage();
+watch(logs);
+await logs.goto(`${base}/fields.log`);
+await logs.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await logs.waitForSelector('.row');
+const logStatus = () => logs.locator('.status').textContent();
+await logs.locator('.search').fill('level=error service=payments');
+await logs.waitForFunction(() => document.querySelector('.status').textContent.includes('field'));
+check(
+  'fields filter JSON and key=value lines alike',
+  (await logStatus()) === '3 / 7 lines · 2 field conditions',
+  await logStatus(),
+);
+await logs.locator('.search').fill('duration>500');
+await logs.waitForFunction(() => document.querySelector('.status').textContent.startsWith('2 /'));
+check('numeric comparisons understand units (1.2s > 500)', true, await logStatus());
+await logs.locator('.search').fill('');
+
+await logs.locator('.search').fill('7781');
+await logs.locator('.search').press('Enter');
+await logs.locator('.search').fill('userId=42');
+await logs.locator('.search').press('Enter');
+check(
+  'two highlights in their own colours',
+  (await logs.locator('.hl-0').count()) === 2 + 1 && (await logs.locator('.txt .hl-1').count()) === 2,
+);
+check('highlights are listed as chips', (await logs.locator('.hl-chip').allTextContents()).join(',') === '7781 ×,userId=42 ×');
+await logs.screenshot({ path: 'docs/highlights.png' });
+await logs.locator('.hl-chip').first().click();
+check('a highlight chip removes it', (await logs.locator('.hl-chip').count()) === 1);
+
+const buckets = logs.locator('.bucket');
+const firstBox = await buckets.nth(0).boundingBox();
+const middleBox = await buckets.nth(30).boundingBox();
+await logs.mouse.move(firstBox.x + 1, firstBox.y + 10);
+await logs.mouse.down();
+await logs.mouse.move(middleBox.x + 1, middleBox.y + 10, { steps: 8 });
+await logs.mouse.up();
+await logs.waitForSelector('.range:not([hidden])');
+check(
+  'dragging across the timeline keeps that time range',
+  (await logStatus()).startsWith('4 /') && (await logs.locator('.range').textContent()).startsWith('⏱ 10:00:00'),
+  `${await logStatus()} ${await logs.locator('.range').textContent()}`,
+);
+await logs.locator('.range').click();
+check('the range chip shows everything again', (await logStatus()).startsWith('7 /'), await logStatus());
+
+const download = logs.waitForEvent('download');
+await logs.locator('.chip.lvl-INFO').click();
+await logs.locator('.toggle', { hasText: 'Save' }).click();
+const saved = await download;
+const savedText = readFileSync(await saved.path(), 'utf8');
+check(
+  'Save downloads the visible lines',
+  saved.suggestedFilename() === 'fields.filtered.log' && savedText.trim().split('\n').length === 5,
+  `${saved.suggestedFilename()}: ${savedText.trim().split('\n').length} lines`,
+);
+
+// drop a gzipped log onto the viewer
+const gz = gzipSync('2026-10-04 10:00:00 INFO from a gzip file\n2026-10-04 10:00:01 ERROR it works\n').toString('base64');
+await logs.evaluate((data) => {
+  const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  const transfer = new DataTransfer();
+  transfer.items.add(new File([bytes], 'app.log.gz'));
+  document.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true }));
+}, gz);
+await logs.waitForFunction(() => document.title.startsWith('app.log'));
+await logs.waitForSelector('.row');
+check(
+  'a dropped .gz file is unpacked and opened',
+  (await logStatus()) === '2 / 2 lines',
+  `${await logs.title()}: ${await logStatus()}`,
+);
+await logs.close();
+
+// ---- pods ---------------------------------------------------------------------------------
+const pods = await context.newPage();
+watch(pods);
+await pods.goto(`${base}/pods.log`);
+await pods.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await pods.waitForSelector('.row');
+const podChips = await pods.locator('.sources .chip').allTextContents();
+check('each pod gets a chip', podChips.join(',') === 'payments-7d9f8-x2k4p/app,payments-7d9f8-q9z1m/app', podChips.join(','));
+check('a pod prefix is coloured', (await pods.locator('.txt .src.src-1').count()) === 2);
+check('levels are read after the prefix', (await pods.locator('.chip.lvl-ERROR .count').textContent()) === '1');
+await pods.locator('.sources .chip').nth(1).click();
+check('a pod chip hides its lines', (await pods.locator('.status').textContent()) === '2 / 4 lines');
+await pods.screenshot({ path: 'docs/pods.png' });
+await pods.close();
+
+// ---- settings, pasted text ----------------------------------------------------------------
+const options = await context.newPage();
+watch(options);
+await options.goto(`chrome-extension://${extensionId}/options.html`);
+await options.locator('#gap').fill('5');
+await options.locator('#add-pattern').click();
+await options.locator('.pattern input').nth(0).fill('Acme token');
+await options.locator('.pattern input').nth(1).fill('acme_[a-z0-9]{8}');
+await options.locator('#test').fill('key acme_12ab34cd used');
+check(
+  'settings test a custom secret pattern',
+  (await options.locator('#test-result').textContent()) === 'key ********  used'.replace('  ', ' '),
+);
+await options.locator('#add-pattern').click();
+await options.locator('.pattern input').nth(3).fill('(a+)+$');
+check('a risky pattern is refused', (await options.locator('#problems').textContent()).includes('Nested quantifiers'));
+await options.locator('.pattern button').nth(1).click();
+await options.locator('.tools label', { hasText: 'Sort lines' }).locator('input').uncheck();
+await options.waitForTimeout(600);
+const stored = await options.evaluate(() => chrome.storage.sync.get('settings'));
+check(
+  'settings are saved',
+  stored.settings.gapThresholdMs === 5000 &&
+    stored.settings.customSecrets.length === 1 &&
+    stored.settings.hiddenTools.includes('sort-lines'),
+  JSON.stringify(stored.settings),
+);
+await options.screenshot({ path: 'docs/settings.png', fullPage: true });
+
+// "Open text as log" in the popup: the viewer on the extension's own page
+const pastedPage = context.waitForEvent('page');
+await popup.bringToFront();
+await popup
+  .locator('#input')
+  .fill(`${fieldsLog}\n2026-10-04T10:31:00Z INFO token acme_12ab34cd\n2026-10-04T10:40:00Z INFO later`);
+await popup.locator('#open-pasted').click();
+const pasted = await pastedPage;
+watch(pasted);
+await pasted.waitForSelector('.row');
+check(
+  'pasted text opens in the viewer',
+  (await pasted.locator('.status').textContent()) === '9 / 9 lines',
+  await pasted.locator('.status').textContent(),
+);
+check('the custom secret pattern is used', (await pasted.locator('.toggle.secrets').textContent()) === '🔑 1');
+check(
+  'the pause threshold comes from the settings',
+  (await pasted.locator('.toggle', { hasText: 'Gaps' }).getAttribute('title')).includes('5s'),
+);
+check('no Raw button on the extension page', await pasted.locator('.toggle', { hasText: 'Raw' }).isHidden());
+await pasted.locator('.toggle', { hasText: '.*' }).click();
+await pasted.locator('.search').fill('timeout|missing');
+await pasted.waitForFunction(() => document.querySelector('.status').textContent.startsWith('2 /'));
+check('regex search runs in a worker on the extension page too', true, await pasted.locator('.status').textContent());
+await pasted.close();
+// the popup closes itself after opening the viewer
+popup = await context.newPage();
+watch(popup);
+await popup.goto(`chrome-extension://${extensionId}/popup.html`);
 
 // ---- compare ----------------------------------------------------------------------------
 const runLog = (stamp, result) =>

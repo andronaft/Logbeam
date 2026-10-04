@@ -44,6 +44,13 @@ async function handle(msg) {
       await browser.scripting.executeScript({ target, files: ['darkApi.js'] });
       await browser.scripting.insertCSS({ target, files: ['dark.css'] });
       return run(() => window.__logbeamDark.set(true));
+    case 'paste': {
+      // what the popup's "Open text as log" does
+      const id = 'e2e' + Date.now();
+      await browser.storage.session.set({ ['viewerText:' + id]: { text: msg.text, name: 'Pasted log' } });
+      await browser.tabs.create({ url: browser.runtime.getURL('viewer.html?id=' + id) });
+      return true;
+    }
     case 'remember':
       await browser.scripting.registerContentScripts([{ id: 'e2e-dark', matches: [msg.pattern], css: ['dark.css'],
         js: ['darkAuto.js'], runAt: 'document_start', allFrames: true, persistAcrossSessions: true }]);
@@ -92,6 +99,13 @@ const text = {
     '  "order": { "id": 7781 }',
     '}',
     '2026-10-04 10:00:06 INFO next',
+  ].join('\n'),
+  '/fields.log': [
+    '{"level":"error","service":"payments","duration":950,"msg":"timeout"}',
+    '{"level":"error","service":"search","duration":40,"msg":"missing"}',
+    '2026-10-04T10:10:00Z WARN slow service=payments duration=1.2s',
+    '[pod/api-1/app] 2026-10-04T10:11:00Z INFO from a pod',
+    '[pod/api-2/app] 2026-10-04T10:12:00Z INFO from another pod',
   ].join('\n'),
   '/redos.log': Array.from({ length: 50 }, () => `${'a'.repeat(34)}b`).join('\n'),
 };
@@ -269,6 +283,32 @@ try {
   check('the Compare page opens', Boolean(compareHandle));
   const summary = await driver.wait(until.elementLocated(By.css('#summary:not([hidden])')), 5000);
   check('it shows the difference', (await summary.getText()).includes('+1 −1'), await summary.getText());
+
+  // ---- fields, pods ---------------------------------------------------------------------------
+  const fieldsPage = await openPage('/fields.log');
+  await command({ cmd: 'viewer', url: fieldsPage.url });
+  await driver.switchTo().window(fieldsPage.handle);
+  await driver.wait(until.elementLocated(By.css('.row')), 10_000);
+  await driver.findElement(By.css('.search')).sendKeys('service=payments duration>500');
+  await driver.wait(async () => (await status()).startsWith('2 /'), 5000).catch(() => undefined);
+  check('field filters', (await status()) === '2 / 5 lines · 2 field conditions', await status());
+  check('each pod gets a chip', (await driver.findElements(By.css('.sources .chip'))).length === 2);
+
+  // ---- the viewer page for pasted text ---------------------------------------------------------
+  await command({ cmd: 'paste', text: 'INFO one\nERROR two timeout\nINFO three missing' });
+  const viewerHandle = await driver.wait(async () => {
+    for (const handle of await driver.getAllWindowHandles()) {
+      await driver.switchTo().window(handle);
+      if ((await driver.getCurrentUrl()).includes('/viewer.html?id=')) return handle;
+    }
+    return null;
+  }, 10_000);
+  check('pasted text opens in the viewer page', Boolean(viewerHandle));
+  await driver.wait(until.elementLocated(By.css('.row')), 10_000);
+  await driver.findElement(By.xpath('//*[contains(@class,"toggle") and normalize-space()=".*"]')).click();
+  await driver.findElement(By.css('.search')).sendKeys('timeout|missing');
+  await driver.wait(async () => (await status()).startsWith('2 /'), 5000).catch(() => undefined);
+  check('regex search works on the extension page (worker from a file)', (await status()) === '2 / 3 lines', await status());
 } catch (error) {
   check('test run', false, error.stack);
 } finally {

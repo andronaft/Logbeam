@@ -1,4 +1,5 @@
 import { findRegexRisk } from '../lib/regexSafety';
+import { workerUrl } from './workerUrl';
 
 /** Code of searchWorker.ts, inlined at build time (see scripts/build.mjs). */
 declare const __SEARCH_WORKER__: string;
@@ -57,7 +58,7 @@ export class RegexSearch {
   private ensureWorker(): Worker | null {
     if (this.worker) return this.worker;
     try {
-      this.url ??= URL.createObjectURL(new Blob([__SEARCH_WORKER__], { type: 'text/javascript' }));
+      this.url ??= workerUrl(__SEARCH_WORKER__, 'searchWorker.js');
       this.worker = new Worker(this.url);
       this.worker.postMessage({ type: 'init', texts: this.texts });
       return this.worker;

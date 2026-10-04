@@ -11,6 +11,9 @@ import {
 } from '../shared/darkMode';
 import { openShortcutSettings } from '../shared/browser';
 import { openCompare } from '../shared/compare';
+import { setCustomSecretPatterns } from '../lib/secrets';
+import { loadSettings } from '../shared/settings';
+import { MAX_PASTED_BYTES, openFileViewer, openTextInViewer } from '../shared/viewerTabs';
 import { openLogViewer, whyNotAllowed } from '../shared/inject';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -183,5 +186,24 @@ function setupTools(): void {
 
 setupTools();
 $('open-compare').addEventListener('click', () => void openCompare().then(() => window.close()));
+$('open-file').addEventListener('click', () => void openFileViewer().then(() => window.close()));
+$('open-settings').addEventListener('click', (event) => {
+  event.preventDefault();
+  void chrome.runtime.openOptionsPage().then(() => window.close());
+});
+function toolsNote(text: string): void {
+  const output = $<HTMLPreElement>('output');
+  output.textContent = text;
+  output.classList.add('error');
+  output.hidden = false;
+}
+$('open-pasted').addEventListener('click', () => {
+  const text = $<HTMLTextAreaElement>('input').value;
+  if (!text.trim()) return toolsNote('Paste a log into the box above first.');
+  if (new Blob([text]).size > MAX_PASTED_BYTES) return toolsNote('That’s too big to paste. Use “Open a log file…”.');
+  void openTextInViewer(text).then(() => window.close());
+});
+// the user's own secret patterns for "Mask secrets"
+void loadSettings().then((settings) => setCustomSecretPatterns(settings.customSecrets));
 void setupSite();
 void setupShortcuts();

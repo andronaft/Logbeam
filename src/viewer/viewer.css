@@ -1,0 +1,94 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1419;
+  --panel: #1a222b;
+  --border: #2d3640;
+  --fg: #e6e1cf;
+  --muted: #8a9199;
+  --accent: #ffb454;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    14px/1.5 ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+main {
+  max-width: 720px;
+  margin: 48px auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 22px;
+}
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 40px 16px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: center;
+}
+.drop span,
+.or,
+.note {
+  color: var(--muted);
+}
+.drop.dragging,
+.drop:hover {
+  border-color: var(--accent);
+}
+.drop input {
+  display: none;
+}
+.or {
+  margin: 4px 0 0;
+}
+textarea {
+  height: 200px;
+  resize: vertical;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font:
+    12px/1.5 ui-monospace,
+    Menlo,
+    Consolas,
+    monospace;
+}
+button {
+  align-self: flex-start;
+  background: var(--accent);
+  color: var(--bg);
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.note {
+  font-size: 12px;
+}

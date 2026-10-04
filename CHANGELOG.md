@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0
+
+### Added
+
+- **Filter by fields**: type `level=error service=payments duration>500` in the search box. Works on JSON
+  logs and on `key=value` lines alike, with `=`, `!=`, `>`, `<`, `>=`, `<=`, `*` wildcards, nested JSON
+  paths (`http.status>=500`) and units (`duration>1.5s`). The search box suggests the log's field names.
+- **Pick a time range on the timeline**: drag across the bars to keep only the entries from that time;
+  the ⏱ chip shows the range and brings everything back.
+- **Highlights**: press Enter in the search box (or 🖍) to keep a term highlighted in its own colour, up
+  to five at once, e.g. an order ID in yellow and a user ID in blue.
+- **Pods and containers**: `kubectl logs --prefix` and `docker compose logs` output gets a coloured chip
+  per pod or container to show or hide its lines, and levels and times are read after the prefix.
+- **Open pasted text or files**: "Open text as log" in the popup opens a log pasted from Slack or a ticket,
+  and "Open a log file…" opens `.log` files and **gzip (`.gz`) files**, which are unpacked in the browser.
+  A file can also be dropped onto any open viewer.
+- **Save** the visible lines as a file.
+- **Settings page**: the pause threshold, your own secret patterns (for internal token formats), and
+  which text tools appear in the right-click menu.
+
 ## 0.3.0
 
 ### Added

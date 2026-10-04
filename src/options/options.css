@@ -1,0 +1,125 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1419;
+  --panel: #1a222b;
+  --border: #2d3640;
+  --fg: #e6e1cf;
+  --muted: #8a9199;
+  --accent: #ffb454;
+  --error: #ff6b6b;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    14px/1.5 ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+main {
+  max-width: 760px;
+  margin: 32px auto 64px;
+  padding: 0 16px;
+}
+h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+  font-size: 22px;
+}
+h2 {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+section {
+  padding: 18px 0;
+  border-top: 1px solid var(--border);
+}
+.help {
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+code {
+  background: var(--panel);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+a {
+  color: var(--accent);
+}
+input,
+button {
+  font: inherit;
+  color: var(--fg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+button {
+  cursor: pointer;
+}
+button:hover {
+  border-color: var(--accent);
+}
+#gap {
+  width: 80px;
+  margin: 0 6px;
+}
+.pattern {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.pattern input:last-of-type,
+#test,
+.result {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+.problems {
+  color: var(--error);
+  white-space: pre-line;
+}
+.test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+#test {
+  flex: 1;
+}
+.result {
+  margin: 8px 0 0;
+  color: var(--muted);
+  white-space: pre-wrap;
+  min-height: 1.5em;
+}
+.tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 4px 16px;
+}
+.tools label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+}
+.saved {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  margin: 0;
+  color: var(--accent);
+}

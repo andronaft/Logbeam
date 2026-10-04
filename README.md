@@ -41,6 +41,14 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Search** as plain text or **regex**, case-sensitive if you like, with highlighted matches
 - **JSON logs** (Logback/Logstash, pino, bunyan, zap…) shown as `time LEVEL message {fields}`, including
   records pretty-printed over several lines
+- **Filter by fields**: `level=error service=payments duration>500`, on JSON logs and `key=value` lines alike,
+  with `!=`, `>`, `<`, `*` wildcards, nested paths (`http.status>=500`) and units (`duration>1.5s`)
+- **Time range**: drag across the timeline to keep only the entries from that time
+- **Highlights**: press Enter in the search box to keep a term highlighted in its own colour (up to five)
+- **Pods and containers**: `kubectl logs --prefix` and `docker compose logs` get a coloured chip per pod
+- **Pasted text and files**: open a log pasted into the popup, or a `.log` / **`.gz`** file (unpacked in the
+  browser); drop a file onto any viewer to open it
+- **Save** the visible lines as a file
 - **Compare** this log with another one, e.g. a passing and a failing CI run (see below)
 - **Pauses between entries**: `+5.5s` next to lines where the app stalled
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge
@@ -53,6 +61,7 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
   rows on screen are in the DOM
 
 <p align="center"><img src="docs/log-viewer-filtered.png" alt="Only errors and warnings, repeated retries collapsed" width="860"></p>
+<p align="center"><img src="docs/highlights.png" alt="Two highlights in their own colours" width="860"></p>
 
 ### 🔑 Secret detection
 
@@ -211,7 +220,9 @@ src/
 - [x] Open `text/plain` logs in the viewer automatically (opt-in per site)
 - [x] Secret detection and masking
 - [x] Parsing large logs in a Web Worker
-- [ ] Settings page (gap threshold, custom levels, which tools to show)
+- [x] Settings page (gap threshold, your own secret patterns, which tools to show)
+- [x] Field filters, time ranges, highlights, pods, `.gz` files
+- [ ] Bookmarks and notes on lines
 - [x] Diff two JSON documents or two logs
 - [x] Multi-line JSON log records
 - [x] Firefox build

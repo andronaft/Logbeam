@@ -3,6 +3,8 @@
  * cloud keys, tokens, private keys and "password=..." style assignments.
  */
 
+import { findRegexRisk } from './regexSafety';
+
 export interface SecretMatch {
   kind: string;
   /** Range of the secret value inside the text (for key=value pairs only the value). */
@@ -60,10 +62,37 @@ function isPlaceholder(value: string): boolean {
 const HINT =
   /AKIA|ASIA|aws_secret|gh[pousr]_|github_pat_|glpat-|xox[abprs]-|_live_|AIza|eyJ|bearer|basic|:\/\/[^\s/@]+:[^\s]+@|pass|pwd|secret|key|token|credential|PRIVATE/i;
 
+let customPatterns: { kind: string; re: RegExp; groups: number[] }[] = [];
+
+/**
+ * Adds the user's own secret patterns from the settings (e.g. an internal token format). The whole
+ * match is the secret, or its first group if it has one. Returns why a pattern was skipped, if any.
+ */
+export function setCustomSecretPatterns(patterns: { name: string; pattern: string }[]): string[] {
+  const problems: string[] = [];
+  customPatterns = [];
+  for (const { name, pattern } of patterns) {
+    if (!pattern.trim()) continue;
+    const risk = findRegexRisk(pattern);
+    if (risk) {
+      problems.push(`${name || pattern}: ${risk}`);
+      continue;
+    }
+    try {
+      const re = new RegExp(pattern, 'gd');
+      customPatterns.push({ kind: name || 'Custom secret', re, groups: [1, 0] });
+    } catch (error) {
+      problems.push(`${name || pattern}: ${(error as Error).message}`);
+    }
+  }
+  return problems;
+}
+
 export function findSecrets(text: string): SecretMatch[] {
-  if (!HINT.test(text)) return [];
+  const builtIn = HINT.test(text);
+  if (!builtIn && customPatterns.length === 0) return [];
   const found: SecretMatch[] = [];
-  for (const { kind, re, groups = [0] } of INDEXED_PATTERNS) {
+  for (const { kind, re, groups = [0] } of builtIn ? [...INDEXED_PATTERNS, ...customPatterns] : customPatterns) {
     re.lastIndex = 0;
     for (const match of text.matchAll(re)) {
       const group = groups.find((g) => match[g] !== undefined);
@@ -71,7 +100,7 @@ export function findSecrets(text: string): SecretMatch[] {
       const value = match[group];
       if (!value || isPlaceholder(value)) continue;
       const [start, end] = match.indices![group]!;
-      found.push({ kind, start, end });
+      if (end > start) found.push({ kind, start, end });
     }
   }
   // Keep the earliest, then longest match where patterns overlap (a JWT is also a "Bearer token").

@@ -1,6 +1,7 @@
 import { TRANSFORMS } from './lib/transforms';
 import { setAutoOpen, syncAutoOpenRegistrations } from './shared/autoOpen';
 import { COMPARE_ADD, compareText } from './shared/compare';
+import { SETTINGS_KEY, loadSettings } from './shared/settings';
 import { completePending, forgetTab, setDarkMode, syncRegistrations, toggleDarkMode } from './shared/darkMode';
 import { clearIconReport, openLogViewer, readTextForCompare, reportOnIcon, runTransformInTab } from './shared/inject';
 
@@ -10,11 +11,12 @@ const MENU_DARK = 'logbeam:dark';
 const MENU_COMPARE = 'logbeam:compare';
 const TRANSFORM_PREFIX = 'logbeam:transform:';
 
-function createMenus(): void {
+async function createMenus(): Promise<void> {
+  const { hiddenTools } = await loadSettings();
   // promise form (missing from @types/chrome): Firefox builds use browser.*, which has no callbacks
   void (chrome.contextMenus.removeAll() as unknown as Promise<void>).then(() => {
     chrome.contextMenus.create({ id: MENU_ROOT, title: 'Logbeam', contexts: ['selection', 'editable', 'page'] });
-    for (const transform of TRANSFORMS) {
+    for (const transform of TRANSFORMS.filter((t) => !hiddenTools.includes(t.id))) {
       chrome.contextMenus.create({
         id: TRANSFORM_PREFIX + transform.id,
         parentId: MENU_ROOT,
@@ -55,7 +57,7 @@ function syncAll(): void {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  createMenus();
+  void createMenus();
   syncAll();
 });
 
@@ -112,4 +114,9 @@ chrome.runtime.onMessage.addListener((message: { type?: string; text?: string; n
   if (message?.type !== COMPARE_ADD || typeof message.text !== 'string') return;
   void compareText(message.text, message.name).then(sendResponse);
   return true; // answered asynchronously
+});
+
+// the settings page changed which text tools appear in the menu
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'sync' && SETTINGS_KEY in changes) void createMenus();
 });

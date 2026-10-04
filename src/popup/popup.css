@@ -221,3 +221,16 @@ footer {
 footer b {
   color: var(--fg);
 }
+footer a {
+  color: var(--accent);
+}
+#open-pasted {
+  margin-top: 8px;
+}
+.compare .row {
+  margin-top: 0;
+  justify-content: stretch;
+}
+.compare .row button {
+  flex: 1;
+}

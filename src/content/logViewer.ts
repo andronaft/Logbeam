@@ -1,5 +1,18 @@
-import { CollapsedLine, LEVELS, Level, LogLine, collapseRepeats, countByLevel, filterLines, formatGap } from '../lib/logs';
-import { findSecrets, maskSecrets } from '../lib/secrets';
+import { commonFields, filterByFields, parseFieldQuery } from '../lib/fields';
+import { displayName, readLogFile } from '../lib/files';
+import {
+  CollapsedLine,
+  LEVELS,
+  Level,
+  LogLine,
+  collapseRepeats,
+  countByLevel,
+  filterLines,
+  formatGap,
+  splitSource,
+} from '../lib/logs';
+import { findSecrets, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
+import { loadSettings } from '../shared/settings';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
 import { parseLogAsync } from './parseAsync';
@@ -16,7 +29,9 @@ import { VIEWER_CSS } from './viewerStyles';
 
 const ROW_HEIGHT = 20;
 const OVERSCAN = 30;
-const GAP_THRESHOLD_MS = 1000;
+/** Pods with their own chip and colour; more than this and the chips would fill the screen. */
+const MAX_SOURCES = 24;
+const MAX_HIGHLIGHTS = 5;
 const LINE_HASH = /^#L(\d+)$/;
 /** Highlighting only looks at the start of very long lines (a minified bundle, say); rows don't wrap anyway. */
 const HIGHLIGHT_LIMIT = 5000;
@@ -34,6 +49,12 @@ interface State {
   /** Why the current search can't run (invalid or too slow regex); empty when it's fine. */
   searchError: string;
   selected: number | null;
+  /** Only entries in this time range, chosen by dragging across the timeline. */
+  timeRange: [number, number] | null;
+  /** Pods or containers switched off with their chips. */
+  hiddenSources: Set<string>;
+  /** Terms pinned with their own colour, independent of the search. */
+  highlights: string[];
 }
 
 type Child = Node | string;
@@ -72,10 +93,19 @@ function resetDocument(title: string): HTMLBodyElement {
   return body;
 }
 
-export async function openViewer(text: string = readPageText()): Promise<void> {
+/** Stops the listeners of the previous viewer when a dropped file opens a new one. */
+let previousViewer: AbortController | null = null;
+
+/** The extension's own viewer page, for pasted text and files, rather than a web page. */
+const ON_EXTENSION_PAGE = /^(chrome|moz)-extension:$/.test(location.protocol);
+
+export async function openViewer(text: string = readPageText(), name?: string): Promise<void> {
+  previousViewer?.abort();
+  const viewer = new AbortController();
+  previousViewer = viewer;
   // the page is about to be replaced; "Compare…" in the context menu reads the log from here
   (window as unknown as { __logbeamLogText?: string }).__logbeamLogText = text;
-  const title = document.title || location.pathname.split('/').pop() || 'log';
+  const title = name ?? (document.title || location.pathname.split('/').pop() || 'log');
   const body = resetDocument(title);
 
   const bar = el('div', { className: 'progress-bar' });
@@ -94,11 +124,46 @@ export async function openViewer(text: string = readPageText()): Promise<void> {
     bar.style.width = `${Math.round((done / total) * 100)}%`;
     label.textContent = `Parsing log… ${done.toLocaleString()} / ${total.toLocaleString()} lines`;
   });
+  const settings = await loadSettings();
+  setCustomSecretPatterns(settings.customSecrets);
+  if (settings.customSecrets.some((custom) => custom.pattern.trim())) {
+    // the worker parsed without the user's own patterns: mark those lines here
+    for (const line of lines) {
+      if (!line.secret && findSecrets(line.text.slice(0, HIGHLIGHT_LIMIT)).length > 0) line.secret = true;
+    }
+  }
   body.replaceChildren();
-  buildViewer(body, lines, text);
+  buildViewer(body, lines, { text, title, gapThreshold: settings.gapThresholdMs, signal: viewer.signal });
 }
 
-function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: string): void {
+/** Opens a dropped or chosen file (plain or gzip) in the viewer, replacing the current log. */
+export async function openFile(file: File): Promise<void> {
+  await openViewer(await readLogFile(file), displayName(file.name));
+}
+
+interface ViewerOptions {
+  text: string;
+  title: string;
+  gapThreshold: number;
+  signal: AbortSignal;
+}
+
+/**
+ * The time of the entry each line belongs to: continuation lines and lines without a timestamp
+ * take the time of the entry above, so a time range keeps whole stack traces.
+ */
+function entryTimes(lines: LogLine[]): Float64Array {
+  const times = new Float64Array(lines.length);
+  let current = Number.NaN;
+  lines.forEach((line, i) => {
+    if (line.time !== null) current = line.time;
+    times[i] = current;
+  });
+  return times;
+}
+
+function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOptions): void {
+  const { signal, gapThreshold } = options;
   const counts = countByLevel(allLines);
   const secretCount = allLines.filter((l) => l.secret).length;
   const timeline = buildTimeline(allLines);
@@ -115,7 +180,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
     searchError: '',
     showTimeline: timeline !== null,
     selected: null,
+    timeRange: null,
+    hiddenSources: new Set(),
+    highlights: [],
   };
+  const times = entryTimes(allLines);
+  const sources = [...new Set(allLines.map((l) => l.source).filter((s): s is string => s !== null))];
+  const sourceIndex = new Map(sources.map((source, i) => [source, i]));
+  const fields = commonFields(allLines);
   let visible: CollapsedLine[] = [];
 
   // ---- toolbar ----------------------------------------------------------------------------
@@ -146,7 +218,25 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
     return button;
   };
 
-  const search = el('input', { type: 'search', placeholder: 'Search… ( / )', className: 'search', spellcheck: false });
+  const search = el('input', {
+    type: 'search',
+    placeholder: fields.length ? `Search, or ${fields[0]}=… ( / )` : 'Search… ( / )',
+    title: 'Text to find, or fields: level=error service=payments duration>500 (key=value, !=, >, <, * wildcards)',
+    className: 'search',
+    spellcheck: false,
+  });
+  search.setAttribute('list', 'logbeam-fields');
+  // suggestions for field filters: "status=", "service=", …
+  const fieldList = el(
+    'datalist',
+    { id: 'logbeam-fields' },
+    ...fields.slice(0, 30).map((key) => el('option', { value: `${key}=` })),
+  );
+  const highlightButton = el(
+    'button',
+    { className: 'toggle', title: 'Keep this text highlighted in its own colour ( Enter in the search box )' },
+    '🖍',
+  );
   const regexToggle = toggleButton('.*', 'Regular expression', false, () => (state.regex = !state.regex));
   const caseToggle = toggleButton('Aa', 'Match case', false, () => (state.caseSensitive = !state.caseSensitive));
   const collapseToggle = toggleButton(
@@ -157,7 +247,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
   );
   const gapsToggle = toggleButton(
     'Gaps',
-    `Show pauses longer than ${GAP_THRESHOLD_MS / 1000}s`,
+    `Show pauses longer than ${gapThreshold / 1000}s`,
     true,
     () => (state.showGaps = !state.showGaps),
   );
@@ -188,8 +278,31 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
   );
   // only as an extension content script (not when a test injects the viewer into the page)
   compareButton.hidden = typeof chrome === 'undefined' || !chrome.runtime?.id;
+  const saveButton = el('button', { className: 'toggle', title: 'Download the visible lines as a file' }, 'Save');
+  const fileInput = el('input', { type: 'file', hidden: true });
+  const openButton = el('button', { className: 'toggle', title: 'Open a .log or .gz file (or drop it here)' }, 'Open…');
   const rawButton = el('button', { className: 'toggle', title: 'Back to the original page' }, 'Raw');
+  // the extension's viewer page shows pasted text or a file: there is no original page to go back to
+  rawButton.hidden = ON_EXTENSION_PAGE;
+  openButton.hidden = !ON_EXTENSION_PAGE;
   const status = el('span', { className: 'status' });
+
+  // second row: what narrows the view besides levels and search
+  const rangeChip = el('button', { className: 'toggle on range', title: 'Show all times again' });
+  const highlightChips = el('span', { className: 'group' });
+  const sourceChips = el('span', { className: 'group sources' });
+  const sourceButtons = sources.slice(0, MAX_SOURCES).map((source, i) => {
+    const button = el('button', { className: `chip on src-${i % 8}`, title: `Show/hide lines from ${source}` }, source);
+    button.addEventListener('click', () => {
+      if (state.hiddenSources.has(source)) state.hiddenSources.delete(source);
+      else state.hiddenSources.add(source);
+      button.classList.toggle('on');
+      void refresh();
+    });
+    return button;
+  });
+  sourceChips.append(...sourceButtons);
+  const subbar = el('div', { className: 'subbar' }, rangeChip, highlightChips, sourceChips);
 
   const toolbar = el(
     'header',
@@ -201,16 +314,20 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
     chip('DEBUG', 'Debug'),
     chip('TRACE', 'Trace'),
     chip('UNKNOWN', 'Other'),
-    el('span', { className: 'group' }, search, regexToggle, caseToggle),
+    el('span', { className: 'group' }, search, highlightButton, regexToggle, caseToggle),
     collapseToggle,
     gapsToggle,
     timelineToggle,
     secretsGroup,
     nextError,
     copyButton,
+    saveButton,
     compareButton,
+    openButton,
+    fileInput,
     rawButton,
     status,
+    fieldList,
   );
 
   // ---- timeline -------------------------------------------------------------------------
@@ -218,7 +335,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
   timelineEl.hidden = !state.showTimeline;
   if (timeline) {
     const fmt = (t: number) => new Date(t).toISOString().replace('T', ' ').slice(0, 19);
-    for (const bucket of timeline.buckets) {
+    timeline.buckets.forEach((bucket, i) => {
       const height = (n: number) => `${Math.round((n / timeline.max) * 100)}%`;
       const other = bucket.total - bucket.errors - bucket.warnings;
       const bar = el(
@@ -234,11 +351,47 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
       (bar.children[0] as HTMLElement).style.height = height(bucket.errors);
       (bar.children[1] as HTMLElement).style.height = height(bucket.warnings);
       (bar.children[2] as HTMLElement).style.height = height(other);
-      bar.addEventListener('click', () => {
-        const index = visible.findIndex((l) => l.time !== null && l.time >= bucket.from);
-        if (index >= 0) scrollToIndex(index, true);
+      // a click jumps there; dragging across bars keeps only that time range
+      bar.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        drag = { from: i, to: i };
+        markDrag();
+      });
+      bar.addEventListener('pointerenter', () => {
+        if (!drag) return;
+        drag.to = i;
+        markDrag();
       });
       timelineEl.append(bar);
+    });
+    document.addEventListener(
+      'pointerup',
+      () => {
+        if (!drag) return;
+        const [first, last] = [Math.min(drag.from, drag.to), Math.max(drag.from, drag.to)];
+        drag = null;
+        markDrag();
+        if (first === last) {
+          const index = visible.findIndex((l) => l.time !== null && l.time >= timeline.buckets[first].from);
+          if (index >= 0) scrollToIndex(index, true);
+          return;
+        }
+        state.timeRange = [timeline.buckets[first].from, timeline.buckets[last].to];
+        void refresh();
+      },
+      { signal },
+    );
+  }
+  let drag: { from: number; to: number } | null = null;
+  function markDrag(): void {
+    const buckets = timelineEl.children;
+    const range = state.timeRange;
+    for (let i = 0; i < buckets.length; i++) {
+      const bucket = timeline!.buckets[i];
+      const dragging = drag !== null && i >= Math.min(drag.from, drag.to) && i <= Math.max(drag.from, drag.to);
+      const inRange = range !== null && bucket.to > range[0] && bucket.from < range[1];
+      buckets[i].classList.toggle('dragging', dragging);
+      buckets[i].classList.toggle('outside', range !== null && !inRange && !dragging);
     }
   }
 
@@ -249,7 +402,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
   const inspector = el('aside', { className: 'inspector' });
   inspector.hidden = true;
   const toast = el('div', { className: 'toast' });
-  body.append(toolbar, timelineEl, scroller, inspector, toast);
+  const dropHint = el('div', { className: 'drop-hint' }, 'Drop a .log or .gz file to open it');
+  body.append(toolbar, subbar, timelineEl, scroller, inspector, toast, dropHint);
 
   const displayText = (line: LogLine) => {
     if (!state.maskSecrets || !line.secret) return line.text;
@@ -279,7 +433,13 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
   function appendText(parent: HTMLElement, line: LogLine): void {
     const text = displayText(line);
     const head = text.length > HIGHLIGHT_LIMIT ? text.slice(0, HIGHLIGHT_LIMIT) : text;
-    const ranges: Range[] = state.searchError ? [] : searchRanges(head, state.query, state.regex, state.caseSensitive, 'match');
+    const query = fieldMode ? '' : state.query;
+    const ranges: Range[] = state.searchError ? [] : searchRanges(head, query, state.regex, state.caseSensitive, 'match');
+    state.highlights.forEach((term, i) => ranges.push(...searchRanges(head, term, false, false, `hl hl-${i}`)));
+    if (line.source !== null) {
+      const prefix = text.length - splitSource(text).rest.length;
+      ranges.push({ start: 0, end: prefix, cls: `src src-${(sourceIndex.get(line.source) ?? 0) % 8}` });
+    }
     if (line.secret && !state.maskSecrets) {
       if (line.secretBlock) {
         ranges.push({ start: 0, end: text.length, cls: 'secret' });
@@ -341,6 +501,69 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
     }, 150);
   });
 
+  function addHighlight(): void {
+    const term = search.value.trim();
+    if (!term || state.highlights.includes(term)) return;
+    if (state.highlights.length >= MAX_HIGHLIGHTS) state.highlights.shift();
+    state.highlights.push(term);
+    search.value = '';
+    state.query = '';
+    void refresh();
+  }
+  highlightButton.addEventListener('click', addHighlight);
+  search.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') addHighlight();
+  });
+  rangeChip.addEventListener('click', () => {
+    state.timeRange = null;
+    void refresh();
+  });
+
+  saveButton.addEventListener('click', () => {
+    const blob = new Blob([visible.map(displayText).join('\n') + '\n'], { type: 'text/plain' });
+    const link = el('a', {
+      href: URL.createObjectURL(blob),
+      download: `${options.title.replace(/[\\/:*?"<>|]+/g, '_').replace(/\.log$/i, '')}.filtered.log`,
+    });
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+    showToast(`${visible.length.toLocaleString()} lines saved`);
+  });
+
+  // open or drop a file (plain or .gz) to replace this log
+  const openChosen = (file: File | undefined) => {
+    if (file) void openFile(file).catch((error) => showToast(`Couldn’t open ${file.name}: ${(error as Error).message}`));
+  };
+  openButton.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => openChosen(fileInput.files?.[0]));
+  const hasFiles = (event: DragEvent) => event.dataTransfer?.types.includes('Files') ?? false;
+  document.addEventListener(
+    'dragover',
+    (event) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      dropHint.classList.add('show');
+    },
+    { signal },
+  );
+  document.addEventListener(
+    'dragleave',
+    (event) => {
+      if (!event.relatedTarget) dropHint.classList.remove('show');
+    },
+    { signal },
+  );
+  document.addEventListener(
+    'drop',
+    (event) => {
+      dropHint.classList.remove('show');
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      openChosen(event.dataTransfer?.files[0]);
+    },
+    { signal },
+  );
+
   nextError.addEventListener('click', () => jumpToNext((l) => l.level === 'ERROR' && !l.continuation));
   secretsButton.addEventListener('click', () => jumpToNext((l) => l.secret));
   copyButton.addEventListener(
@@ -350,7 +573,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
   rawButton.addEventListener('click', () => location.reload());
   compareButton.addEventListener('click', async () => {
     try {
-      const side = await chrome.runtime.sendMessage({ type: COMPARE_ADD, text: originalText, name: document.title });
+      const side = await chrome.runtime.sendMessage({ type: COMPARE_ADD, text: options.text, name: options.title });
       if (side === 'left') showToast('Added as “Before”. Open the other log and press Compare there.');
     } catch {
       showToast('Compare isn’t available here');
@@ -372,31 +595,35 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
     select(state.selected === number ? null : number);
   });
 
-  document.addEventListener('keydown', (event) => {
-    if (event.target === search) {
-      if (event.key === 'Escape') {
-        search.value = '';
-        state.query = '';
-        void refresh();
-        scroller.focus();
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.target === search) {
+        if (event.key === 'Escape') {
+          search.value = '';
+          state.query = '';
+          void refresh();
+          scroller.focus();
+        }
+        return;
       }
-      return;
-    }
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-    if (event.key === '/') {
-      event.preventDefault();
-      search.focus();
-    } else if (event.key === 'e') {
-      jumpToNext((l) => l.level === 'ERROR' && !l.continuation);
-    } else if (event.key === 's' && secretCount > 0) {
-      jumpToNext((l) => l.secret);
-    } else if (event.key === 'Escape' && state.selected !== null) {
-      select(null);
-    }
-  });
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === '/') {
+        event.preventDefault();
+        search.focus();
+      } else if (event.key === 'e') {
+        jumpToNext((l) => l.level === 'ERROR' && !l.continuation);
+      } else if (event.key === 's' && secretCount > 0) {
+        jumpToNext((l) => l.secret);
+      } else if (event.key === 'Escape' && state.selected !== null) {
+        select(null);
+      }
+    },
+    { signal },
+  );
 
   scroller.addEventListener('scroll', () => render(), { passive: true });
-  window.addEventListener('resize', () => render());
+  window.addEventListener('resize', () => render(), { signal });
 
   function scrollToIndex(index: number, selectIt: boolean): void {
     scroller.scrollTop = Math.max(0, index * ROW_HEIGHT - scroller.clientHeight / 3);
@@ -415,6 +642,28 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
     else showToast('Nothing found in the visible lines');
   }
 
+  let fieldMode = false;
+  const clock = (t: number) => new Date(t).toISOString().slice(11, 19);
+
+  function renderSubbar(): void {
+    const range = state.timeRange;
+    rangeChip.hidden = range === null;
+    if (range) rangeChip.textContent = `⏱ ${clock(range[0])} – ${clock(range[1])} ×`;
+    highlightChips.replaceChildren(
+      ...state.highlights.map((term, i) => {
+        const chip = el('button', { className: `toggle hl-chip hl-${i}`, title: 'Remove this highlight' }, `${term} ×`);
+        chip.addEventListener('click', () => {
+          state.highlights.splice(i, 1);
+          void refresh();
+        });
+        return chip;
+      }),
+    );
+    subbar.hidden = range === null && state.highlights.length === 0 && sourceButtons.length < 2;
+    sourceChips.hidden = sourceButtons.length < 2;
+    if (timeline) markDrag();
+  }
+
   const regexSearch = new RegexSearch(allLines.map((l) => l.text));
   let refreshId = 0;
 
@@ -426,6 +675,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
     const id = ++refreshId;
     let error = '';
     let mask: Uint8Array | null = null;
+    const conditions = state.regex ? null : parseFieldQuery(state.query);
+    fieldMode = conditions !== null;
+    search.classList.toggle('fields', fieldMode);
     if (state.query && state.regex) {
       status.textContent = 'Searching…';
       const result = await regexSearch.search(state.query, state.caseSensitive);
@@ -437,18 +689,27 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
     search.classList.toggle('invalid', error !== '');
     search.title = error;
 
+    // fields, time range and pods narrow the lines first; levels and search then filter what's left
+    let base = conditions ? filterByFields(allLines, conditions) : allLines;
+    const range = state.timeRange;
+    if (range) base = base.filter((l) => times[l.number - 1] >= range[0] && times[l.number - 1] < range[1]);
+    if (state.hiddenSources.size > 0) base = base.filter((l) => l.source === null || !state.hiddenSources.has(l.source));
+
     let filtered: LogLine[];
     if (error) {
       filtered = [];
     } else if (mask) {
       const matches = mask;
-      filtered = filterLines(allLines, { ...state, query: '' }).filter((l) => matches[l.number - 1] === 1);
+      filtered = filterLines(base, { ...state, query: '' }).filter((l) => matches[l.number - 1] === 1);
     } else {
-      filtered = filterLines(allLines, state);
+      filtered = filterLines(base, { ...state, query: fieldMode ? '' : state.query });
     }
     visible = state.collapse ? collapseRepeats(filtered) : filtered.map((l) => ({ ...l, repeat: 1 }));
     spacer.style.height = `${visible.length * ROW_HEIGHT}px`;
-    status.textContent = error || `${visible.length.toLocaleString()} / ${allLines.length.toLocaleString()} lines`;
+    const conditionNote = conditions ? ` · ${conditions.length} field condition${conditions.length > 1 ? 's' : ''}` : '';
+    status.textContent =
+      error || `${visible.length.toLocaleString()} / ${allLines.length.toLocaleString()} lines${conditionNote}`;
+    renderSubbar();
     renderInspector();
     render();
   }
@@ -468,7 +729,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], originalText: strin
         row.dataset.number = String(line.number);
 
         const gap = el('span', { className: 'gap' });
-        if (state.showGaps && line.gap !== null && line.gap >= GAP_THRESHOLD_MS) {
+        if (state.showGaps && line.gap !== null && line.gap >= gapThreshold) {
           gap.textContent = formatGap(line.gap);
           gap.title = 'Pause since the previous entry';
           if (line.gap >= 10_000) gap.classList.add('big');
