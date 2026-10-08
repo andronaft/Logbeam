@@ -33,6 +33,7 @@ import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
 import { parseLogAsync } from './parseAsync';
 import { COMPARE_ADD } from '../shared/compare';
+import { t, tn, uiLanguage } from '../shared/i18n';
 import { RegexSearch } from './regexSearch';
 import { VIEWER_CSS } from './viewerStyles';
 
@@ -107,6 +108,7 @@ export function readPageText(): string {
 
 function resetDocument(title: string): HTMLBodyElement {
   document.documentElement.replaceChildren();
+  document.documentElement.lang = uiLanguage();
   const head = el(
     'head',
     {},
@@ -135,7 +137,7 @@ export async function openViewer(text: string = readPageText(), name?: string): 
   const body = resetDocument(title);
 
   const bar = el('div', { className: 'progress-bar' });
-  const label = el('div', { className: 'loading-label' }, 'Parsing log…');
+  const label = el('div', { className: 'loading-label' }, t('viewerParsing', 'Parsing log…'));
   body.append(
     el(
       'div',
@@ -148,7 +150,10 @@ export async function openViewer(text: string = readPageText(), name?: string): 
 
   const lines = await parseLogAsync(text, (done, total) => {
     bar.style.width = `${Math.round((done / total) * 100)}%`;
-    label.textContent = `Parsing log… ${done.toLocaleString()} / ${total.toLocaleString()} lines`;
+    label.textContent = t('viewerParsingProgress', 'Parsing log… {done} / {total} lines', {
+      done: done.toLocaleString(),
+      total: total.toLocaleString(),
+    });
   });
   const settings = await loadSettings();
   setCustomSecretPatterns(settings.customSecrets);
@@ -232,7 +237,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const chipCounts: Partial<Record<Level | 'UNKNOWN', [HTMLButtonElement, HTMLSpanElement]>> = {};
   const chip = (key: Level | 'UNKNOWN', text: string) => {
     const count = el('span', { className: 'count' }, String(counts[key]));
-    const button = el('button', { className: `chip lvl-${key} on`, title: `Show/hide ${text}` }, `${text} `, count);
+    const button = el(
+      'button',
+      { className: `chip lvl-${key} on`, title: t('viewerShowHide', 'Show/hide {name}', { name: text }) },
+      `${text} `,
+      count,
+    );
     chipCounts[key] = [button, count];
     button.addEventListener('click', () => {
       if (key === 'UNKNOWN') state.includeUnknown = !state.includeUnknown;
@@ -256,8 +266,13 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
 
   const search = el('input', {
     type: 'search',
-    placeholder: fields.length ? `Search, or ${fields[0]}=… ( / )` : 'Search… ( / )',
-    title: 'Text to find, or fields: level=error service=payments duration>500 (key=value, !=, >, <, * wildcards)',
+    placeholder: fields.length
+      ? t('viewerSearchFieldsPlaceholder', 'Search, or {field}=… ( / )', { field: fields[0] })
+      : t('viewerSearchPlaceholder', 'Search… ( / )'),
+    title: t(
+      'viewerSearchTitle',
+      'Text to find, or fields: level=error service=payments duration>500 (key=value, !=, >, <, * wildcards)',
+    ),
     className: 'search',
     spellcheck: false,
   });
@@ -270,54 +285,93 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   );
   const highlightButton = el(
     'button',
-    { className: 'toggle', title: 'Keep this text highlighted in its own colour ( Enter in the search box )' },
+    {
+      className: 'toggle',
+      title: t('viewerHighlightTitle', 'Keep this text highlighted in its own colour ( Enter in the search box )'),
+    },
     '🖍',
   );
-  const regexToggle = toggleButton('.*', 'Regular expression', false, () => (state.regex = !state.regex));
-  const caseToggle = toggleButton('Aa', 'Match case', false, () => (state.caseSensitive = !state.caseSensitive));
+  const regexToggle = toggleButton('.*', t('viewerRegexTitle', 'Regular expression'), false, () => (state.regex = !state.regex));
+  const caseToggle = toggleButton(
+    'Aa',
+    t('viewerCaseTitle', 'Match case'),
+    false,
+    () => (state.caseSensitive = !state.caseSensitive),
+  );
   const collapseToggle = toggleButton(
-    'Collapse',
-    'Collapse repeated lines (×N)',
+    t('viewerCollapse', 'Collapse'),
+    t('viewerCollapseTitle', 'Collapse repeated lines (×N)'),
     false,
     () => (state.collapse = !state.collapse),
   );
   const gapsToggle = toggleButton(
-    'Gaps',
-    `Show pauses longer than ${gapThreshold / 1000}s`,
+    t('viewerGaps', 'Gaps'),
+    t('viewerGapsTitle', 'Show pauses longer than {seconds}s', { seconds: gapThreshold / 1000 }),
     true,
     () => (state.showGaps = !state.showGaps),
   );
-  const timelineToggle = toggleButton('Timeline', 'Errors and warnings over time', state.showTimeline, () => {
-    state.showTimeline = !state.showTimeline;
-    timelineEl.hidden = !state.showTimeline;
-  });
+  const timelineToggle = toggleButton(
+    t('viewerTimeline', 'Timeline'),
+    t('viewerTimelineTitle', 'Errors and warnings over time'),
+    state.showTimeline,
+    () => {
+      state.showTimeline = !state.showTimeline;
+      timelineEl.hidden = !state.showTimeline;
+    },
+  );
   timelineToggle.hidden = timeline === null;
   const maskToggle = toggleButton(
-    'Mask',
-    'Hide secret values on screen and in copied text',
+    t('viewerMask', 'Mask'),
+    t('viewerMaskTitle', 'Hide secret values on screen and in copied text'),
     false,
     () => (state.maskSecrets = !state.maskSecrets),
   );
   const secretsButton = el(
     'button',
-    { className: 'toggle secrets', title: 'Lines that show keys, tokens or passwords. Jump to the next one ( s )' },
+    {
+      className: 'toggle secrets',
+      title: t('viewerSecretsTitle', 'Lines that show keys, tokens or passwords. Jump to the next one ( s )'),
+    },
     `🔑 ${secretCount}`,
   );
   const secretsGroup = el('span', { className: 'group' }, secretsButton, maskToggle);
   secretsGroup.hidden = secretCount === 0;
-  const nextError = el('button', { className: 'toggle', title: 'Jump to the next error ( e )' }, 'Next error');
-  const copyButton = el('button', { className: 'toggle', title: 'Copy visible lines' }, 'Copy');
+  const nextError = el(
+    'button',
+    { className: 'toggle', title: t('viewerNextErrorTitle', 'Jump to the next error ( e )') },
+    t('viewerNextError', 'Next error'),
+  );
+  const copyButton = el(
+    'button',
+    { className: 'toggle', title: t('viewerCopyTitle', 'Copy visible lines') },
+    t('viewerCopy', 'Copy'),
+  );
   const compareButton = el(
     'button',
-    { className: 'toggle', title: 'Compare this log with another one, e.g. a passing and a failing CI run' },
-    'Compare',
+    {
+      className: 'toggle',
+      title: t('viewerCompareTitle', 'Compare this log with another one, e.g. a passing and a failing CI run'),
+    },
+    t('viewerCompare', 'Compare'),
   );
   // only as an extension content script (not when a test injects the viewer into the page)
   compareButton.hidden = typeof chrome === 'undefined' || !chrome.runtime?.id;
-  const saveButton = el('button', { className: 'toggle', title: 'Download the visible lines as a file' }, 'Save');
+  const saveButton = el(
+    'button',
+    { className: 'toggle', title: t('viewerSaveTitle', 'Download the visible lines as a file') },
+    t('viewerSave', 'Save'),
+  );
   const fileInput = el('input', { type: 'file', hidden: true });
-  const openButton = el('button', { className: 'toggle', title: 'Open a .log or .gz file (or drop it here)' }, 'Open…');
-  const rawButton = el('button', { className: 'toggle', title: 'Back to the original page' }, 'Raw');
+  const openButton = el(
+    'button',
+    { className: 'toggle', title: t('viewerOpenTitle', 'Open a .log or .gz file (or drop it here)') },
+    t('viewerOpen', 'Open…'),
+  );
+  const rawButton = el(
+    'button',
+    { className: 'toggle', title: t('viewerRawTitle', 'Back to the original page') },
+    t('viewerRaw', 'Raw'),
+  );
   // the extension's viewer page shows pasted text or a file: there is no original page to go back to
   rawButton.hidden = ON_EXTENSION_PAGE;
   openButton.hidden = !ON_EXTENSION_PAGE;
@@ -325,35 +379,60 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
 
   const timeButton = el('button', {
     className: 'toggle',
-    title: 'Show times in UTC or in your time zone (timestamps with a zone, the inspector and the timeline)',
+    title: t(
+      'viewerTimeTitle',
+      'Show times in UTC or in your time zone (timestamps with a zone, the inspector and the timeline)',
+    ),
   });
-  const bookmarksButton = el('button', { className: 'toggle bookmarks', title: 'Jump to the next bookmark ( b )' });
+  const bookmarksButton = el('button', {
+    className: 'toggle bookmarks',
+    title: t('viewerBookmarksTitle', 'Jump to the next bookmark ( b )'),
+  });
   const reportButton = el(
     'button',
-    { className: 'toggle', title: 'Copy the bookmarked lines with times and notes, as Markdown for a ticket' },
-    'Report',
+    {
+      className: 'toggle',
+      title: t('viewerReportTitle', 'Copy the bookmarked lines with times and notes, as Markdown for a ticket'),
+    },
+    t('viewerReport', 'Report'),
   );
   const groupsButton = el(
     'button',
-    { className: 'toggle', title: 'The same error grouped: how often, in which pods, first and last time' },
-    'Groups',
+    {
+      className: 'toggle',
+      title: t('viewerGroupsTitle', 'The same error grouped: how often, in which pods, first and last time'),
+    },
+    t('viewerGroups', 'Groups'),
   );
-  const tableToggle = el('button', { className: 'toggle', title: 'Show JSON records as a table' }, 'Table');
+  const tableToggle = el(
+    'button',
+    { className: 'toggle', title: t('viewerTableTitle', 'Show JSON records as a table') },
+    t('viewerTable', 'Table'),
+  );
   tableToggle.hidden = !isMostlyJson(allLines);
   const followToggle = el(
     'button',
-    { className: 'toggle', title: `Read the page again every ${FOLLOW_INTERVAL_MS / 1000}s and add new lines` },
-    'Follow',
+    {
+      className: 'toggle',
+      title: t('viewerFollowTitle', 'Read the page again every {seconds}s and add new lines', {
+        seconds: FOLLOW_INTERVAL_MS / 1000,
+      }),
+    },
+    t('viewerFollow', 'Follow'),
   );
   // only a log served over http(s) can be read again
   followToggle.hidden = ON_EXTENSION_PAGE || !/^https?:$/.test(location.protocol);
 
   // second row: what narrows the view besides levels and search
-  const rangeChip = el('button', { className: 'toggle on range', title: 'Show all times again' });
+  const rangeChip = el('button', { className: 'toggle on range', title: t('viewerRangeTitle', 'Show all times again') });
   const highlightChips = el('span', { className: 'group' });
   const sourceChips = el('span', { className: 'group sources' });
   const sourceButtons = sources.slice(0, MAX_SOURCES).map((source, i) => {
-    const button = el('button', { className: `chip on src-${i % 8}`, title: `Show/hide lines from ${source}` }, source);
+    const button = el(
+      'button',
+      { className: `chip on src-${i % 8}`, title: t('viewerSourceTitle', 'Show/hide lines from {source}', { source }) },
+      source,
+    );
     button.addEventListener('click', () => {
       if (state.hiddenSources.has(source)) state.hiddenSources.delete(source);
       else state.hiddenSources.add(source);
@@ -363,13 +442,16 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     return button;
   });
   sourceChips.append(...sourceButtons);
-  const groupChip = el('button', { className: 'toggle on group-chip', title: 'Show all lines again' });
+  const groupChip = el('button', {
+    className: 'toggle on group-chip',
+    title: t('viewerGroupChipTitle', 'Show all lines again'),
+  });
   const columnsInput = el('input', {
     className: 'columns',
-    title: 'Table columns, separated by commas',
+    title: t('viewerColumnsTitle', 'Table columns, separated by commas'),
     spellcheck: false,
   });
-  const columnsLabel = el('label', { className: 'columns-label' }, 'Columns ', columnsInput);
+  const columnsLabel = el('label', { className: 'columns-label' }, `${t('viewerColumns', 'Columns')} `, columnsInput);
   const subbar = el('div', { className: 'subbar' }, rangeChip, groupChip, columnsLabel, highlightChips, sourceChips);
 
   const toolbar = el(
@@ -381,7 +463,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     chip('INFO', 'Info'),
     chip('DEBUG', 'Debug'),
     chip('TRACE', 'Trace'),
-    chip('UNKNOWN', 'Other'),
+    chip('UNKNOWN', t('viewerOtherLevel', 'Other')),
     el('span', { className: 'group' }, search, highlightButton, regexToggle, caseToggle),
     collapseToggle,
     gapsToggle,
@@ -418,7 +500,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         'button',
         {
           className: 'bucket',
-          title: `${fmt(bucket.from)} – ${fmt(bucket.to)}\n${bucket.total} entries, ${bucket.errors} errors, ${bucket.warnings} warnings`,
+          title: `${fmt(bucket.from)} – ${fmt(bucket.to)}\n${t(
+            'viewerBucketTitle',
+            '{total} entries, {errors} errors, {warnings} warnings',
+            {
+              total: bucket.total,
+              errors: bucket.errors,
+              warnings: bucket.warnings,
+            },
+          )}`,
         },
         el('span', { className: 'b-err' }),
         el('span', { className: 'b-warn' }),
@@ -482,7 +572,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const groupsPanel = el('aside', { className: 'groups' });
   groupsPanel.hidden = true;
   const toast = el('div', { className: 'toast' });
-  const dropHint = el('div', { className: 'drop-hint' }, 'Drop a .log or .gz file to open it');
+  const dropHint = el('div', { className: 'drop-hint' }, t('viewerDropHint', 'Drop a .log or .gz file to open it'));
   body.append(toolbar, subbar, timelineEl, groupsPanel, scroller, inspector, toast, dropHint);
 
   const displayText = (line: LogLine) => {
@@ -497,7 +587,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       await navigator.clipboard.writeText(text);
       showToast(message);
     } catch {
-      showToast('Copy failed: the page doesn’t allow clipboard access');
+      showToast(t('viewerCopyFailed', 'Copy failed: the page doesn’t allow clipboard access'));
     }
   }
 
@@ -539,23 +629,23 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const line = state.selected === null ? undefined : allLines[state.selected - 1];
     inspector.hidden = !line;
     if (!line) return;
-    const facts: Child[] = [`Line ${line.number}`];
+    const facts: Child[] = [t('viewerLineNumber', 'Line {n}', { n: line.number })];
     if (line.level) facts.push(' · ', el('b', { className: `lvl-${line.level}` }, line.level));
     if (line.time !== null) facts.push(` · ${formatTime(line.time, state.timeMode)}`);
-    if (line.gap !== null) facts.push(` · ${formatGap(line.gap)} after previous entry`);
-    if (line.secret) facts.push(' · ', el('b', { className: 'secret-note' }, '🔑 contains a secret'));
+    if (line.gap !== null) facts.push(` · ${t('viewerGapAfter', '{gap} after previous entry', { gap: formatGap(line.gap) })}`);
+    if (line.secret) facts.push(' · ', el('b', { className: 'secret-note' }, `🔑 ${t('viewerHasSecret', 'contains a secret')}`));
 
-    const copyLine = el('button', { className: 'toggle' }, 'Copy line');
-    copyLine.addEventListener('click', () => void copy(displayText(line), 'Line copied'));
-    const copyLink = el('button', { className: 'toggle' }, 'Copy link');
-    copyLink.addEventListener('click', () => void copy(lineLink(line.number), 'Link copied'));
-    const close = el('button', { className: 'toggle', title: 'Close ( Esc )' }, '×');
+    const copyLine = el('button', { className: 'toggle' }, t('viewerCopyLine', 'Copy line'));
+    copyLine.addEventListener('click', () => void copy(displayText(line), t('viewerLineCopied', 'Line copied')));
+    const copyLink = el('button', { className: 'toggle' }, t('viewerCopyLink', 'Copy link'));
+    copyLink.addEventListener('click', () => void copy(lineLink(line.number), t('viewerLinkCopied', 'Link copied')));
+    const close = el('button', { className: 'toggle', title: t('viewerCloseTitle', 'Close ( Esc )') }, '×');
     close.addEventListener('click', () => select(null));
     const marked = state.bookmarks.has(line.number);
     const bookmark = el(
       'button',
-      { className: `toggle${marked ? ' on' : ''}`, title: 'Bookmark this line for the report ( m )' },
-      marked ? '★ Bookmarked' : '☆ Bookmark',
+      { className: `toggle${marked ? ' on' : ''}`, title: t('viewerBookmarkTitle', 'Bookmark this line for the report ( m )') },
+      marked ? `★ ${t('viewerBookmarked', 'Bookmarked')}` : `☆ ${t('viewerBookmark', 'Bookmark')}`,
     );
     bookmark.addEventListener('click', () => toggleBookmark(line.number));
 
@@ -577,7 +667,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       const note = el('input', {
         className: 'note',
         value: state.bookmarks.get(line.number) ?? '',
-        placeholder: 'Note for the report, e.g. “the timeout starts here”',
+        placeholder: t('viewerNotePlaceholder', 'Note for the report, e.g. “the timeout starts here”'),
       });
       note.addEventListener('input', () => {
         state.bookmarks.set(line.number, note.value);
@@ -589,11 +679,21 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     if (keys.length > 0) {
       const statsBox = el('div', { className: 'stats' });
       const buttons = keys.slice(0, 40).map((key) => {
-        const button = el('button', { className: 'field', title: `Most common values of ${key} in the shown lines` }, key);
+        const button = el(
+          'button',
+          {
+            className: 'field',
+            title: t('viewerFieldTitle', 'Most common values of {field} in the shown lines', { field: key }),
+          },
+          key,
+        );
         button.addEventListener('click', () => showStats(statsBox, key));
         return button;
       });
-      parts.push(el('div', { className: 'fields' }, el('span', { className: 'facts' }, 'Fields: '), ...buttons), statsBox);
+      parts.push(
+        el('div', { className: 'fields' }, el('span', { className: 'facts' }, `${t('viewerFields', 'Fields:')} `), ...buttons),
+        statsBox,
+      );
     }
     if (line.json) {
       const json = JSON.stringify(line.json, null, 2);
@@ -607,13 +707,17 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const { values, total } = fieldStats(visible, key);
     const max = values[0]?.count ?? 1;
     box.replaceChildren(
-      el('div', { className: 'stats-head' }, `${key}: ${total.toLocaleString()} of the shown entries have it`),
+      el(
+        'div',
+        { className: 'stats-head' },
+        t('viewerStatsHead', '{field}: {n} of the shown entries have it', { field: key, n: total.toLocaleString() }),
+      ),
       ...values.map(({ value, count }) => {
         const bar = el('span', { className: 'bar' });
         bar.style.width = `${Math.max(2, Math.round((count / max) * 100))}%`;
         const row = el(
           'button',
-          { className: 'stat', title: `Show only ${key}=${value}` },
+          { className: 'stat', title: t('viewerShowOnly', 'Show only {filter}', { filter: `${key}=${value}` }) },
           el('span', { className: 'value' }, value || '""'),
           el('span', { className: 'bar-wrap' }, bar),
           el('span', { className: 'n' }, `×${count.toLocaleString()}`),
@@ -667,14 +771,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   function renderGroups(): void {
     const groups = groupErrors(allLines);
     const items = groups.slice(0, 50).map((group) => {
-      const where = group.sources.length ? ` · ${group.sources.length} pod${group.sources.length > 1 ? 's' : ''}` : '';
+      const where = group.sources.length ? ` · ${tn('viewerPods', group.sources.length, '{n} pod', '{n} pods')}` : '';
       const when =
         group.first !== null && group.last !== null && group.last > group.first
           ? ` · ${formatTime(group.first, state.timeMode).slice(11, 19)}–${formatTime(group.last, state.timeMode).slice(11, 19)}`
           : '';
       const item = el(
         'button',
-        { className: 'group-item', title: 'Show only this error' },
+        { className: 'group-item', title: t('viewerGroupItemTitle', 'Show only this error') },
         el('span', { className: 'n' }, `×${group.count}`),
         el('span', { className: 'sample' }, group.sample),
         el('span', { className: 'meta' }, `${where}${when}`),
@@ -689,8 +793,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       return item;
     });
     groupsPanel.replaceChildren(
-      el('div', { className: 'groups-head' }, `${groups.length} different errors`),
-      ...(items.length ? items : [el('div', { className: 'facts' }, 'No errors in this log.')]),
+      el(
+        'div',
+        { className: 'groups-head' },
+        tn('viewerDifferentErrors', groups.length, '{n} different error', '{n} different errors'),
+      ),
+      ...(items.length ? items : [el('div', { className: 'facts' }, t('viewerNoErrors', 'No errors in this log.'))]),
     );
   }
 
@@ -737,12 +845,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     });
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
-    showToast(`${visible.length.toLocaleString()} lines saved`);
+    showToast(tn('viewerLinesSaved', visible.length, '{n} line saved', '{n} lines saved'));
   });
 
   // open or drop a file (plain or .gz) to replace this log
   const openChosen = (file: File | undefined) => {
-    if (file) void openFile(file).catch((error) => showToast(`Couldn’t open ${file.name}: ${(error as Error).message}`));
+    if (file)
+      void openFile(file).catch((error) =>
+        showToast(t('viewerCouldNotOpen', 'Couldn’t open {name}: {error}', { name: file.name, error: (error as Error).message })),
+      );
   };
   openButton.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => openChosen(fileInput.files?.[0]));
@@ -784,7 +895,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       timeMode: state.timeMode,
       mask: state.maskSecrets ? maskSecrets : undefined,
     });
-    void copy(report, `Report with ${bookmarks.length} line${bookmarks.length > 1 ? 's' : ''} copied`);
+    void copy(report, tn('viewerReportCopied', bookmarks.length, 'Report with {n} line copied', 'Report with {n} lines copied'));
   });
   groupsButton.addEventListener('click', () => {
     groupsPanel.hidden = !groupsPanel.hidden;
@@ -810,7 +921,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     void refresh();
   });
   const showTimeMode = () => {
-    timeButton.textContent = state.timeMode === 'utc' ? 'UTC' : 'Local time';
+    timeButton.textContent = state.timeMode === 'utc' ? 'UTC' : t('viewerLocalTime', 'Local time');
     timeButton.classList.toggle('on', state.timeMode === 'local');
   };
   showTimeMode();
@@ -837,14 +948,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       const response = await fetch(location.href.split('#')[0], { cache: 'no-store', credentials: 'include' });
       text = await response.text();
     } catch (error) {
-      showToast(`Follow: couldn’t read the page again (${(error as Error).message})`);
+      showToast(t('viewerFollowFailed', 'Follow: couldn’t read the page again ({error})', { error: (error as Error).message }));
       return;
     }
     if (signal.aborted) return;
     const appended = appendedText(followedText.slice(0, consumed), text);
     if (!appended) {
       stopFollowing();
-      showToast('The log was replaced, not added to. Reload the page to see it.');
+      showToast(t('viewerLogReplaced', 'The log was replaced, not added to. Reload the page to see it.'));
       return;
     }
     consumed = appended.consumed;
@@ -872,7 +983,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     if (!groupsPanel.hidden) renderGroups();
     await refresh();
     if (atBottom) scroller.scrollTop = scroller.scrollHeight;
-    showToast(`${added.length.toLocaleString()} new line${added.length > 1 ? 's' : ''}`);
+    showToast(tn('viewerNewLines', added.length, '{n} new line', '{n} new lines'));
   }
   function stopFollowing(): void {
     clearInterval(followTimer);
@@ -894,15 +1005,19 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   secretsButton.addEventListener('click', () => jumpToNext((l) => l.secret));
   copyButton.addEventListener(
     'click',
-    () => void copy(visible.map(displayText).join('\n'), `${visible.length.toLocaleString()} lines copied`),
+    () =>
+      void copy(
+        visible.map(displayText).join('\n'),
+        tn('viewerLinesCopied', visible.length, '{n} line copied', '{n} lines copied'),
+      ),
   );
   rawButton.addEventListener('click', () => location.reload());
   compareButton.addEventListener('click', async () => {
     try {
       const side = await chrome.runtime.sendMessage({ type: COMPARE_ADD, text: options.text, name: options.title });
-      if (side === 'left') showToast('Added as “Before”. Open the other log and press Compare there.');
+      if (side === 'left') showToast(t('viewerAddedAsBefore', 'Added as “Before”. Open the other log and press Compare there.'));
     } catch {
-      showToast('Compare isn’t available here');
+      showToast(t('viewerCompareUnavailable', 'Compare isn’t available here'));
     }
   });
 
@@ -913,7 +1028,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const number = Number(row.dataset.number);
     if (target.classList.contains('ln')) {
       select(number);
-      void copy(lineLink(number), `Link to line ${number} copied`);
+      void copy(lineLink(number), t('viewerLineLinkCopied', 'Link to line {n} copied', { n: number }));
       return;
     }
     // don't steal clicks that finish a text selection
@@ -969,7 +1084,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     let target = visible.findIndex((l, i) => i > current && predicate(l));
     if (target < 0) target = visible.findIndex(predicate); // wrap around
     if (target >= 0) scrollToIndex(target, true);
-    else showToast('Nothing found in the visible lines');
+    else showToast(t('viewerNothingFound', 'Nothing found in the visible lines'));
   }
 
   let fieldMode = false;
@@ -980,11 +1095,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     rangeChip.hidden = range === null;
     if (range) rangeChip.textContent = `⏱ ${clock(range[0])} – ${clock(range[1])} ×`;
     groupChip.hidden = state.group === null;
-    if (state.group) groupChip.textContent = `Only ${state.group.label} ×`;
+    if (state.group) groupChip.textContent = `${t('viewerOnlyGroup', 'Only {group}', { group: state.group.label })} ×`;
     columnsLabel.hidden = state.table === null;
     highlightChips.replaceChildren(
       ...state.highlights.map((term, i) => {
-        const chip = el('button', { className: `toggle hl-chip hl-${i}`, title: 'Remove this highlight' }, `${term} ×`);
+        const chip = el(
+          'button',
+          { className: `toggle hl-chip hl-${i}`, title: t('viewerRemoveHighlight', 'Remove this highlight') },
+          `${term} ×`,
+        );
         chip.addEventListener('click', () => {
           state.highlights.splice(i, 1);
           void refresh();
@@ -1013,7 +1132,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     fieldMode = conditions !== null;
     search.classList.toggle('fields', fieldMode);
     if (state.query && state.regex) {
-      status.textContent = 'Searching…';
+      status.textContent = t('viewerSearching', 'Searching…');
       const result = await regexSearch.search(state.query, state.caseSensitive);
       if (id !== refreshId) return;
       if ('error' in result) error = result.error;
@@ -1049,13 +1168,24 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     }
     visible = state.collapse ? collapseRepeats(filtered) : filtered.map((l) => ({ ...l, repeat: 1 }));
     spacer.style.height = `${visible.length * ROW_HEIGHT}px`;
-    const conditionNote = conditions ? ` · ${conditions.length} field condition${conditions.length > 1 ? 's' : ''}` : '';
+    const conditionNote = conditions
+      ? ` · ${tn('viewerFieldConditions', conditions.length, '{n} field condition', '{n} field conditions')}`
+      : '';
     status.textContent =
-      error || `${visible.length.toLocaleString()} / ${allLines.length.toLocaleString()} lines${conditionNote}`;
+      error ||
+      t('viewerStatus', '{shown} / {total} lines', {
+        shown: visible.length.toLocaleString(),
+        total: allLines.length.toLocaleString(),
+      }) + conditionNote;
     renderSubbar();
     renderInspector();
     render();
   }
+
+  // looked up once: render() runs on every scroll
+  const gapTitle = t('viewerGapTitle', 'Pause since the previous entry');
+  const repeatTitle = t('viewerRepeatTitle', 'Similar consecutive lines');
+  const lineLinkTitle = t('viewerLineLinkTitle', 'Copy a link to this line');
 
   function render(): void {
     const first = Math.max(0, Math.floor(scroller.scrollTop / ROW_HEIGHT) - OVERSCAN);
@@ -1075,12 +1205,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         const gap = el('span', { className: 'gap' });
         if (state.showGaps && line.gap !== null && line.gap >= gapThreshold) {
           gap.textContent = formatGap(line.gap);
-          gap.title = 'Pause since the previous entry';
+          gap.title = gapTitle;
           if (line.gap >= 10_000) gap.classList.add('big');
         }
         const txt = el('span', { className: 'txt' });
         if (line.repeat > 1) {
-          txt.append(el('span', { className: 'repeat', title: 'Similar consecutive lines' }, `×${line.repeat}`));
+          txt.append(el('span', { className: 'repeat', title: repeatTitle }, `×${line.repeat}`));
         }
         if (state.table && line.json) {
           const { cells, rest } = tableCells(line, state.table);
@@ -1091,7 +1221,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         } else {
           appendText(txt, line);
         }
-        row.append(el('span', { className: 'ln', title: 'Copy a link to this line' }, String(line.number)), gap, txt);
+        row.append(el('span', { className: 'ln', title: lineLinkTitle }, String(line.number)), gap, txt);
         return row;
       }),
     );

@@ -11,6 +11,7 @@ import {
 } from '../lib/diff';
 import { splitLines } from '../lib/logs';
 import { maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
+import { localizePage, t, tn } from '../shared/i18n';
 import { loadSettings } from '../shared/settings';
 import { COMPARE_UPDATED, CompareInputs, loadCompareInputs, saveCompareInputs } from '../shared/compare';
 
@@ -62,7 +63,9 @@ function compare(): void {
     summary.hidden = false;
     changesEl.hidden = result.hidden = true;
     summary.append(
-      `${beforeJson === null ? 'Before' : 'After'} isn’t valid JSON. Choose “Text / log” to compare it line by line.`,
+      beforeJson === null
+        ? t('compareBeforeNotJson', 'Before isn’t valid JSON. Choose “Text / log” to compare it line by line.')
+        : t('compareAfterNotJson', 'After isn’t valid JSON. Choose “Text / log” to compare it line by line.'),
     );
     return;
   }
@@ -80,20 +83,33 @@ function compare(): void {
 
   summary.hidden = false;
   summary.append(
-    asJson ? 'Compared as JSON (key order ignored): ' : 'Compared line by line: ',
+    asJson ? t('compareAsJson', 'Compared as JSON (key order ignored):') : t('compareLineByLine', 'Compared line by line:'),
+    ' ',
     el('b', { className: 'add' }, `+${diff.added}`),
     ' ',
     el('b', { className: 'del' }, `−${diff.removed}`),
-    ` lines`,
+    ` ${t('compareLines', 'lines')}`,
   );
   if (names.leftName || names.rightName) {
-    summary.append(el('span', { className: 'note' }, `${names.leftName ?? 'Before'} → ${names.rightName ?? 'After'}`));
+    summary.append(
+      el(
+        'span',
+        { className: 'note' },
+        `${names.leftName ?? t('compareBefore', 'Before')} → ${names.rightName ?? t('compareAfter', 'After')}`,
+      ),
+    );
   }
   if (diff.added + diff.removed === 0) {
-    summary.append(el('span', { className: 'note' }, 'No differences.'));
+    summary.append(el('span', { className: 'note' }, t('compareNoDifferences', 'No differences.')));
   }
   if (diff.approximate) {
-    summary.append(el('span', { className: 'note' }, 'The texts differ a lot, so the changed part is shown as replaced.'));
+    summary.append(
+      el(
+        'span',
+        { className: 'note' },
+        t('compareApproximate', 'The texts differ a lot, so the changed part is shown as replaced.'),
+      ),
+    );
   }
 
   if (asJson) renderJsonChanges(diffJson(beforeJson, afterJson));
@@ -109,7 +125,7 @@ function renderJsonChanges(changes: JsonChange[]): void {
     el(
       'tr',
       {},
-      el('td', { className: `kind ${change.kind}` }, change.kind),
+      el('td', { className: `kind ${change.kind}` }, t(`compareKind_${change.kind}`, change.kind)),
       el('td', { className: 'path' }, change.path),
       el('td', { className: 'before' }, change.kind === 'added' ? '' : show(change.before)),
       el('td', { className: 'after' }, change.kind === 'removed' ? '' : show(change.after)),
@@ -165,7 +181,11 @@ function renderLines(ops: Op[], leftLines: string[], rightLines: string[], key: 
       let end = i;
       while (end < ops.length && ops[end].kind === 'same' && !near[end]) end++;
       const folded = ops.slice(i, end);
-      const fold = el('button', { className: 'fold' }, `⋯ ${folded.length.toLocaleString()} unchanged lines`);
+      const fold = el(
+        'button',
+        { className: 'fold' },
+        tn('compareUnchanged', folded.length, '⋯ {n} unchanged line', '⋯ {n} unchanged lines'),
+      );
       fold.addEventListener('click', () => fold.replaceWith(...folded.map((same) => row(same))));
       fragment.append(fold);
       i = end;
@@ -190,14 +210,18 @@ function renderLines(ops: Op[], leftLines: string[], rightLines: string[], key: 
     i++;
   }
   if (i < ops.length) {
-    const more = el('button', { className: 'fold' }, `Show all ${ops.length.toLocaleString()} lines`);
+    const more = el(
+      'button',
+      { className: 'fold' },
+      t('compareShowAll', 'Show all {n} lines', { n: ops.length.toLocaleString() }),
+    );
     more.addEventListener('click', () => {
       showAll = true;
       compare();
     });
     fragment.append(more);
   }
-  if (ops.length === 0) fragment.append(el('div', { className: 'empty' }, 'Both sides are empty.'));
+  if (ops.length === 0) fragment.append(el('div', { className: 'empty' }, t('compareBothEmpty', 'Both sides are empty.')));
   result.replaceChildren(fragment);
 }
 
@@ -281,6 +305,7 @@ chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendR
   sendResponse(true);
 });
 
+localizePage();
 void loadSettings().then((settings) => {
   setCustomSecretPatterns(settings.customSecrets);
   return loadInputs();

@@ -1,4 +1,5 @@
 import { openFile, openViewer } from '../content/logViewer';
+import { localizePage, t } from '../shared/i18n';
 import { readViewerText } from '../shared/viewerTabs';
 
 /**
@@ -15,13 +16,17 @@ async function start(): Promise<void> {
     return;
   }
 
+  localizePage();
   $('start').hidden = false;
   const drop = $('drop');
   const file = $<HTMLInputElement>('file');
   const paste = $<HTMLTextAreaElement>('paste');
   const open = $<HTMLButtonElement>('open');
   const openChosen = (chosen: File | undefined) => {
-    if (chosen) void openFile(chosen).catch((error) => alert(`Couldn’t open ${chosen.name}: ${(error as Error).message}`));
+    if (chosen)
+      void openFile(chosen).catch((error) =>
+        alert(t('viewerCouldNotOpen', 'Couldn’t open {name}: {error}', { name: chosen.name, error: (error as Error).message })),
+      );
   };
 
   file.addEventListener('change', () => openChosen(file.files?.[0]));
@@ -37,7 +42,7 @@ async function start(): Promise<void> {
     openChosen(event.dataTransfer?.files[0]);
   });
   paste.addEventListener('input', () => (open.disabled = !paste.value.trim()));
-  open.addEventListener('click', () => void openViewer(paste.value, 'Pasted log'));
+  open.addEventListener('click', () => void openViewer(paste.value, t('viewerPastedLog', 'Pasted log')));
   paste.focus();
 }
 

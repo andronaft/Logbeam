@@ -1,3 +1,5 @@
+import { t } from '../shared/i18n';
+
 /**
  * Spots regular expressions prone to catastrophic backtracking, e.g. (a+)+$ or (\w*)*x: a group
  * that contains a quantifier and is itself repeated. Such patterns can take minutes on a short line,
@@ -40,7 +42,10 @@ export function findRegexRisk(source: string): string | null {
     const isQuantifier = c === '+' || c === '*' || (c === '{' && /^\{\d+,\d*\}/.test(source.slice(i)));
     if (isQuantifier) {
       if (lastClosedHadQuantifier) {
-        return 'Nested quantifiers like (a+)+ can freeze the page on some lines. Simplify the pattern.';
+        return t(
+          'regexNestedQuantifiers',
+          'Nested quantifiers like (a+)+ can freeze the page on some lines. Simplify the pattern.',
+        );
       }
       if (stack.length > 0) stack[stack.length - 1] = true;
     }
