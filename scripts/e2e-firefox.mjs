@@ -200,7 +200,15 @@ async function openPage(pagePath) {
 
 const status = () => driver.findElement(By.css('.status')).getText();
 /** Runs steps on one of the add-on's own pages through E2E_PAGE; returns what they read. */
-const onPage = (page, steps) => command({ cmd: 'page', page, steps });
+// a page that is still loading has no listener yet and answers nothing, so ask again
+async function onPage(page, steps) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const result = await command({ cmd: 'page', page, steps });
+    if (Array.isArray(result)) return result;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(`${page} didn't answer`);
+}
 
 try {
   await driver.installAddon(xpi, true);
