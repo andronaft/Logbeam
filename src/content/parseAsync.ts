@@ -1,4 +1,4 @@
-import { LogLine, LogParser, splitLines } from '../lib/logs';
+import { LogLine, LogParser, ParseOptions, splitLines } from '../lib/logs';
 import { workerUrl } from './workerUrl';
 
 /** Code of parseWorker.ts, inlined at build time (see scripts/build.mjs). */
@@ -21,22 +21,22 @@ function mark(method: 'sync' | 'worker' | 'chunks'): void {
  * CSP forbids blob: workers fall back to parsing on the main thread in chunks, yielding
  * between them so the progress bar keeps moving.
  */
-export async function parseLogAsync(text: string, onProgress: Progress): Promise<LogLine[]> {
+export async function parseLogAsync(text: string, onProgress: Progress, options: ParseOptions = {}): Promise<LogLine[]> {
   if (text.length < ASYNC_THRESHOLD) {
     mark('sync');
-    return new LogParser().push(splitLines(text));
+    return new LogParser(options).push(splitLines(text));
   }
   try {
-    const lines = await parseInWorker(text, onProgress);
+    const lines = await parseInWorker(text, onProgress, options);
     mark('worker');
     return lines;
   } catch {
     mark('chunks');
-    return parseInChunks(text, onProgress);
+    return parseInChunks(text, onProgress, options);
   }
 }
 
-function parseInWorker(text: string, onProgress: Progress): Promise<LogLine[]> {
+function parseInWorker(text: string, onProgress: Progress, options: ParseOptions): Promise<LogLine[]> {
   return new Promise((resolve, reject) => {
     const url = workerUrl(__PARSE_WORKER__, 'parseWorker.js');
     let worker: Worker;
@@ -64,13 +64,13 @@ function parseInWorker(text: string, onProgress: Progress): Promise<LogLine[]> {
       finish();
       reject(new Error(event.message || 'Worker failed'));
     };
-    worker.postMessage({ text });
+    worker.postMessage({ text, options });
   });
 }
 
-async function parseInChunks(text: string, onProgress: Progress): Promise<LogLine[]> {
+async function parseInChunks(text: string, onProgress: Progress, options: ParseOptions): Promise<LogLine[]> {
   const rawLines = splitLines(text);
-  const parser = new LogParser();
+  const parser = new LogParser(options);
   const lines: LogLine[] = [];
   for (let i = 0; i < rawLines.length; i += MAIN_THREAD_CHUNK) {
     lines.push(...parser.push(rawLines.slice(i, i + MAIN_THREAD_CHUNK)));

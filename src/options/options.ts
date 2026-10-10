@@ -2,7 +2,9 @@ import { maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
 import { TRANSFORMS } from '../lib/transforms';
 import { openShortcutSettings } from '../shared/browser';
 import { t, toolKey } from '../shared/i18n';
+import { LEVELS, Level } from '../lib/logs';
 import { CustomSecret, Settings, loadSettings, saveSettings } from '../shared/settings';
+import { applyTheme } from '../shared/theme';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const gap = $<HTMLInputElement>('gap');
@@ -66,6 +68,35 @@ function renderPatterns(): void {
   );
 }
 
+function renderLevels(): void {
+  $('levels').replaceChildren(
+    ...settings.customLevels.map((custom, i) => {
+      const word = el('input', { type: 'text', value: custom.word, placeholder: 'Word, e.g. ALERT', spellcheck: false });
+      const level = el(
+        'select',
+        {},
+        ...LEVELS.map((name) => el('option', { value: name, selected: name === custom.level }, name)),
+      );
+      const remove = el('button', { title: 'Remove' }, '×');
+      word.addEventListener('input', () => {
+        custom.word = word.value.trim();
+        word.classList.toggle('invalid', custom.word !== '' && !/^[\w.-]+$/.test(custom.word));
+        save();
+      });
+      level.addEventListener('change', () => {
+        custom.level = level.value as Level;
+        save();
+      });
+      remove.addEventListener('click', () => {
+        settings.customLevels.splice(i, 1);
+        renderLevels();
+        save();
+      });
+      return el('div', { className: 'level' }, word, level, remove);
+    }),
+  );
+}
+
 function renderTools(): void {
   $('tools').replaceChildren(
     ...TRANSFORMS.map((transform) => {
@@ -102,6 +133,20 @@ async function start(): Promise<void> {
   });
   renderPatterns();
   renderTools();
+  renderLevels();
+  $('add-level').addEventListener('click', () => {
+    settings.customLevels.push({ word: '', level: 'ERROR' });
+    renderLevels();
+    ($('levels').lastElementChild?.querySelector('input') as HTMLInputElement | null)?.focus();
+  });
+  const theme = $<HTMLSelectElement>('theme');
+  theme.value = settings.theme;
+  applyTheme(settings.theme);
+  theme.addEventListener('change', () => {
+    settings.theme = theme.value as Settings['theme'];
+    applyTheme(settings.theme);
+    save();
+  });
   checkPatterns();
 }
 

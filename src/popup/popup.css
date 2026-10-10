@@ -8,6 +8,29 @@
   --accent: #ffb454;
   --error: #ff6b6b;
 }
+/* light: when the system is light (unless Settings say dark), or when Settings say light */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --bg: #ffffff;
+    --panel: #eef0f2;
+    --border: #d5d9de;
+    --fg: #1f2328;
+    --muted: #6b7280;
+    --accent: #b25e00;
+    --error: #c62828;
+  }
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #eef0f2;
+  --border: #d5d9de;
+  --fg: #1f2328;
+  --muted: #6b7280;
+  --accent: #b25e00;
+  --error: #c62828;
+}
 * {
   box-sizing: border-box;
 }

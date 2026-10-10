@@ -7,6 +7,27 @@
   --muted: #8a9199;
   --accent: #ffb454;
 }
+/* light: when the system is light (unless Settings say dark), or when Settings say light */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --bg: #ffffff;
+    --panel: #eef0f2;
+    --border: #d5d9de;
+    --fg: #1f2328;
+    --muted: #6b7280;
+    --accent: #b25e00;
+  }
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #eef0f2;
+  --border: #d5d9de;
+  --fg: #1f2328;
+  --muted: #6b7280;
+  --accent: #b25e00;
+}
 body {
   margin: 0;
   background: var(--bg);

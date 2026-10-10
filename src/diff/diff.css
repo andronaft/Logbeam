@@ -14,6 +14,39 @@
   --del-strong: #6b2a2f;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
+/* light: when the system is light (unless Settings say dark), or when Settings say light */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --bg: #ffffff;
+    --panel: #eef0f2;
+    --border: #d5d9de;
+    --fg: #1f2328;
+    --muted: #6b7280;
+    --accent: #b25e00;
+    --add-bg: #e6f4ea;
+    --add-fg: #1e7b34;
+    --add-strong: #b7e1c1;
+    --del-bg: #fdecec;
+    --del-fg: #b42318;
+    --del-strong: #f5c2c0;
+  }
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --panel: #eef0f2;
+  --border: #d5d9de;
+  --fg: #1f2328;
+  --muted: #6b7280;
+  --accent: #b25e00;
+  --add-bg: #e6f4ea;
+  --add-fg: #1e7b34;
+  --add-strong: #b7e1c1;
+  --del-bg: #fdecec;
+  --del-fg: #b42318;
+  --del-strong: #f5c2c0;
+}
 * {
   box-sizing: border-box;
 }

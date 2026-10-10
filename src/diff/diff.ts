@@ -12,6 +12,7 @@ import {
 import { splitLines } from '../lib/logs';
 import { maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
 import { loadSettings } from '../shared/settings';
+import { applyTheme } from '../shared/theme';
 import { COMPARE_UPDATED, CompareInputs, loadCompareInputs, saveCompareInputs } from '../shared/compare';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -283,5 +284,6 @@ chrome.runtime.onMessage.addListener((message: { type?: string }, _sender, sendR
 
 void loadSettings().then((settings) => {
   setCustomSecretPatterns(settings.customSecrets);
+  applyTheme(settings.theme);
   return loadInputs();
 });

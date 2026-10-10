@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **ANSI colours** in logs from CI runners, Docker and CLIs are drawn as colours, and the escape codes no
+  longer get in the way of levels, times, search and filters (#3).
+- **Your own level words** in Settings, e.g. `ALERT` → ERROR or `AUDIT` → INFO (#6).
+- **Light theme** for the log viewer, Compare, Settings and the popup: like the system, or always dark or
+  light (#5).
+
+### Fixed
+
+- The end-to-end test expected numbers formatted for the machine's locale.
+
 ## 0.5.0
 
 ### Added

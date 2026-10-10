@@ -58,6 +58,7 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Error groups**: each different error once, with its count, pods and first and last time
 - **Follow** a log that is still being written: new lines are added every 3 seconds
 - **JSON table** with the columns you choose, and **local time** instead of UTC
+- **ANSI colours** from CI and Docker logs, **your own level words** (`ALERT` → ERROR), and a **light theme**
 - **Compare** this log with another one, e.g. a passing and a failing CI run (see below)
 - **Pauses between entries**: `+5.5s` next to lines where the app stalled
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge

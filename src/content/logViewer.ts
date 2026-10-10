@@ -10,6 +10,7 @@ import {
   filterLines,
   formatGap,
   LogParser,
+  ParseOptions,
   splitLines,
   splitSource,
 } from '../lib/logs';
@@ -29,6 +30,7 @@ import {
 } from '../lib/insights';
 import { findSecrets, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
 import { loadSettings, saveSettings } from '../shared/settings';
+import { applyTheme } from '../shared/theme';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
 import { parseLogAsync } from './parseAsync';
@@ -146,11 +148,17 @@ export async function openViewer(text: string = readPageText(), name?: string): 
     ),
   );
 
-  const lines = await parseLogAsync(text, (done, total) => {
-    bar.style.width = `${Math.round((done / total) * 100)}%`;
-    label.textContent = `Parsing log… ${done.toLocaleString()} / ${total.toLocaleString()} lines`;
-  });
   const settings = await loadSettings();
+  applyTheme(settings.theme);
+  const parseOptions = { customLevels: settings.customLevels };
+  const lines = await parseLogAsync(
+    text,
+    (done, total) => {
+      bar.style.width = `${Math.round((done / total) * 100)}%`;
+      label.textContent = `Parsing log… ${done.toLocaleString()} / ${total.toLocaleString()} lines`;
+    },
+    parseOptions,
+  );
   setCustomSecretPatterns(settings.customSecrets);
   if (settings.customSecrets.some((custom) => custom.pattern.trim())) {
     // the worker parsed without the user's own patterns: mark those lines here
@@ -164,6 +172,7 @@ export async function openViewer(text: string = readPageText(), name?: string): 
     title,
     gapThreshold: settings.gapThresholdMs,
     timeMode: settings.timeMode,
+    parseOptions,
     signal: viewer.signal,
   });
 }
@@ -178,6 +187,7 @@ interface ViewerOptions {
   title: string;
   gapThreshold: number;
   timeMode: TimeMode;
+  parseOptions: ParseOptions;
   signal: AbortSignal;
 }
 
@@ -517,6 +527,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const query = fieldMode ? '' : state.query;
     const ranges: Range[] = state.searchError ? [] : searchRanges(head, query, state.regex, state.caseSensitive, 'match');
     state.highlights.forEach((term, i) => ranges.push(...searchRanges(head, term, false, false, `hl hl-${i}`)));
+    // colours from ANSI codes, unless the shown text was changed (masked, local time)
+    if (line.ansi && text === line.text) ranges.push(...line.ansi);
     if (line.source !== null) {
       const prefix = text.length - splitSource(text).rest.length;
       ranges.push({ start: 0, end: prefix, cls: `src src-${(sourceIndex.get(line.source) ?? 0) % 8}` });
@@ -830,7 +842,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   let followTimer: number | undefined;
   let consumed = options.text.length;
   let followedText = options.text;
-  let lastHeads = new LogParser();
+  let lastHeads = new LogParser(options.parseOptions);
   async function followOnce(): Promise<void> {
     let text: string;
     try {
@@ -882,7 +894,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   followToggle.addEventListener('click', () => {
     if (followTimer !== undefined) return stopFollowing();
     // new lines are parsed from where the first parse ended (its last entry's level carries over)
-    lastHeads = new LogParser();
+    lastHeads = new LogParser(options.parseOptions);
     lastHeads.push(splitLines(options.text).slice(-200));
     followToggle.classList.add('on');
     scroller.scrollTop = scroller.scrollHeight;

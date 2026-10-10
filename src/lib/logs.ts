@@ -1,3 +1,4 @@
+import { AnsiSpan, parseAnsi, stripAnsi } from './ansi';
 import { hasSecret } from './secrets';
 
 export type Level = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE';
@@ -24,6 +25,36 @@ export interface LogLine {
   secretBlock: boolean;
   /** Which pod or container wrote the line, from `kubectl logs --prefix` or `docker compose logs`. */
   source: string | null;
+  /** Colours from ANSI escape codes, which are taken out of the text. */
+  ansi: AnsiSpan[] | null;
+}
+
+/** The user's own level words from the settings, e.g. ALERT → ERROR. */
+export interface CustomLevel {
+  word: string;
+  level: Level;
+}
+
+export interface ParseOptions {
+  customLevels?: CustomLevel[];
+}
+
+/** Custom level words compiled once per parser. */
+interface CustomLevels {
+  /** As written, e.g. "ALERT" or "[audit]", in the same places as built-in level words. */
+  word: RegExp;
+  /** Any case after "level=" or in a JSON level field. */
+  byName: Map<string, Level>;
+}
+
+function compileCustomLevels(levels: CustomLevel[] | undefined): CustomLevels | null {
+  const usable = (levels ?? []).filter((l) => /^[\w.-]+$/.test(l.word.trim()) && LEVELS.includes(l.level));
+  if (usable.length === 0) return null;
+  const words = usable.map((l) => l.word.trim().replace(/[.]/g, '\\.'));
+  return {
+    word: new RegExp(`(?:^|[\\s[(|:=<])(${words.join('|')})(?=$|[\\s\\]):|,>])`),
+    byName: new Map(usable.map((l) => [l.word.trim().toLowerCase(), l.level])),
+  };
 }
 
 // kubectl logs --prefix: "[pod/payments-7d9f8-x2k4p/app] …"
@@ -83,8 +114,14 @@ const CONTINUATION_RE =
 // ISO 8601 and the common "yyyy-MM-dd HH:mm:ss,SSS" / "yyyy/MM/dd HH:mm:ss.SSS" forms.
 const TIMESTAMP_RE = /(\d{4})[-/](\d{2})[-/](\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:[.,](\d{1,9}))?(Z|[+-]\d{2}:?\d{2})?/;
 
-export function detectLevel(text: string): Level | null {
+export function detectLevel(text: string, custom: CustomLevels | null = null): Level | null {
   const head = text.slice(0, 200);
+  if (custom) {
+    // the user's words first: they may also look like a built-in one ("NOTICE" meant as WARN)
+    const word = custom.word.exec(head)?.[1] ?? /\blevel["']?\s*[=:]\s*["']?([\w.-]+)/i.exec(head)?.[1];
+    const level = word ? custom.byName.get(word.toLowerCase()) : undefined;
+    if (level) return level;
+  }
   const word = LEVEL_UPPER_RE.exec(head) ?? LEVEL_CONTEXT_RES.map((re) => re.exec(head)).find(Boolean);
   if (word) return LEVEL_ALIASES[word[1].toUpperCase()];
   const letter = ANDROID_RE.exec(head) ?? LETTER_RE.exec(head);
@@ -211,10 +248,10 @@ export function formatJsonRecord(record: Record<string, unknown>): string {
   return parts.join(' ');
 }
 
-function jsonLevel(record: Record<string, unknown>): Level | null {
+function jsonLevel(record: Record<string, unknown>, custom: CustomLevels | null = null): Level | null {
   const value = pick(record, JSON_LEVEL_KEYS);
   if (typeof value === 'string') {
-    return LEVEL_ALIASES[value.toUpperCase()] ?? null;
+    return custom?.byName.get(value.toLowerCase()) ?? LEVEL_ALIASES[value.toUpperCase()] ?? null;
   }
   // pino/bunyan numeric levels
   if (typeof value === 'number') {
@@ -294,12 +331,25 @@ export class LogParser {
   private lastTime: number | null = null;
   private count = 0;
   private block: JsonBlock | null = null;
+  private readonly custom: CustomLevels | null;
+
+  constructor(options: ParseOptions = {}) {
+    this.custom = compileCustomLevels(options.customLevels);
+  }
 
   push(rawLines: string[]): LogLine[] {
     return rawLines.map((raw) => this.next(raw));
   }
 
-  private next(raw: string): LogLine {
+  private next(input: string): LogLine {
+    // colour codes are taken out first, so everything below reads plain text
+    const { text: raw, spans } = parseAnsi(input);
+    const line = this.nextPlain(raw);
+    if (spans.length > 0 && line.text === raw) line.ansi = spans;
+    return line;
+  }
+
+  private nextPlain(raw: string): LogLine {
     if (this.block) {
       const line = this.continueBlock(raw);
       if (line) return line;
@@ -355,6 +405,7 @@ export class LogParser {
       secret: hasSecret(raw),
       secretBlock: false,
       source: null,
+      ansi: null,
     };
     block.body.push(line);
     block.raw.push(raw);
@@ -380,7 +431,7 @@ export class LogParser {
         // the record is the whole entry: take its level, time and message like a one-line JSON log
         head.text = formatJsonRecord(record);
         head.secret = hasSecret(head.text);
-        head.level = jsonLevel(record) ?? head.level;
+        head.level = jsonLevel(record, this.custom) ?? head.level;
         const time = jsonTime(record);
         if (time !== null) {
           head.time = time;
@@ -402,7 +453,7 @@ export class LogParser {
     const count = this.count;
     for (const line of block.body) {
       this.count = line.number - 1;
-      Object.assign(line, this.parseLine(line.text));
+      Object.assign(line, this.parseLine(line.text), { ansi: line.ansi });
     }
     this.count = count;
   }
@@ -423,6 +474,7 @@ export class LogParser {
         secret: body,
         secretBlock: body,
         source: null,
+        ansi: null,
       };
     }
     if (PEM_BEGIN.test(raw) && !PEM_END.test(raw)) {
@@ -439,7 +491,7 @@ export class LogParser {
     if (continuation) {
       level = this.currentLevel;
     } else {
-      level = json ? jsonLevel(json) : detectLevel(rest);
+      level = json ? jsonLevel(json, this.custom) : detectLevel(rest, this.custom);
       time = json ? jsonTime(json) : parseTimestamp(rest);
       // a line without its own level but with a timestamp starts a new, unknown-level entry
       if (level !== null || time !== null) {
@@ -467,12 +519,13 @@ export class LogParser {
       secret: hasSecret(text),
       secretBlock: false,
       source,
+      ansi: null,
     };
   }
 }
 
-export function parseLog(text: string): LogLine[] {
-  return new LogParser().push(splitLines(text));
+export function parseLog(text: string, options: ParseOptions = {}): LogLine[] {
+  return new LogParser(options).push(splitLines(text));
 }
 
 /** Heuristic used to decide whether a plain-text page is a log worth opening in the viewer. */
@@ -482,7 +535,8 @@ export function looksLikeLog(text: string): boolean {
     return false;
   }
   let hits = 0;
-  for (const line of sample) {
+  for (const raw of sample) {
+    const line = stripAnsi(raw);
     if (detectLevel(line) || parseTimestamp(line) || parseJsonRecord(line)) {
       hits++;
     }

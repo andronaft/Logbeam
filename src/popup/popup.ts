@@ -14,6 +14,7 @@ import { localizePage, t, toolKey } from '../shared/i18n';
 import { openCompare } from '../shared/compare';
 import { setCustomSecretPatterns } from '../lib/secrets';
 import { loadSettings } from '../shared/settings';
+import { applyTheme } from '../shared/theme';
 import { MAX_PASTED_BYTES, openFileViewer, openTextInViewer } from '../shared/viewerTabs';
 import { openLogViewer, whyNotAllowed } from '../shared/inject';
 
@@ -209,6 +210,9 @@ $('open-pasted').addEventListener('click', () => {
   void openTextInViewer(text).then(() => window.close());
 });
 // the user's own secret patterns for "Mask secrets"
-void loadSettings().then((settings) => setCustomSecretPatterns(settings.customSecrets));
+void loadSettings().then((settings) => {
+  setCustomSecretPatterns(settings.customSecrets);
+  applyTheme(settings.theme);
+});
 void setupSite();
 void setupShortcuts();

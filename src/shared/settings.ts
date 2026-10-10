@@ -1,4 +1,5 @@
 /** User settings (the options page), kept with chrome.storage.sync like the per-site choices. */
+import type { CustomLevel } from '../lib/logs';
 
 export interface CustomSecret {
   name: string;
@@ -14,6 +15,10 @@ export interface Settings {
   hiddenTools: string[];
   /** Times in the viewer: as UTC, or in the browser's time zone. */
   timeMode: 'utc' | 'local';
+  /** Level words of your own, e.g. ALERT → ERROR. */
+  customLevels: CustomLevel[];
+  /** Colours of Logbeam's pages: follow the system, or always dark or light. */
+  theme: 'auto' | 'dark' | 'light';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -21,6 +26,8 @@ export const DEFAULT_SETTINGS: Settings = {
   customSecrets: [],
   hiddenTools: [],
   timeMode: 'utc',
+  customLevels: [],
+  theme: 'auto',
 };
 
 export const SETTINGS_KEY = 'settings';

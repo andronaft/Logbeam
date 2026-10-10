@@ -57,7 +57,14 @@ const podsLog = [
   '[pod/payments-7d9f8-x2k4p/app] 2026-10-04 10:00:02 ERROR connection refused',
   '[pod/payments-7d9f8-q9z1m/app] 2026-10-04 10:00:03 INFO ok',
 ].join('\n');
+const E = '\x1b';
+const ansiLog = [
+  `${E}[90m2026-10-10 10:00:00${E}[0m ${E}[32mINFO${E}[0m build started`,
+  `${E}[90m2026-10-10 10:00:05${E}[0m ${E}[1;31mERROR${E}[0m tests failed`,
+  `${E}[2K${E}[1G${E}[33mWARN${E}[0m retrying`,
+].join('\n');
 const plainPages = {
+  '/ansi.log': ansiLog,
   '/redos.log': redosLog,
   '/pem.log': pemLog,
   '/pretty.log': prettyLog,
@@ -120,6 +127,10 @@ const context = await chromium.launchPersistentContext(mkdtempSync(path.join(tmp
   viewport: { width: 1280, height: 800 },
   // a time zone other than UTC, so "Local time" visibly changes the times
   timezoneId: 'Europe/Kyiv',
+  // numbers in the viewer are formatted for the browser's locale; pin it, whatever the machine's is
+  locale: 'en-US',
+  // the docs screenshots show the dark theme; the light one is checked on its own below
+  colorScheme: 'dark',
   args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
 });
 const errors = [];
@@ -202,7 +213,8 @@ await big.addScriptTag({ path: path.join(dist, 'logViewer.js') });
 await big.waitForSelector('.row', { timeout: 60_000 });
 check(
   `${BIG_LINES.toLocaleString('en')} lines parse`,
-  (await big.locator('.status').textContent()) === `${BIG_LINES.toLocaleString()} / ${BIG_LINES.toLocaleString()} lines`,
+  (await big.locator('.status').textContent()) ===
+    `${BIG_LINES.toLocaleString('en-US')} / ${BIG_LINES.toLocaleString('en-US')} lines`,
   `${Date.now() - started} ms`,
 );
 check('big log parsed in a Web Worker', (await big.evaluate(() => document.documentElement.dataset.logbeamParser)) === 'worker');
@@ -223,7 +235,8 @@ check(
 );
 check(
   'fallback parses everything',
-  (await strict.locator('.status').textContent()) === `${BIG_LINES.toLocaleString()} / ${BIG_LINES.toLocaleString()} lines`,
+  (await strict.locator('.status').textContent()) ===
+    `${BIG_LINES.toLocaleString('en-US')} / ${BIG_LINES.toLocaleString('en-US')} lines`,
 );
 await strict.close();
 
@@ -538,6 +551,22 @@ check('a pod chip hides its lines', (await pods.locator('.status').textContent()
 await pods.screenshot({ path: 'docs/pods.png' });
 await pods.close();
 
+// ---- ANSI colour codes --------------------------------------------------------------------
+const coloured = await context.newPage();
+watch(coloured);
+await coloured.goto(`${base}/ansi.log`);
+await coloured.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await coloured.waitForSelector('.row');
+const colouredText = (await coloured.locator('.txt').allTextContents()).join('\n');
+check('colour codes are taken out of the text', !colouredText.includes('\x1b') && !colouredText.includes('[0m'), colouredText);
+check(
+  'levels are read through colour codes',
+  (await coloured.locator('.chip.lvl-ERROR .count').textContent()) === '1' &&
+    (await coloured.locator('.chip.lvl-WARN .count').textContent()) === '1',
+);
+check('the colours are drawn', (await coloured.locator('.txt .ansi-red.ansi-bold').textContent()) === 'ERROR');
+await coloured.close();
+
 // ---- settings, pasted text ----------------------------------------------------------------
 const options = await context.newPage();
 watch(options);
@@ -556,33 +585,60 @@ await options.locator('.pattern input').nth(3).fill('(a+)+$');
 check('a risky pattern is refused', (await options.locator('#problems').textContent()).includes('Nested quantifiers'));
 await options.locator('.pattern button').nth(1).click();
 await options.locator('.tools label', { hasText: 'Sort lines' }).locator('input').uncheck();
+await options.locator('#add-level').click();
+await options.locator('.level input').fill('ALERT');
+await options.locator('.level select').selectOption('ERROR');
 await options.waitForTimeout(600);
 const stored = await options.evaluate(() => chrome.storage.sync.get('settings'));
 check(
   'settings are saved',
   stored.settings.gapThresholdMs === 5000 &&
     stored.settings.customSecrets.length === 1 &&
-    stored.settings.hiddenTools.includes('sort-lines'),
+    stored.settings.hiddenTools.includes('sort-lines') &&
+    stored.settings.customLevels[0]?.word === 'ALERT',
   JSON.stringify(stored.settings),
 );
 await options.screenshot({ path: 'docs/settings.png', fullPage: true });
+
+// light theme: from the system when "Like the system", and always when chosen
+const background = (page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+check('dark by default here (the test browser asks for dark)', (await background(options)) === 'rgb(15, 20, 25)');
+await options.emulateMedia({ colorScheme: 'light' });
+check('light when the system is light', (await background(options)) === 'rgb(255, 255, 255)');
+await options.emulateMedia({ colorScheme: 'dark' });
+await options.locator('#theme').selectOption('light');
+check('light when chosen, even on a dark system', (await background(options)) === 'rgb(255, 255, 255)');
+await options.screenshot({ path: 'docs/settings-light.png', fullPage: true });
+const lightViewer = await context.newPage();
+await lightViewer.goto(`${base}/app.log`);
+await lightViewer.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await lightViewer.waitForSelector('.row');
+await lightViewer.evaluate(() => (document.documentElement.dataset.theme = 'light'));
+check('the log viewer has a light theme', (await background(lightViewer)) === 'rgb(255, 255, 255)');
+await lightViewer.screenshot({ path: 'docs/log-viewer-light.png' });
+await lightViewer.close();
+await options.locator('#theme').selectOption('auto');
+await options.waitForTimeout(600);
 
 // "Open text as log" in the popup: the viewer on the extension's own page
 const pastedPage = context.waitForEvent('page');
 await popup.bringToFront();
 await popup
   .locator('#input')
-  .fill(`${fieldsLog}\n2026-10-04T10:31:00Z INFO token acme_12ab34cd\n2026-10-04T10:40:00Z INFO later`);
+  .fill(
+    `${fieldsLog}\n2026-10-04T10:31:00Z INFO token acme_12ab34cd\n2026-10-04T10:40:00Z INFO later\n2026-10-04T10:45:00Z ALERT disk almost full`,
+  );
 await popup.locator('#open-pasted').click();
 const pasted = await pastedPage;
 watch(pasted);
 await pasted.waitForSelector('.row');
 check(
   'pasted text opens in the viewer',
-  (await pasted.locator('.status').textContent()) === '9 / 9 lines',
+  (await pasted.locator('.status').textContent()) === '10 / 10 lines',
   await pasted.locator('.status').textContent(),
 );
 check('the custom secret pattern is used', (await pasted.locator('.toggle.secrets').textContent()) === '🔑 1');
+check('the custom level word is used', (await pasted.locator('.chip.lvl-ERROR .count').textContent()) === '5');
 check(
   'the pause threshold comes from the settings',
   (await pasted.locator('.toggle', { hasText: 'Gaps' }).getAttribute('title')).includes('5s'),

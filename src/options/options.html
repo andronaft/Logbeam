@@ -43,6 +43,29 @@
       </section>
 
       <section>
+        <h2>Your own level words</h2>
+        <p class="help">
+          Words your logs use for a level that Logbeam doesn't know, such as <code>ALERT</code>, <code>CRIT</code> or
+          <code>AUDIT</code>. A word is matched as written where a level usually is (<code>ALERT disk full</code>,
+          <code>[ALERT]</code>), and in any case after <code>level=</code> or in a JSON level field.
+        </p>
+        <div id="levels"></div>
+        <button id="add-level">Add a level word</button>
+      </section>
+
+      <section>
+        <h2>Appearance</h2>
+        <label class="row">
+          Colours of the log viewer, Compare, Settings and the popup:
+          <select id="theme">
+            <option value="auto">Like the system</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </label>
+      </section>
+
+      <section>
         <h2>Keyboard shortcuts</h2>
         <p class="help"><a href="#" id="shortcuts">Change the shortcuts</a> in the browser's settings.</p>
       </section>
