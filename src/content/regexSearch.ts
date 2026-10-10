@@ -1,4 +1,5 @@
 import { findRegexRisk } from '../lib/regexSafety';
+import { t } from '../shared/i18n';
 import { workerUrl } from './workerUrl';
 
 /** Code of searchWorker.ts, inlined at build time (see scripts/build.mjs). */
@@ -39,7 +40,11 @@ export class RegexSearch {
       const timer = setTimeout(() => {
         cleanup();
         this.restart();
-        resolve({ error: `This regex took over ${TIMEOUT_MS / 1000}s and was stopped. Simplify it.` });
+        resolve({
+          error: t('viewerRegexTimeout', 'This regex took over {seconds}s and was stopped. Simplify it.', {
+            seconds: TIMEOUT_MS / 1000,
+          }),
+        });
       }, TIMEOUT_MS);
       const onMessage = (event: MessageEvent) => {
         if (event.data.id !== id) return;

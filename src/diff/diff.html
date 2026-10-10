@@ -2,30 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Compare · Logbeam</title>
+    <title data-i18n="comparePageTitle">Compare · Logbeam</title>
     <link rel="icon" href="icons/icon16.png" />
     <link rel="stylesheet" href="diff.css" />
   </head>
   <body>
     <header>
       <img src="icons/icon48.png" alt="" width="22" height="22" />
-      <h1>Logbeam <span>Compare</span></h1>
+      <h1>Logbeam <span data-i18n="compareHeading">Compare</span></h1>
       <div class="options">
         <label>
-          Compare as
+          <span data-i18n="compareAs">Compare as</span>
           <select id="mode">
-            <option value="auto">Auto</option>
+            <option value="auto" data-i18n="compareModeAuto">Auto</option>
             <option value="json">JSON</option>
-            <option value="text">Text / log</option>
+            <option value="text" data-i18n="compareModeText">Text / log</option>
           </select>
         </label>
-        <label title="Timestamps, UUIDs, commit and trace IDs, durations like 3.2s"
-          ><input type="checkbox" id="ignore-volatile" /> Ignore timestamps, IDs and durations</label
+        <label title="Timestamps, UUIDs, commit and trace IDs, durations like 3.2s" data-i18n-title="compareIgnoreVolatileTitle"
+          ><input type="checkbox" id="ignore-volatile" />
+          <span data-i18n="compareIgnoreVolatile">Ignore timestamps, IDs and durations</span></label
         >
-        <label><input type="checkbox" id="ignore-space" /> Ignore whitespace</label>
-        <label><input type="checkbox" id="mask" /> Mask secrets</label>
-        <button id="swap" title="Swap the two sides">⇄ Swap</button>
-        <button id="clear">Clear</button>
+        <label><input type="checkbox" id="ignore-space" /> <span data-i18n="compareIgnoreSpace">Ignore whitespace</span></label>
+        <label><input type="checkbox" id="mask" /> <span data-i18n="compareMask">Mask secrets</span></label>
+        <button id="swap" title="Swap the two sides" data-i18n="compareSwap" data-i18n-title="compareSwapTitle">⇄ Swap</button>
+        <button id="clear" data-i18n="compareClear">Clear</button>
       </div>
     </header>
 
@@ -33,17 +34,27 @@
       <div class="inputs">
         <div class="side">
           <div class="side-head">
-            <b>Before</b>
-            <label class="file">Open file…<input type="file" id="left-file" /></label>
+            <b data-i18n="compareBefore">Before</b>
+            <label class="file"><span data-i18n="compareOpenFile">Open file…</span><input type="file" id="left-file" /></label>
           </div>
-          <textarea id="left" spellcheck="false" placeholder="Paste or drop the first JSON document or log here"></textarea>
+          <textarea
+            id="left"
+            spellcheck="false"
+            placeholder="Paste or drop the first JSON document or log here"
+            data-i18n-placeholder="compareLeftPlaceholder"
+          ></textarea>
         </div>
         <div class="side">
           <div class="side-head">
-            <b>After</b>
-            <label class="file">Open file…<input type="file" id="right-file" /></label>
+            <b data-i18n="compareAfter">After</b>
+            <label class="file"><span data-i18n="compareOpenFile">Open file…</span><input type="file" id="right-file" /></label>
           </div>
-          <textarea id="right" spellcheck="false" placeholder="…and the second one here"></textarea>
+          <textarea
+            id="right"
+            spellcheck="false"
+            placeholder="…and the second one here"
+            data-i18n-placeholder="compareRightPlaceholder"
+          ></textarea>
         </div>
       </div>
 

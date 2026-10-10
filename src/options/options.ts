@@ -1,7 +1,7 @@
 import { maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
 import { TRANSFORMS } from '../lib/transforms';
 import { openShortcutSettings } from '../shared/browser';
-import { t, toolKey } from '../shared/i18n';
+import { localizePage, t, toolKey } from '../shared/i18n';
 import { CustomSecret, Settings, loadSettings, saveSettings } from '../shared/settings';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -29,7 +29,7 @@ function save(): void {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     await saveSettings(settings);
-    saved.textContent = 'Saved ✓';
+    saved.textContent = t('optionsSaved', 'Saved ✓');
     setTimeout(() => (saved.textContent = ''), 1500);
   }, 300);
 }
@@ -42,9 +42,18 @@ function checkPatterns(): void {
 function renderPatterns(): void {
   patternsEl.replaceChildren(
     ...settings.customSecrets.map((custom: CustomSecret, i) => {
-      const name = el('input', { type: 'text', value: custom.name, placeholder: 'Name, e.g. Acme token' });
-      const pattern = el('input', { type: 'text', value: custom.pattern, placeholder: 'Regular expression', spellcheck: false });
-      const remove = el('button', { title: 'Remove' }, '×');
+      const name = el('input', {
+        type: 'text',
+        value: custom.name,
+        placeholder: t('optionsPatternName', 'Name, e.g. Acme token'),
+      });
+      const pattern = el('input', {
+        type: 'text',
+        value: custom.pattern,
+        placeholder: t('optionsPatternRegex', 'Regular expression'),
+        spellcheck: false,
+      });
+      const remove = el('button', { title: t('optionsRemovePattern', 'Remove') }, '×');
       name.addEventListener('input', () => {
         custom.name = name.value;
         checkPatterns();
@@ -82,6 +91,7 @@ function renderTools(): void {
 }
 
 async function start(): Promise<void> {
+  localizePage();
   settings = await loadSettings();
   gap.value = String(settings.gapThresholdMs / 1000);
   gap.addEventListener('input', () => {

@@ -674,6 +674,25 @@ check(
 );
 check('text tools are translated', (await ukPopup.locator('#transforms button').first().textContent()) === 'Маскувати');
 await ukPopup.screenshot({ path: 'docs/popup-uk.png', fullPage: true });
+const ukId = new URL(ukWorker.url()).host;
+const ukOptions = await ukContext.newPage();
+await ukOptions.goto(`chrome-extension://${ukId}/options.html`);
+await ukOptions.waitForSelector('.tools label');
+check(
+  'the settings speak Ukrainian',
+  (await ukOptions.locator('h2').first().textContent()) === 'Переглядач логів' &&
+    (await ukOptions.locator('.tools label').first().textContent()) === 'Сховати секрети (ключі, токени, паролі)',
+  await ukOptions.locator('h2').first().textContent(),
+);
+const ukViewer = await ukContext.newPage();
+await ukViewer.goto(`chrome-extension://${ukId}/viewer.html`);
+await ukViewer.locator('#paste').fill(fieldsLog);
+check('the viewer start page speaks Ukrainian', (await ukViewer.locator('#open').textContent()) === 'Відкрити як лог');
+await ukViewer.locator('#open').click();
+await ukViewer.waitForSelector('.row');
+check('the log viewer speaks Ukrainian', (await ukViewer.locator('.status').textContent()) === 'Рядків: 7 / 7');
+await ukViewer.locator('.toggle', { hasText: 'Групи' }).click();
+check('Ukrainian plurals', (await ukViewer.locator('.groups-head').textContent()) === '3 різні помилки');
 await ukContext.close();
 
 check('no page errors', errors.length === 0, errors.join('; '));

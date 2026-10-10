@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Ukrainian** everywhere: the log viewer (toolbar, tooltips, inspector, toasts), Compare, Settings and the
+  page for pasted text and files. Counts use the right plural form (`1 рядок`, `3 рядки`, `5 рядків`).
+
 ## 0.5.0
 
 ### Added

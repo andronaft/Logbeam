@@ -196,5 +196,524 @@
   },
   "notAllowedGeneric": {
     "message": "Logbeam не може працювати на цій сторінці."
+  },
+  "viewerParsing": {
+    "message": "Обробка логу…"
+  },
+  "viewerParsingProgress": {
+    "message": "Обробка логу… рядків: {done} / {total}"
+  },
+  "viewerShowHide": {
+    "message": "Показати/сховати {name}"
+  },
+  "viewerOtherLevel": {
+    "message": "Інше"
+  },
+  "viewerSearchPlaceholder": {
+    "message": "Пошук… ( / )"
+  },
+  "viewerSearchFieldsPlaceholder": {
+    "message": "Пошук або {field}=… ( / )"
+  },
+  "viewerSearchTitle": {
+    "message": "Текст для пошуку або поля: level=error service=payments duration>500 (ключ=значення, !=, >, <, * — будь-які символи)"
+  },
+  "viewerHighlightTitle": {
+    "message": "Підсвічувати цей текст окремим кольором ( Enter у полі пошуку )"
+  },
+  "viewerRegexTitle": {
+    "message": "Регулярний вираз"
+  },
+  "viewerCaseTitle": {
+    "message": "Враховувати регістр"
+  },
+  "viewerCollapse": {
+    "message": "Згорнути"
+  },
+  "viewerCollapseTitle": {
+    "message": "Згорнути рядки, що повторюються (×N)"
+  },
+  "viewerGaps": {
+    "message": "Паузи"
+  },
+  "viewerGapsTitle": {
+    "message": "Показувати паузи, довші за {seconds} с"
+  },
+  "viewerTimeline": {
+    "message": "Графік"
+  },
+  "viewerTimelineTitle": {
+    "message": "Помилки й попередження в часі"
+  },
+  "viewerMask": {
+    "message": "Маскувати"
+  },
+  "viewerMaskTitle": {
+    "message": "Ховати значення секретів на екрані та в скопійованому тексті"
+  },
+  "viewerSecretsTitle": {
+    "message": "Рядки з ключами, токенами чи паролями. Перейти до наступного ( s )"
+  },
+  "viewerNextError": {
+    "message": "До помилки"
+  },
+  "viewerNextErrorTitle": {
+    "message": "Перейти до наступної помилки ( e )"
+  },
+  "viewerCopy": {
+    "message": "Копіювати"
+  },
+  "viewerCopyTitle": {
+    "message": "Копіювати показані рядки"
+  },
+  "viewerCompare": {
+    "message": "Порівняти"
+  },
+  "viewerCompareTitle": {
+    "message": "Порівняти цей лог з іншим, наприклад успішний і невдалий запуск CI"
+  },
+  "viewerSave": {
+    "message": "Зберегти"
+  },
+  "viewerSaveTitle": {
+    "message": "Завантажити показані рядки як файл"
+  },
+  "viewerOpen": {
+    "message": "Відкрити…"
+  },
+  "viewerOpenTitle": {
+    "message": "Відкрити файл .log або .gz (або перетягніть його сюди)"
+  },
+  "viewerRaw": {
+    "message": "Оригінал"
+  },
+  "viewerRawTitle": {
+    "message": "Повернутися до початкової сторінки"
+  },
+  "viewerTimeTitle": {
+    "message": "Показувати час в UTC або у вашому часовому поясі (мітки часу з поясом, панель рядка й графік)"
+  },
+  "viewerLocalTime": {
+    "message": "Місцевий час"
+  },
+  "viewerBookmarksTitle": {
+    "message": "Перейти до наступної закладки ( b )"
+  },
+  "viewerReport": {
+    "message": "Звіт"
+  },
+  "viewerReportTitle": {
+    "message": "Скопіювати рядки із закладок разом із часом і нотатками як Markdown для задачі"
+  },
+  "viewerGroups": {
+    "message": "Групи"
+  },
+  "viewerGroupsTitle": {
+    "message": "Однакові помилки разом: скільки разів, у яких подах, коли вперше й востаннє"
+  },
+  "viewerTable": {
+    "message": "Таблиця"
+  },
+  "viewerTableTitle": {
+    "message": "Показати JSON-записи як таблицю"
+  },
+  "viewerFollow": {
+    "message": "Стежити"
+  },
+  "viewerFollowTitle": {
+    "message": "Перечитувати сторінку кожні {seconds} с і додавати нові рядки"
+  },
+  "viewerRangeTitle": {
+    "message": "Знову показати весь час"
+  },
+  "viewerSourceTitle": {
+    "message": "Показати/сховати рядки з {source}"
+  },
+  "viewerGroupChipTitle": {
+    "message": "Знову показати всі рядки"
+  },
+  "viewerColumns": {
+    "message": "Стовпці"
+  },
+  "viewerColumnsTitle": {
+    "message": "Стовпці таблиці через кому"
+  },
+  "viewerBucketTitle": {
+    "message": "Записів: {total}, помилок: {errors}, попереджень: {warnings}"
+  },
+  "viewerDropHint": {
+    "message": "Перетягніть файл .log або .gz, щоб відкрити його"
+  },
+  "viewerCopyFailed": {
+    "message": "Не вдалося скопіювати: сторінка не дає доступу до буфера обміну"
+  },
+  "viewerLineNumber": {
+    "message": "Рядок {n}"
+  },
+  "viewerGapAfter": {
+    "message": "{gap} після попереднього запису"
+  },
+  "viewerHasSecret": {
+    "message": "містить секрет"
+  },
+  "viewerCopyLine": {
+    "message": "Копіювати рядок"
+  },
+  "viewerLineCopied": {
+    "message": "Рядок скопійовано"
+  },
+  "viewerCopyLink": {
+    "message": "Копіювати посилання"
+  },
+  "viewerLinkCopied": {
+    "message": "Посилання скопійовано"
+  },
+  "viewerCloseTitle": {
+    "message": "Закрити ( Esc )"
+  },
+  "viewerBookmarkTitle": {
+    "message": "Додати рядок у закладки для звіту ( m )"
+  },
+  "viewerBookmark": {
+    "message": "У закладки"
+  },
+  "viewerBookmarked": {
+    "message": "У закладках"
+  },
+  "viewerNotePlaceholder": {
+    "message": "Нотатка для звіту, наприклад «тут починається тайм-аут»"
+  },
+  "viewerFields": {
+    "message": "Поля:"
+  },
+  "viewerFieldTitle": {
+    "message": "Найчастіші значення {field} у показаних рядках"
+  },
+  "viewerStatsHead": {
+    "message": "{field}: є в показаних записах: {n}"
+  },
+  "viewerShowOnly": {
+    "message": "Показати лише {filter}"
+  },
+  "viewerGroupItemTitle": {
+    "message": "Показати лише цю помилку"
+  },
+  "viewerNoErrors": {
+    "message": "У цьому лозі немає помилок."
+  },
+  "viewerCouldNotOpen": {
+    "message": "Не вдалося відкрити {name}: {error}"
+  },
+  "viewerFollowFailed": {
+    "message": "Стеження: не вдалося перечитати сторінку ({error})"
+  },
+  "viewerLogReplaced": {
+    "message": "Лог замінили, а не доповнили. Перезавантажте сторінку, щоб його побачити."
+  },
+  "viewerAddedAsBefore": {
+    "message": "Додано як «До». Відкрийте інший лог і натисніть там «Порівняти»."
+  },
+  "viewerCompareUnavailable": {
+    "message": "Порівняння тут недоступне"
+  },
+  "viewerLineLinkCopied": {
+    "message": "Посилання на рядок {n} скопійовано"
+  },
+  "viewerNothingFound": {
+    "message": "У показаних рядках нічого не знайдено"
+  },
+  "viewerOnlyGroup": {
+    "message": "Лише {group}"
+  },
+  "viewerRemoveHighlight": {
+    "message": "Прибрати це підсвічування"
+  },
+  "viewerSearching": {
+    "message": "Пошук…"
+  },
+  "viewerStatus": {
+    "message": "Рядків: {shown} / {total}"
+  },
+  "viewerGapTitle": {
+    "message": "Пауза після попереднього запису"
+  },
+  "viewerRepeatTitle": {
+    "message": "Схожі рядки поспіль"
+  },
+  "viewerLineLinkTitle": {
+    "message": "Скопіювати посилання на цей рядок"
+  },
+  "viewerRegexTimeout": {
+    "message": "Цей вираз виконувався понад {seconds} с, тому його зупинено. Спростіть його."
+  },
+  "regexNestedQuantifiers": {
+    "message": "Вкладені квантифікатори на кшталт (a+)+ можуть завісити сторінку на деяких рядках. Спростіть вираз."
+  },
+  "viewerPageTitle": {
+    "message": "Переглядач логів · Logbeam"
+  },
+  "viewerStartDrop": {
+    "message": "Перетягніть сюди файл логу"
+  },
+  "viewerStartChoose": {
+    "message": "або клацніть, щоб вибрати: .log, .txt, .json, а також gzip (.gz)"
+  },
+  "viewerStartOr": {
+    "message": "або вставте лог"
+  },
+  "viewerStartPlaceholder": {
+    "message": "Вставте сюди рядки логу"
+  },
+  "viewerStartNote": {
+    "message": "Усе залишається у вашому браузері. Нічого не надсилається."
+  },
+  "viewerPastedLog": {
+    "message": "Вставлений лог"
+  },
+  "comparePageTitle": {
+    "message": "Порівняння · Logbeam"
+  },
+  "compareHeading": {
+    "message": "Порівняння"
+  },
+  "compareAs": {
+    "message": "Порівнювати як"
+  },
+  "compareModeAuto": {
+    "message": "Авто"
+  },
+  "compareModeText": {
+    "message": "Текст / лог"
+  },
+  "compareIgnoreVolatile": {
+    "message": "Ігнорувати час, ID і тривалості"
+  },
+  "compareIgnoreVolatileTitle": {
+    "message": "Мітки часу, UUID, ID комітів і трасувань, тривалості на кшталт 3.2s"
+  },
+  "compareIgnoreSpace": {
+    "message": "Ігнорувати пробіли"
+  },
+  "compareMask": {
+    "message": "Маскувати секрети"
+  },
+  "compareSwap": {
+    "message": "⇄ Поміняти"
+  },
+  "compareSwapTitle": {
+    "message": "Поміняти сторони місцями"
+  },
+  "compareClear": {
+    "message": "Очистити"
+  },
+  "compareBefore": {
+    "message": "До"
+  },
+  "compareAfter": {
+    "message": "Після"
+  },
+  "compareOpenFile": {
+    "message": "Відкрити файл…"
+  },
+  "compareLeftPlaceholder": {
+    "message": "Вставте або перетягніть сюди перший JSON-документ чи лог"
+  },
+  "compareRightPlaceholder": {
+    "message": "…а другий — сюди"
+  },
+  "compareBeforeNotJson": {
+    "message": "«До» — некоректний JSON. Виберіть «Текст / лог», щоб порівняти рядок за рядком."
+  },
+  "compareAfterNotJson": {
+    "message": "«Після» — некоректний JSON. Виберіть «Текст / лог», щоб порівняти рядок за рядком."
+  },
+  "compareAsJson": {
+    "message": "Порівняно як JSON (без урахування порядку ключів):"
+  },
+  "compareLineByLine": {
+    "message": "Порівняно рядок за рядком:"
+  },
+  "compareLines": {
+    "message": "рядків"
+  },
+  "compareNoDifferences": {
+    "message": "Відмінностей немає."
+  },
+  "compareApproximate": {
+    "message": "Тексти дуже різні, тому змінену частину показано як заміну."
+  },
+  "compareKind_added": {
+    "message": "додано"
+  },
+  "compareKind_removed": {
+    "message": "вилучено"
+  },
+  "compareKind_changed": {
+    "message": "змінено"
+  },
+  "compareShowAll": {
+    "message": "Показати всі рядки ({n})"
+  },
+  "compareBothEmpty": {
+    "message": "Обидві сторони порожні."
+  },
+  "optionsPageTitle": {
+    "message": "Налаштування · Logbeam"
+  },
+  "optionsHeading": {
+    "message": "Налаштування Logbeam"
+  },
+  "optionsSaved": {
+    "message": "Збережено ✓"
+  },
+  "optionsLogViewer": {
+    "message": "Переглядач логів"
+  },
+  "optionsGapBefore": {
+    "message": "Показувати паузи між записами, довші за"
+  },
+  "optionsGapAfter": {
+    "message": "с"
+  },
+  "optionsSecretPatterns": {
+    "message": "Власні шаблони секретів"
+  },
+  "optionsSecretHelp": {
+    "message": "Регулярні вирази для ключів і токенів, яких Logbeam не знає, наприклад внутрішнього формату токенів. Секретом вважається весь збіг або його перша група, якщо вона є:"
+  },
+  "optionsSecretUsedBy": {
+    "message": "Їх використовують переглядач логів, порівняння та «Маскувати»."
+  },
+  "optionsAddPattern": {
+    "message": "Додати шаблон"
+  },
+  "optionsTryThem": {
+    "message": "Перевірити:"
+  },
+  "optionsTestPlaceholder": {
+    "message": "Вставте рядок із секретом"
+  },
+  "optionsPatternName": {
+    "message": "Напр. Acme token"
+  },
+  "optionsPatternRegex": {
+    "message": "Регулярний вираз"
+  },
+  "optionsRemovePattern": {
+    "message": "Видалити"
+  },
+  "optionsMenu": {
+    "message": "Контекстне меню"
+  },
+  "optionsMenuHelpBefore": {
+    "message": "Інструменти для тексту, які показувати в пункті"
+  },
+  "optionsMenuHelpAfter": {
+    "message": "після правого кліку на виділеному тексті."
+  },
+  "optionsShortcuts": {
+    "message": "Сполучення клавіш"
+  },
+  "optionsChangeShortcuts": {
+    "message": "Змініть сполучення клавіш"
+  },
+  "optionsShortcutsWhere": {
+    "message": "у налаштуваннях браузера."
+  },
+  "viewerPods_one": {
+    "message": "{n} под"
+  },
+  "viewerPods_few": {
+    "message": "{n} поди"
+  },
+  "viewerPods_many": {
+    "message": "{n} подів"
+  },
+  "viewerPods_other": {
+    "message": "{n} пода"
+  },
+  "viewerDifferentErrors_one": {
+    "message": "{n} різна помилка"
+  },
+  "viewerDifferentErrors_few": {
+    "message": "{n} різні помилки"
+  },
+  "viewerDifferentErrors_many": {
+    "message": "{n} різних помилок"
+  },
+  "viewerDifferentErrors_other": {
+    "message": "{n} різної помилки"
+  },
+  "viewerLinesSaved_one": {
+    "message": "Збережено {n} рядок"
+  },
+  "viewerLinesSaved_few": {
+    "message": "Збережено {n} рядки"
+  },
+  "viewerLinesSaved_many": {
+    "message": "Збережено {n} рядків"
+  },
+  "viewerLinesSaved_other": {
+    "message": "Збережено {n} рядка"
+  },
+  "viewerLinesCopied_one": {
+    "message": "Скопійовано {n} рядок"
+  },
+  "viewerLinesCopied_few": {
+    "message": "Скопійовано {n} рядки"
+  },
+  "viewerLinesCopied_many": {
+    "message": "Скопійовано {n} рядків"
+  },
+  "viewerLinesCopied_other": {
+    "message": "Скопійовано {n} рядка"
+  },
+  "viewerReportCopied_one": {
+    "message": "Скопійовано звіт з {n} рядком"
+  },
+  "viewerReportCopied_few": {
+    "message": "Скопійовано звіт з {n} рядками"
+  },
+  "viewerReportCopied_many": {
+    "message": "Скопійовано звіт з {n} рядками"
+  },
+  "viewerReportCopied_other": {
+    "message": "Скопійовано звіт з {n} рядка"
+  },
+  "viewerNewLines_one": {
+    "message": "{n} новий рядок"
+  },
+  "viewerNewLines_few": {
+    "message": "{n} нові рядки"
+  },
+  "viewerNewLines_many": {
+    "message": "{n} нових рядків"
+  },
+  "viewerNewLines_other": {
+    "message": "{n} нового рядка"
+  },
+  "viewerFieldConditions_one": {
+    "message": "{n} умова за полями"
+  },
+  "viewerFieldConditions_few": {
+    "message": "{n} умови за полями"
+  },
+  "viewerFieldConditions_many": {
+    "message": "{n} умов за полями"
+  },
+  "viewerFieldConditions_other": {
+    "message": "{n} умови за полями"
+  },
+  "compareUnchanged_one": {
+    "message": "⋯ {n} незмінений рядок"
+  },
+  "compareUnchanged_few": {
+    "message": "⋯ {n} незмінені рядки"
+  },
+  "compareUnchanged_many": {
+    "message": "⋯ {n} незмінених рядків"
+  },
+  "compareUnchanged_other": {
+    "message": "⋯ {n} незміненого рядка"
   }
 }

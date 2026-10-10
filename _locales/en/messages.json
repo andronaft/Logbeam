@@ -196,5 +196,476 @@
   },
   "notAllowedGeneric": {
     "message": "Logbeam can’t run on this page."
+  },
+  "viewerParsing": {
+    "message": "Parsing log…"
+  },
+  "viewerParsingProgress": {
+    "message": "Parsing log… {done} / {total} lines"
+  },
+  "viewerShowHide": {
+    "message": "Show/hide {name}"
+  },
+  "viewerOtherLevel": {
+    "message": "Other"
+  },
+  "viewerSearchPlaceholder": {
+    "message": "Search… ( / )"
+  },
+  "viewerSearchFieldsPlaceholder": {
+    "message": "Search, or {field}=… ( / )"
+  },
+  "viewerSearchTitle": {
+    "message": "Text to find, or fields: level=error service=payments duration>500 (key=value, !=, >, <, * wildcards)"
+  },
+  "viewerHighlightTitle": {
+    "message": "Keep this text highlighted in its own colour ( Enter in the search box )"
+  },
+  "viewerRegexTitle": {
+    "message": "Regular expression"
+  },
+  "viewerCaseTitle": {
+    "message": "Match case"
+  },
+  "viewerCollapse": {
+    "message": "Collapse"
+  },
+  "viewerCollapseTitle": {
+    "message": "Collapse repeated lines (×N)"
+  },
+  "viewerGaps": {
+    "message": "Gaps"
+  },
+  "viewerGapsTitle": {
+    "message": "Show pauses longer than {seconds}s"
+  },
+  "viewerTimeline": {
+    "message": "Timeline"
+  },
+  "viewerTimelineTitle": {
+    "message": "Errors and warnings over time"
+  },
+  "viewerMask": {
+    "message": "Mask"
+  },
+  "viewerMaskTitle": {
+    "message": "Hide secret values on screen and in copied text"
+  },
+  "viewerSecretsTitle": {
+    "message": "Lines that show keys, tokens or passwords. Jump to the next one ( s )"
+  },
+  "viewerNextError": {
+    "message": "Next error"
+  },
+  "viewerNextErrorTitle": {
+    "message": "Jump to the next error ( e )"
+  },
+  "viewerCopy": {
+    "message": "Copy"
+  },
+  "viewerCopyTitle": {
+    "message": "Copy visible lines"
+  },
+  "viewerCompare": {
+    "message": "Compare"
+  },
+  "viewerCompareTitle": {
+    "message": "Compare this log with another one, e.g. a passing and a failing CI run"
+  },
+  "viewerSave": {
+    "message": "Save"
+  },
+  "viewerSaveTitle": {
+    "message": "Download the visible lines as a file"
+  },
+  "viewerOpen": {
+    "message": "Open…"
+  },
+  "viewerOpenTitle": {
+    "message": "Open a .log or .gz file (or drop it here)"
+  },
+  "viewerRaw": {
+    "message": "Raw"
+  },
+  "viewerRawTitle": {
+    "message": "Back to the original page"
+  },
+  "viewerTimeTitle": {
+    "message": "Show times in UTC or in your time zone (timestamps with a zone, the inspector and the timeline)"
+  },
+  "viewerLocalTime": {
+    "message": "Local time"
+  },
+  "viewerBookmarksTitle": {
+    "message": "Jump to the next bookmark ( b )"
+  },
+  "viewerReport": {
+    "message": "Report"
+  },
+  "viewerReportTitle": {
+    "message": "Copy the bookmarked lines with times and notes, as Markdown for a ticket"
+  },
+  "viewerGroups": {
+    "message": "Groups"
+  },
+  "viewerGroupsTitle": {
+    "message": "The same error grouped: how often, in which pods, first and last time"
+  },
+  "viewerTable": {
+    "message": "Table"
+  },
+  "viewerTableTitle": {
+    "message": "Show JSON records as a table"
+  },
+  "viewerFollow": {
+    "message": "Follow"
+  },
+  "viewerFollowTitle": {
+    "message": "Read the page again every {seconds}s and add new lines"
+  },
+  "viewerRangeTitle": {
+    "message": "Show all times again"
+  },
+  "viewerSourceTitle": {
+    "message": "Show/hide lines from {source}"
+  },
+  "viewerGroupChipTitle": {
+    "message": "Show all lines again"
+  },
+  "viewerColumns": {
+    "message": "Columns"
+  },
+  "viewerColumnsTitle": {
+    "message": "Table columns, separated by commas"
+  },
+  "viewerBucketTitle": {
+    "message": "{total} entries, {errors} errors, {warnings} warnings"
+  },
+  "viewerDropHint": {
+    "message": "Drop a .log or .gz file to open it"
+  },
+  "viewerCopyFailed": {
+    "message": "Copy failed: the page doesn’t allow clipboard access"
+  },
+  "viewerLineNumber": {
+    "message": "Line {n}"
+  },
+  "viewerGapAfter": {
+    "message": "{gap} after previous entry"
+  },
+  "viewerHasSecret": {
+    "message": "contains a secret"
+  },
+  "viewerCopyLine": {
+    "message": "Copy line"
+  },
+  "viewerLineCopied": {
+    "message": "Line copied"
+  },
+  "viewerCopyLink": {
+    "message": "Copy link"
+  },
+  "viewerLinkCopied": {
+    "message": "Link copied"
+  },
+  "viewerCloseTitle": {
+    "message": "Close ( Esc )"
+  },
+  "viewerBookmarkTitle": {
+    "message": "Bookmark this line for the report ( m )"
+  },
+  "viewerBookmark": {
+    "message": "Bookmark"
+  },
+  "viewerBookmarked": {
+    "message": "Bookmarked"
+  },
+  "viewerNotePlaceholder": {
+    "message": "Note for the report, e.g. “the timeout starts here”"
+  },
+  "viewerFields": {
+    "message": "Fields:"
+  },
+  "viewerFieldTitle": {
+    "message": "Most common values of {field} in the shown lines"
+  },
+  "viewerStatsHead": {
+    "message": "{field}: {n} of the shown entries have it"
+  },
+  "viewerShowOnly": {
+    "message": "Show only {filter}"
+  },
+  "viewerGroupItemTitle": {
+    "message": "Show only this error"
+  },
+  "viewerNoErrors": {
+    "message": "No errors in this log."
+  },
+  "viewerCouldNotOpen": {
+    "message": "Couldn’t open {name}: {error}"
+  },
+  "viewerFollowFailed": {
+    "message": "Follow: couldn’t read the page again ({error})"
+  },
+  "viewerLogReplaced": {
+    "message": "The log was replaced, not added to. Reload the page to see it."
+  },
+  "viewerAddedAsBefore": {
+    "message": "Added as “Before”. Open the other log and press Compare there."
+  },
+  "viewerCompareUnavailable": {
+    "message": "Compare isn’t available here"
+  },
+  "viewerLineLinkCopied": {
+    "message": "Link to line {n} copied"
+  },
+  "viewerNothingFound": {
+    "message": "Nothing found in the visible lines"
+  },
+  "viewerOnlyGroup": {
+    "message": "Only {group}"
+  },
+  "viewerRemoveHighlight": {
+    "message": "Remove this highlight"
+  },
+  "viewerSearching": {
+    "message": "Searching…"
+  },
+  "viewerStatus": {
+    "message": "{shown} / {total} lines"
+  },
+  "viewerGapTitle": {
+    "message": "Pause since the previous entry"
+  },
+  "viewerRepeatTitle": {
+    "message": "Similar consecutive lines"
+  },
+  "viewerLineLinkTitle": {
+    "message": "Copy a link to this line"
+  },
+  "viewerRegexTimeout": {
+    "message": "This regex took over {seconds}s and was stopped. Simplify it."
+  },
+  "regexNestedQuantifiers": {
+    "message": "Nested quantifiers like (a+)+ can freeze the page on some lines. Simplify the pattern."
+  },
+  "viewerPageTitle": {
+    "message": "Log viewer · Logbeam"
+  },
+  "viewerStartDrop": {
+    "message": "Drop a log file here"
+  },
+  "viewerStartChoose": {
+    "message": "or click to choose one: .log, .txt, .json, and gzip (.gz) too"
+  },
+  "viewerStartOr": {
+    "message": "or paste a log"
+  },
+  "viewerStartPlaceholder": {
+    "message": "Paste log lines here"
+  },
+  "viewerStartNote": {
+    "message": "Everything stays in your browser. Nothing is uploaded."
+  },
+  "viewerPastedLog": {
+    "message": "Pasted log"
+  },
+  "comparePageTitle": {
+    "message": "Compare · Logbeam"
+  },
+  "compareHeading": {
+    "message": "Compare"
+  },
+  "compareAs": {
+    "message": "Compare as"
+  },
+  "compareModeAuto": {
+    "message": "Auto"
+  },
+  "compareModeText": {
+    "message": "Text / log"
+  },
+  "compareIgnoreVolatile": {
+    "message": "Ignore timestamps, IDs and durations"
+  },
+  "compareIgnoreVolatileTitle": {
+    "message": "Timestamps, UUIDs, commit and trace IDs, durations like 3.2s"
+  },
+  "compareIgnoreSpace": {
+    "message": "Ignore whitespace"
+  },
+  "compareMask": {
+    "message": "Mask secrets"
+  },
+  "compareSwap": {
+    "message": "⇄ Swap"
+  },
+  "compareSwapTitle": {
+    "message": "Swap the two sides"
+  },
+  "compareClear": {
+    "message": "Clear"
+  },
+  "compareBefore": {
+    "message": "Before"
+  },
+  "compareAfter": {
+    "message": "After"
+  },
+  "compareOpenFile": {
+    "message": "Open file…"
+  },
+  "compareLeftPlaceholder": {
+    "message": "Paste or drop the first JSON document or log here"
+  },
+  "compareRightPlaceholder": {
+    "message": "…and the second one here"
+  },
+  "compareBeforeNotJson": {
+    "message": "Before isn’t valid JSON. Choose “Text / log” to compare it line by line."
+  },
+  "compareAfterNotJson": {
+    "message": "After isn’t valid JSON. Choose “Text / log” to compare it line by line."
+  },
+  "compareAsJson": {
+    "message": "Compared as JSON (key order ignored):"
+  },
+  "compareLineByLine": {
+    "message": "Compared line by line:"
+  },
+  "compareLines": {
+    "message": "lines"
+  },
+  "compareNoDifferences": {
+    "message": "No differences."
+  },
+  "compareApproximate": {
+    "message": "The texts differ a lot, so the changed part is shown as replaced."
+  },
+  "compareKind_added": {
+    "message": "added"
+  },
+  "compareKind_removed": {
+    "message": "removed"
+  },
+  "compareKind_changed": {
+    "message": "changed"
+  },
+  "compareShowAll": {
+    "message": "Show all {n} lines"
+  },
+  "compareBothEmpty": {
+    "message": "Both sides are empty."
+  },
+  "optionsPageTitle": {
+    "message": "Settings · Logbeam"
+  },
+  "optionsHeading": {
+    "message": "Logbeam settings"
+  },
+  "optionsSaved": {
+    "message": "Saved ✓"
+  },
+  "optionsLogViewer": {
+    "message": "Log viewer"
+  },
+  "optionsGapBefore": {
+    "message": "Show pauses between entries longer than"
+  },
+  "optionsGapAfter": {
+    "message": "seconds"
+  },
+  "optionsSecretPatterns": {
+    "message": "Your own secret patterns"
+  },
+  "optionsSecretHelp": {
+    "message": "Regular expressions for keys and tokens Logbeam doesn't know, such as an internal token format. The whole match is treated as the secret, or its first group if it has one:"
+  },
+  "optionsSecretUsedBy": {
+    "message": "They are used by the log viewer, Compare and \"Mask secrets\"."
+  },
+  "optionsAddPattern": {
+    "message": "Add pattern"
+  },
+  "optionsTryThem": {
+    "message": "Try them:"
+  },
+  "optionsTestPlaceholder": {
+    "message": "Paste a line with a secret"
+  },
+  "optionsPatternName": {
+    "message": "Name, e.g. Acme token"
+  },
+  "optionsPatternRegex": {
+    "message": "Regular expression"
+  },
+  "optionsRemovePattern": {
+    "message": "Remove"
+  },
+  "optionsMenu": {
+    "message": "Right-click menu"
+  },
+  "optionsMenuHelpBefore": {
+    "message": "Text tools to show under"
+  },
+  "optionsMenuHelpAfter": {
+    "message": "when you right-click selected text."
+  },
+  "optionsShortcuts": {
+    "message": "Keyboard shortcuts"
+  },
+  "optionsChangeShortcuts": {
+    "message": "Change the shortcuts"
+  },
+  "optionsShortcutsWhere": {
+    "message": "in the browser's settings."
+  },
+  "viewerPods_one": {
+    "message": "{n} pod"
+  },
+  "viewerPods_other": {
+    "message": "{n} pods"
+  },
+  "viewerDifferentErrors_one": {
+    "message": "{n} different error"
+  },
+  "viewerDifferentErrors_other": {
+    "message": "{n} different errors"
+  },
+  "viewerLinesSaved_one": {
+    "message": "{n} line saved"
+  },
+  "viewerLinesSaved_other": {
+    "message": "{n} lines saved"
+  },
+  "viewerLinesCopied_one": {
+    "message": "{n} line copied"
+  },
+  "viewerLinesCopied_other": {
+    "message": "{n} lines copied"
+  },
+  "viewerReportCopied_one": {
+    "message": "Report with {n} line copied"
+  },
+  "viewerReportCopied_other": {
+    "message": "Report with {n} lines copied"
+  },
+  "viewerNewLines_one": {
+    "message": "{n} new line"
+  },
+  "viewerNewLines_other": {
+    "message": "{n} new lines"
+  },
+  "viewerFieldConditions_one": {
+    "message": "{n} field condition"
+  },
+  "viewerFieldConditions_other": {
+    "message": "{n} field conditions"
+  },
+  "compareUnchanged_one": {
+    "message": "⋯ {n} unchanged line"
+  },
+  "compareUnchanged_other": {
+    "message": "⋯ {n} unchanged lines"
   }
 }
