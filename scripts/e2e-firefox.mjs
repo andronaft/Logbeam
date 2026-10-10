@@ -25,7 +25,7 @@ function check(name, ok, detail = '') {
 const E2E_HOOK = `
 browser.tabs.create({ url: browser.runtime.getURL('popup.html') });
 // only commands for this hook; other messages (e.g. Compare) are for the add-on itself
-browser.runtime.onMessage.addListener((msg) => (msg && msg.cmd ? handle(msg) : undefined));
+browser.runtime.onMessage.addListener((msg) => (msg && msg.cmd && msg.cmd !== 'page' ? handle(msg) : undefined));
 async function handle(msg) {
   // match patterns can't hold a port, so compare whole URLs
   const tab = msg.url && (await browser.tabs.query({})).find((t) => t.url === msg.url);
@@ -57,6 +57,40 @@ async function handle(msg) {
       return true;
   }
 }`;
+// Firefox's WebDriver can't touch moz-extension:// pages, so the test copy's own pages (popup,
+// Compare, viewer) get this helper, which runs steps sent through the bridge and answers.
+const E2E_PAGE = `
+browser.runtime.onMessage.addListener((msg) => {
+  if (!msg || msg.cmd !== 'page' || !location.href.includes(msg.page)) return undefined;
+  return run(msg.steps);
+});
+const find = (selector, text) =>
+  [...document.querySelectorAll(selector)].find((el) => text === undefined || el.textContent.trim() === text);
+async function waitFor(test) {
+  for (let i = 0; i < 100; i++) {
+    const value = test();
+    if (value) return value;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error('timed out');
+}
+async function run(steps) {
+  const results = [];
+  for (const step of steps) {
+    if (step.wait) await waitFor(() => find(step.wait));
+    else if (step.fill) {
+      const el = await waitFor(() => find(step.fill));
+      el.value = step.value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (step.click) (await waitFor(() => find(step.click, step.text))).click();
+    else if (step.text) results.push((await waitFor(() => find(step.text))).textContent);
+    else if (step.until) {
+      // the text of an element once it contains the expected part
+      results.push(await waitFor(() => { const t = find(step.until)?.textContent; return t && t.includes(step.contains) && t; }));
+    }
+  }
+  return results;
+}`;
 const E2E_BRIDGE = `
 window.addEventListener('message', (event) => {
   if (event.source !== window || !event.data || !event.data.e2eCommand) return;
@@ -80,6 +114,11 @@ manifest.content_scripts = [{ matches: ['http://localhost/e2e-bridge'], js: ['e2
 writeFileSync(path.join(addonDir, 'manifest.json'), JSON.stringify(manifest));
 writeFileSync(path.join(addonDir, 'e2e-hook.js'), E2E_HOOK);
 writeFileSync(path.join(addonDir, 'e2e-bridge.js'), E2E_BRIDGE);
+writeFileSync(path.join(addonDir, 'e2e-page.js'), E2E_PAGE);
+for (const page of ['popup.html', 'diff.html', 'viewer.html']) {
+  const file = path.join(addonDir, page);
+  writeFileSync(file, readFileSync(file, 'utf8').replace('<script ', '<script src="e2e-page.js"></script>\n    <script '));
+}
 const xpi = path.join(work, 'logbeam.xpi');
 execFileSync('zip', ['-r', '-q', xpi, '.'], { cwd: addonDir });
 
@@ -160,25 +199,23 @@ async function openPage(pagePath) {
 }
 
 const status = () => driver.findElement(By.css('.status')).getText();
+/** Runs steps on one of the add-on's own pages through E2E_PAGE; returns what they read. */
+const onPage = (page, steps) => command({ cmd: 'page', page, steps });
 
 try {
   await driver.installAddon(xpi, true);
   check('add-on installs', true);
 
-  // ---- popup --------------------------------------------------------------------------------
-  await driver.wait(async () => {
-    for (const handle of await driver.getAllWindowHandles()) {
-      await driver.switchTo().window(handle);
-      if ((await driver.getCurrentUrl()).startsWith('moz-extension://')) return handle;
-    }
-    return null;
-  }, 10_000);
-  await driver.wait(until.elementLocated(By.css('#transforms button')), 5000);
-  await driver.findElement(By.id('input')).sendKeys('0 */15 * * * *');
-  await driver.findElement(By.xpath('//button[normalize-space()="Explain cron"]')).click();
-  check('popup explains cron', (await driver.findElement(By.id('output')).getText()) === 'Every 15 minutes');
-
   ({ handle: bridgeHandle } = await openPage('/e2e-bridge'));
+
+  // ---- popup (opened in a tab by the test copy) ----------------------------------------------
+  const [cron] = await onPage('popup.html', [
+    { wait: '#transforms button' },
+    { fill: '#input', value: '0 */15 * * * *' },
+    { click: 'button', text: 'Explain cron' },
+    { until: '#output', contains: 'Every' },
+  ]);
+  check('popup explains cron', cron === 'Every 15 minutes', cron);
   const shortcuts = await command({ cmd: 'commands' });
   check(
     'shortcuts are assigned',
@@ -273,16 +310,8 @@ try {
   // ---- compare ------------------------------------------------------------------------------
   check('first text goes to Before', (await command({ cmd: 'compare', text: 'a\nb\nc', name: 'one' })) === 'left');
   check('second text goes to After', (await command({ cmd: 'compare', text: 'a\nB\nc', name: 'two' })) === 'right');
-  const compareHandle = await driver.wait(async () => {
-    for (const handle of await driver.getAllWindowHandles()) {
-      await driver.switchTo().window(handle);
-      if ((await driver.getCurrentUrl()).endsWith('/diff.html')) return handle;
-    }
-    return null;
-  }, 10_000);
-  check('the Compare page opens', Boolean(compareHandle));
-  const summary = await driver.wait(until.elementLocated(By.css('#summary:not([hidden])')), 5000);
-  check('it shows the difference', (await summary.getText()).includes('+1 −1'), await summary.getText());
+  const [summary] = await onPage('diff.html', [{ until: '#summary', contains: '+1' }]);
+  check('the Compare page opens and shows the difference', summary.includes('+1 −1'), summary);
 
   // ---- fields, pods ---------------------------------------------------------------------------
   const fieldsPage = await openPage('/fields.log');
@@ -302,19 +331,14 @@ try {
 
   // ---- the viewer page for pasted text ---------------------------------------------------------
   await command({ cmd: 'paste', text: 'INFO one\nERROR two timeout\nINFO three missing' });
-  const viewerHandle = await driver.wait(async () => {
-    for (const handle of await driver.getAllWindowHandles()) {
-      await driver.switchTo().window(handle);
-      if ((await driver.getCurrentUrl()).includes('/viewer.html?id=')) return handle;
-    }
-    return null;
-  }, 10_000);
-  check('pasted text opens in the viewer page', Boolean(viewerHandle));
-  await driver.wait(until.elementLocated(By.css('.row')), 10_000);
-  await driver.findElement(By.xpath('//*[contains(@class,"toggle") and normalize-space()=".*"]')).click();
-  await driver.findElement(By.css('.search')).sendKeys('timeout|missing');
-  await driver.wait(async () => (await status()).startsWith('2 /'), 5000).catch(() => undefined);
-  check('regex search works on the extension page (worker from a file)', (await status()) === '2 / 3 lines', await status());
+  const [opened, searched] = await onPage('viewer.html?id=', [
+    { until: '.status', contains: '/ 3 lines' },
+    { click: '.toggle', text: '.*' },
+    { fill: '.search', value: 'timeout|missing' },
+    { until: '.status', contains: '2 /' },
+  ]);
+  check('pasted text opens in the viewer page', opened === '3 / 3 lines', opened);
+  check('regex search works on the extension page (worker from a file)', searched === '2 / 3 lines', searched);
 } catch (error) {
   check('test run', false, error.stack);
 } finally {
