@@ -26,17 +26,17 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
-    "@types/chrome": "^0.0.287",
-    "esbuild": "^0.24.0",
+    "@types/chrome": "^0.3.5",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "gifenc": "^1.0.3",
     "globals": "^15.15.0",
-    "playwright": "^1.56.1",
+    "playwright": "^1.64.0",
     "pngjs": "^7.0.0",
-    "prettier": "^3.9.9",
-    "selenium-webdriver": "^4.50.0",
+    "prettier": "^3.9.10",
+    "selenium-webdriver": "^4.51.0",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.71.0",
+    "typescript-eslint": "^8.71.1",
     "vitest": "^2.1.8",
     "web-ext": "^10.7.0"
   }
