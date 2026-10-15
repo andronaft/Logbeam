@@ -25,8 +25,8 @@ jobs:
       AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
       AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -53,7 +53,7 @@ jobs:
         run: |
           version=$VERSION
           awk "/^## \\[?$version\\]?/{flag=1; next} /^## /{flag=0} flag" CHANGELOG.md > notes.md
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         id: github-release
         with:
           tag_name: ${{ env.TAG }}
