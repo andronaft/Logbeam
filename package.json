@@ -37,7 +37,7 @@
     "selenium-webdriver": "^4.51.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1",
-    "vitest": "^2.1.8",
+    "vitest": "^5.0.4",
     "web-ext": "^10.7.0"
   }
 }
