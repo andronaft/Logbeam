@@ -198,6 +198,14 @@ await page.locator('.toggle', { hasText: '.*' }).click();
 await page.waitForTimeout(300);
 check('regex search', (await status()) === '2 / 65 lines', await status());
 check('matches highlighted', (await page.locator('.match').count()) === 3);
+
+await page.locator('select.context').selectOption('2');
+await page.waitForTimeout(300);
+check('search with context status still counts matches', (await status()) === '2 / 65 lines', await status());
+check('context lines are displayed and dimmed', (await page.locator('.row.context').count()) > 0);
+await page.locator('select.context').selectOption('0');
+await page.waitForTimeout(300);
+
 await page.locator('.search').fill('');
 await page.locator('.toggle', { hasText: '.*' }).click();
 await page.locator('.chip.lvl-INFO').click();

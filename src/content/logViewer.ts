@@ -68,6 +68,7 @@ interface State {
   query: string;
   regex: boolean;
   caseSensitive: boolean;
+  context: number;
   collapse: boolean;
   showGaps: boolean;
   maskSecrets: boolean;
@@ -230,6 +231,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     query: '',
     regex: false,
     caseSensitive: false,
+    context: 0,
     collapse: false,
     showGaps: true,
     maskSecrets: false,
@@ -319,6 +321,22 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     false,
     () => (state.caseSensitive = !state.caseSensitive),
   );
+  const contextSelect = el(
+    'select',
+    {
+      className: 'toggle context',
+      title: t('viewerContextTitle', 'Show a few lines around each search match (like grep -C)'),
+    },
+    el('option', { value: '0' }, t('viewerContext0', 'Context: 0')),
+    el('option', { value: '2' }, t('viewerContext2', 'Context: 2')),
+    el('option', { value: '5' }, t('viewerContext5', 'Context: 5')),
+    el('option', { value: '10' }, t('viewerContext10', 'Context: 10')),
+  );
+  contextSelect.addEventListener('change', () => {
+    state.context = Number(contextSelect.value);
+    contextSelect.classList.toggle('on', state.context > 0);
+    void refresh();
+  });
   const collapseToggle = toggleButton(
     t('viewerCollapse', 'Collapse'),
     t('viewerCollapseTitle', 'Collapse repeated lines (×N)'),
@@ -495,7 +513,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     chip('DEBUG', 'Debug'),
     chip('TRACE', 'Trace'),
     chip('UNKNOWN', t('viewerOtherLevel', 'Other')),
-    el('span', { className: 'group' }, search, highlightButton, regexToggle, caseToggle),
+    el('span', { className: 'group' }, search, highlightButton, regexToggle, caseToggle, contextSelect),
     collapseToggle,
     gapsToggle,
     timelineToggle,
@@ -1316,11 +1334,13 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     let filtered: LogLine[];
     if (error) {
       filtered = [];
-    } else if (mask) {
-      const matches = mask;
-      filtered = filterLines(base, { ...state, query: '' }).filter((l) => matches[l.number - 1] === 1);
     } else {
-      filtered = filterLines(base, { ...state, query: fieldMode ? '' : state.query });
+      filtered = filterLines(base, {
+        ...state,
+        query: fieldMode ? '' : state.query,
+        mask: mask ?? undefined,
+        context: state.context,
+      });
     }
     // a search or an error group looks inside closed sections too
     if (groups.length > 0 && !state.query && !state.group) filtered = foldGroups(filtered, groups, openGroups);
@@ -1329,10 +1349,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const conditionNote = conditions
       ? ` · ${tn('viewerFieldConditions', conditions.length, '{n} field condition', '{n} field conditions')}`
       : '';
+    const matchCount = state.query || mask ? filtered.filter((l) => !l.isContext).length : visible.length;
     status.textContent =
       error ||
       t('viewerStatus', '{shown} / {total} lines', {
-        shown: visible.length.toLocaleString(),
+        shown: matchCount.toLocaleString(),
         total: allLines.length.toLocaleString(),
       }) + conditionNote;
     renderSubbar();
@@ -1355,6 +1376,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         const classes = ['row', `lvl-${line.level ?? 'UNKNOWN'}`];
         if (line.continuation) classes.push('cont');
         if (line.secret) classes.push('has-secret');
+        if (line.isContext) classes.push('context');
+        if (line.gapAbove) classes.push('gap-above');
         if (line.number === state.selected) classes.push('selected');
         if (state.bookmarks.has(line.number)) classes.push('bookmarked');
         const row = el('div', { className: classes.join(' ') });

@@ -227,6 +227,21 @@
   "viewerCaseTitle": {
     "message": "Match case"
   },
+  "viewerContextTitle": {
+    "message": "Show a few lines around each search match (like grep -C)"
+  },
+  "viewerContext0": {
+    "message": "Context: 0"
+  },
+  "viewerContext2": {
+    "message": "Context: 2"
+  },
+  "viewerContext5": {
+    "message": "Context: 5"
+  },
+  "viewerContext10": {
+    "message": "Context: 10"
+  },
   "viewerCollapse": {
     "message": "Collapse"
   },

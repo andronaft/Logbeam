@@ -148,6 +148,75 @@ describe('filterLines', () => {
     expect(filterLines(lines, { ...all, query: 'SpringApplication\\.java:\\d+', regex: true })).toHaveLength(2);
     expect(() => filterLines(lines, { ...all, query: '([', regex: true })).toThrow(SyntaxError);
   });
+
+  describe('context lines', () => {
+    const testLines = parseLog(
+      [
+        'line 0 MATCH_START',
+        'line 1',
+        'line 2',
+        'line 3 MATCH_A',
+        'line 4',
+        'line 5 MATCH_B',
+        'line 6',
+        'line 7',
+        'line 8',
+        'line 9',
+        'line 10 MATCH_C',
+        'line 11',
+        'line 12 MATCH_END',
+      ].join('\n'),
+    );
+
+    it('returns only matching lines when context is 0', () => {
+      const result = filterLines(testLines, { ...all, query: 'MATCH_A', context: 0 });
+      expect(result).toHaveLength(1);
+      expect(result[0].text).toBe('line 3 MATCH_A');
+      expect(result[0].isContext).toBeUndefined();
+    });
+
+    it('handles matches at the start of the log with clamped context', () => {
+      const result = filterLines(testLines, { ...all, query: 'MATCH_START', context: 2 });
+      expect(result.map((l) => l.text)).toEqual(['line 0 MATCH_START', 'line 1', 'line 2']);
+      expect(result[0].isContext).toBe(false);
+      expect(result[1].isContext).toBe(true);
+      expect(result[2].isContext).toBe(true);
+      expect(result[0].gapAbove).toBeUndefined();
+    });
+
+    it('handles matches at the end of the log with clamped context', () => {
+      const result = filterLines(testLines, { ...all, query: 'MATCH_END', context: 2 });
+      expect(result.map((l) => l.text)).toEqual(['line 10 MATCH_C', 'line 11', 'line 12 MATCH_END']);
+      expect(result[0].isContext).toBe(true);
+      expect(result[1].isContext).toBe(true);
+      expect(result[2].isContext).toBe(false);
+      expect(result[0].gapAbove).toBeUndefined();
+    });
+
+    it('merges overlapping groups cleanly without duplicate lines', () => {
+      const result = filterLines(testLines, { ...all, query: 'MATCH_A|MATCH_B', regex: true, context: 2 });
+      expect(result.map((l) => l.text)).toEqual([
+        'line 1',
+        'line 2',
+        'line 3 MATCH_A',
+        'line 4',
+        'line 5 MATCH_B',
+        'line 6',
+        'line 7',
+      ]);
+      expect(result.map((l) => l.isContext)).toEqual([true, true, false, true, false, true, true]);
+      expect(result.some((l) => l.gapAbove)).toBe(false);
+    });
+
+    it('marks a thin separator gap between disjoint groups', () => {
+      const result = filterLines(testLines, { ...all, query: 'MATCH_A|MATCH_C', regex: true, context: 1 });
+      expect(result.map((l) => l.text)).toEqual(['line 2', 'line 3 MATCH_A', 'line 4', 'line 9', 'line 10 MATCH_C', 'line 11']);
+      expect(result[0].gapAbove).toBeUndefined();
+      expect(result[3].gapAbove).toBe(true);
+      expect(result[3].text).toBe('line 9');
+      expect(result.map((l) => l.isContext)).toEqual([true, false, true, true, false, true]);
+    });
+  });
 });
 
 describe('collapseRepeats', () => {
