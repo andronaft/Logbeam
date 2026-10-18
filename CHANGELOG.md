@@ -8,6 +8,8 @@
   page for pasted text and files. Counts use the right plural form (`1 рядок`, `3 рядки`, `5 рядків`)
   (#1, translated by @o-shpatakovska in #7).
 - **Move between lines** with `j` / `k`, and to the first or last line with `g` / `G` (#8, thanks @Zekuath).
+- **Context around search matches**, like `grep -C`: show 2, 5 or 10 lines before and after each match, dimmed,
+  with a line between groups; the status line still counts the matches (#9, thanks @Zekuath).
 - **Export the JSON table as CSV**: with **Table** on, **Save** downloads the shown rows with the chosen columns
   (#12, thanks @Zekuath). Cells that a spreadsheet would run as a formula (`=…`, `+…`, `@…`) are made plain text.
 
