@@ -227,6 +227,21 @@
   "viewerCaseTitle": {
     "message": "Враховувати регістр"
   },
+  "viewerContextTitle": {
+    "message": "Показувати рядки контексту навколо кожного збігу (як grep -C)"
+  },
+  "viewerContext0": {
+    "message": "Контекст: 0"
+  },
+  "viewerContext2": {
+    "message": "Контекст: 2"
+  },
+  "viewerContext5": {
+    "message": "Контекст: 5"
+  },
+  "viewerContext10": {
+    "message": "Контекст: 10"
+  },
   "viewerCollapse": {
     "message": "Згорнути"
   },

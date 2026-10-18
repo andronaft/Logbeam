@@ -53,11 +53,13 @@ body { display: flex; flex-direction: column; font: 13px/1.4 ui-sans-serif, syst
   padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border);
 }
 .brand { color: var(--accent); font-weight: 700; margin-right: 6px; }
-button {
+button, select.toggle {
   font: inherit; color: var(--fg); background: var(--bg-alt); cursor: pointer;
   border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px;
 }
-button:hover { border-color: var(--accent); }
+button:hover, select.toggle:hover { border-color: var(--accent); }
+select.toggle { padding: 3px 6px; }
+select.toggle:focus { outline: none; border-color: var(--accent); }
 .toggle.on { background: var(--on); border-color: var(--accent); }
 .chip { opacity: .45; }
 .chip.on { opacity: 1; }
@@ -105,6 +107,10 @@ button:hover { border-color: var(--accent); }
 .row.has-secret .ln::before { content: "🔑"; font-size: 10px; margin-right: 4px; }
 .row { cursor: default; }
 .row.selected, .row.selected .ln { background: var(--selected) !important; }
+.row.context { opacity: .55; }
+.row.context:hover { opacity: .85; }
+.row.context.selected { opacity: 1; }
+.row.gap-above { border-top: 1px solid var(--border); }
 .ln { cursor: pointer; }
 .ln:hover { color: var(--accent); text-decoration: underline; }
 .toggle.secrets { color: var(--error); border-color: var(--error); }

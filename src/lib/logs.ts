@@ -27,6 +27,10 @@ export interface LogLine {
   source: string | null;
   /** Colours from ANSI escape codes, which are taken out of the text. */
   ansi: AnsiSpan[] | null;
+  /** Shown only as context around a search match, not because it matched the search itself. */
+  isContext?: boolean;
+  /** True when there is a gap (skipped lines) between this line and the previous shown group. */
+  gapAbove?: boolean;
 }
 
 /** The user's own level words from the settings, e.g. ALERT → ERROR. */
@@ -563,6 +567,10 @@ export interface FilterOptions {
   query: string;
   regex: boolean;
   caseSensitive: boolean;
+  /** How many lines before and after each search match to include (like grep -C). */
+  context?: number;
+  /** Match mask from the background regex worker: 1 for a match, 0 for not. */
+  mask?: Uint8Array;
 }
 
 /** Builds the search predicate; throws SyntaxError for an invalid regex so the UI can show it. */
@@ -581,11 +589,69 @@ export function buildMatcher(
 }
 
 export function filterLines(lines: LogLine[], options: FilterOptions): LogLine[] {
-  const matches = buildMatcher(options);
-  return lines.filter((line) => {
+  const matcher = buildMatcher(options);
+  const context = Math.max(0, Math.floor(options.context ?? 0));
+
+  const isMatch = (line: LogLine): boolean => {
     const levelOk = line.level === null ? options.includeUnknown : options.levels.has(line.level);
-    return levelOk && (matches === null || matches(line.text));
-  });
+    if (!levelOk) return false;
+    if (options.mask) return options.mask[line.number - 1] === 1;
+    return matcher === null || matcher(line.text);
+  };
+
+  if (context === 0 || (!options.query && !options.mask)) {
+    return lines.filter(isMatch);
+  }
+
+  const matchIndices: number[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (isMatch(lines[i])) {
+      matchIndices.push(i);
+    }
+  }
+
+  if (matchIndices.length === 0) {
+    return [];
+  }
+
+  const groups: Array<{ from: number; to: number }> = [];
+  let curFrom = Math.max(0, matchIndices[0] - context);
+  let curTo = Math.min(lines.length - 1, matchIndices[0] + context);
+
+  for (let k = 1; k < matchIndices.length; k++) {
+    const idx = matchIndices[k];
+    const from = Math.max(0, idx - context);
+    const to = Math.min(lines.length - 1, idx + context);
+
+    if (from <= curTo + 1) {
+      curTo = Math.max(curTo, to);
+    } else {
+      groups.push({ from: curFrom, to: curTo });
+      curFrom = from;
+      curTo = to;
+    }
+  }
+  groups.push({ from: curFrom, to: curTo });
+
+  const matchSet = new Set(matchIndices);
+  const result: LogLine[] = [];
+
+  for (let g = 0; g < groups.length; g++) {
+    const group = groups[g];
+    for (let i = group.from; i <= group.to; i++) {
+      const line = lines[i];
+      const isDirectMatch = matchSet.has(i);
+      const isGap = g > 0 && i === group.from;
+
+      result.push({
+        ...line,
+        isContext: !isDirectMatch,
+        ...(isGap ? { gapAbove: true } : {}),
+      });
+    }
+  }
+
+  return result;
 }
 
 export interface CollapsedLine extends LogLine {
