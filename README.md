@@ -42,7 +42,8 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Levels in colour** (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`) with counters and one-click filters
 - **Stack traces stay with their error**: Java `at …` / `Caused by:`, Python tracebacks and Go goroutines are
   grouped with the entry above, so filtering by `ERROR` shows the whole trace
-- **Search** as plain text or **regex**, case-sensitive if you like, with highlighted matches
+- **Search** as plain text or **regex**, case-sensitive if you like, with highlighted matches and, like `grep -C`,
+  a few lines of context around each match
 - **JSON logs** (Logback/Logstash, pino, bunyan, zap…) shown as `time LEVEL message {fields}`, including
   records pretty-printed over several lines
 - **Filter by fields**: `level=error service=payments duration>500`, on JSON logs and `key=value` lines alike,
@@ -58,7 +59,7 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
   for numbers and durations also min, median, p95, p99 and max (`took: p95 1.2s`), one click to see the slow ones
 - **Error groups**: each different error once, with its count, pods and first and last time
 - **Follow** a log that is still being written: new lines are added every 3 seconds
-- **JSON table** with the columns you choose, and **local time** instead of UTC
+- **JSON table** with the columns you choose, saved as **CSV**, and **local time** instead of UTC
 - **GitHub Actions sections**: `##[group]` steps folded like in GitHub, the ones with errors open
 - **ANSI colours** from CI and Docker logs, **your own level words** (`ALERT` → ERROR), and a **light theme**
 - **Compare** this log with another one, e.g. a passing and a failing CI run, with the **new errors** listed
@@ -68,7 +69,8 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Error timeline**: a histogram of entries, errors and warnings over time; click a bar to jump there
 - **Line inspector**: click a line to read it in full, with its time, pause and, for JSON records, all fields
 - **Links to lines**: click a line number to copy a `#L120` link that opens the viewer right on that line
-- **Next error** (`e`), search (`/`), copy visible lines, back to raw; `?` lists all the keys
+- **Keyboard**: next error (`e`), search (`/`), `j` / `k` between lines, `g` / `G` to the first or last; `?` lists
+  all the keys
 - **Open automatically** on sites you choose (opt-in per site, only plain-text pages that look like logs)
 - Fast on **150k+ lines**: logs over 1 MB are parsed in a **Web Worker** with a progress bar, and only the
   rows on screen are in the DOM
@@ -254,10 +256,10 @@ src/
 - [x] Multi-line JSON log records
 - [x] Firefox build
 - [x] ANSI colours, your own level words, light theme, percentiles for durations
-- [ ] Ukrainian for the log viewer, Compare and Settings ([#1](https://github.com/andronaft/Logbeam/issues/1))
+- [x] Ukrainian for the log viewer, Compare and Settings, `j` / `k`, context around matches, CSV (thanks to our
+      first contributors)
 - [ ] More languages ([#2](https://github.com/andronaft/Logbeam/issues/2))
-- [ ] `j` / `k` between lines, context around matches, filters in the link, line ranges
-      ([good first issues and more](https://github.com/andronaft/Logbeam/issues))
+- [ ] Filters in the link, line ranges ([open issues](https://github.com/andronaft/Logbeam/issues))
 
 ## Contributing
 
