@@ -884,5 +884,38 @@
   },
   "optionsThemeLight": {
     "message": "Світла"
+  },
+  "viewerTrace": {
+    "message": "Простежити:"
+  },
+  "viewerTraceTitle": {
+    "message": "Показати всі рядки з {id} у всіх подах"
+  },
+  "viewerTraceEntries_one": {
+    "message": "{n} запис"
+  },
+  "viewerTraceEntries_few": {
+    "message": "{n} записи"
+  },
+  "viewerTraceEntries_many": {
+    "message": "{n} записів"
+  },
+  "viewerTraceEntries_other": {
+    "message": "{n} запису"
+  },
+  "viewerTracePods_one": {
+    "message": "{n} под"
+  },
+  "viewerTracePods_few": {
+    "message": "{n} поди"
+  },
+  "viewerTracePods_many": {
+    "message": "{n} подів"
+  },
+  "viewerTracePods_other": {
+    "message": "{n} пода"
+  },
+  "viewerTraceOver": {
+    "message": "за {time}"
   }
 }

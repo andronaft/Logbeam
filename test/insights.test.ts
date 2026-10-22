@@ -11,10 +11,12 @@ import {
   formatTime,
   groupErrors,
   isMostlyJson,
+  lineIds,
   lineFields,
   localizeTimestamp,
   numericStats,
   tableCells,
+  traceId,
   quoteCsv,
   toCsv,
 } from '../src/lib/insights';
@@ -325,5 +327,39 @@ describe('GitHub Actions groups', () => {
     expect(shown).toEqual([1, 5, 6, 7, 8, 10]);
     expect(foldGroups(log, groups, new Set(groups.map((g) => g.start)))).toHaveLength(log.length);
     expect(foldGroups(log, [], new Set())).toBe(log);
+  });
+});
+
+describe('following one request', () => {
+  const log = parseLog(
+    [
+      '[pod/api-1/app] 2026-10-04T10:00:00Z INFO GET /orders/7781 traceId=4bf92f3577b34da6a3ce929d0e0e4736 userId=42',
+      '[pod/payments-2/app] 2026-10-04T10:00:01Z WARN charge slow trace_id=4bf92f3577b34da6a3ce929d0e0e4736 took=900ms',
+      '[pod/payments-2/app] 2026-10-04T10:00:03Z ERROR charge failed for 4bf92f3577b34da6a3ce929d0e0e4736',
+      '\tat Pay.charge(Pay.java:42)',
+      '[pod/api-1/app] 2026-10-04T10:00:04Z INFO GET /orders/1420 traceId=00f067aa0ba902b7aaaaaaaaaaaaaaaa userId=1420',
+      '{"time":"2026-10-04T10:00:05Z","level":"info","msg":"done","request_id":"550e8400-e29b-41d4-a716-446655440000"}',
+    ].join('\n'),
+  );
+
+  it('finds ID fields, UUIDs and trace IDs in a line', () => {
+    expect(lineIds(log[0])).toEqual([
+      { key: 'traceId', value: '4bf92f3577b34da6a3ce929d0e0e4736' },
+      { key: 'userId', value: '42' },
+    ]);
+    expect(lineIds(log[2])).toEqual([{ key: 'trace', value: '4bf92f3577b34da6a3ce929d0e0e4736' }]);
+    expect(lineIds(log[5])).toEqual([{ key: 'request_id', value: '550e8400-e29b-41d4-a716-446655440000' }]);
+    expect(lineIds(log[3])).toEqual([]);
+  });
+
+  it('traces an ID across pods, as whole tokens only', () => {
+    expect(traceId(log, '4bf92f3577b34da6a3ce929d0e0e4736')).toEqual({
+      entries: 3,
+      sources: ['api-1/app', 'payments-2/app'],
+      first: Date.UTC(2026, 9, 4, 10, 0, 0),
+      last: Date.UTC(2026, 9, 4, 10, 0, 3),
+    });
+    // userId=42 must not match /orders/1420 or Pay.java:42 in a stack frame
+    expect(traceId(log, '42').entries).toBe(1);
   });
 });

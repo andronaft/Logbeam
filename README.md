@@ -57,6 +57,7 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Bookmarks and notes** (`m`, `b`): **Report** copies them as Markdown for a ticket, with times and links
 - **Field statistics**: the most common values of a field (`status: 200 ×1520, 502 ×37`), one click to filter;
   for numbers and durations also min, median, p95, p99 and max (`took: p95 1.2s`), one click to see the slow ones
+- **Follow one request**: click a `traceId`, `request_id` or UUID in a line to see that request in every pod
 - **Error groups**: each different error once, with its count, pods and first and last time
 - **Follow** a log that is still being written: new lines are added every 3 seconds
 - **JSON table** with the columns you choose, saved as **CSV**, and **local time** instead of UTC

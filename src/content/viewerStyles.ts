@@ -199,6 +199,8 @@ select.toggle:focus { outline: none; border-color: var(--accent); }
 /* field statistics */
 .fields { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
 .field { font: 12px ui-monospace, Menlo, Consolas, monospace; padding: 1px 7px; }
+.trace-id { font: 12px ui-monospace, Menlo, Consolas, monospace; padding: 1px 7px; color: var(--info); }
+.trace-id .name { color: var(--muted); }
 .stats { margin-top: 6px; display: grid; gap: 2px; max-width: 720px; }
 .stats-head { color: var(--muted); margin-bottom: 2px; }
 .stat {

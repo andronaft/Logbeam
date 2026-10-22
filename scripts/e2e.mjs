@@ -94,7 +94,16 @@ const actionsLog = [
   '2026-10-04T10:00:05.2000000Z ##[endgroup]',
   '2026-10-04T10:00:06.0000000Z ##[error]Process completed with exit code 1.',
 ].join('\n');
+// one request through three pods, next to another request
+const traceLog = [
+  '[pod/api-6f9c/app] 2026-10-04T10:00:00.120Z INFO GET /orders/7781 traceId=4bf92f3577b34da6a3ce929d0e0e4736 userId=42',
+  '[pod/api-6f9c/app] 2026-10-04T10:00:00.300Z INFO GET /orders/1420 traceId=00f067aa0ba902b7c3d2e1f0a9b8c7d6 userId=7',
+  '[pod/payments-2kx/app] 2026-10-04T10:00:01.050Z WARN charge slow trace_id=4bf92f3577b34da6a3ce929d0e0e4736 took=900ms',
+  '[pod/ledger-9q1/app] 2026-10-04T10:00:02.400Z ERROR write failed for trace 4bf92f3577b34da6a3ce929d0e0e4736',
+  '[pod/api-6f9c/app] 2026-10-04T10:00:02.500Z INFO GET /health',
+].join('\n');
 const plainPages = {
+  '/trace.log': traceLog,
   '/actions.log': actionsLog,
   '/jenkins.log': jenkinsLog,
   '/ansi.log': ansiLog,
@@ -319,6 +328,35 @@ await actions.locator('.search').fill('packages');
 await actions.waitForTimeout(300);
 check('search looks inside closed sections', (await actionsStatus()).startsWith('1 / 14'), await actionsStatus());
 await actions.close();
+
+// ---- following one request across pods ------------------------------------------------------
+const trace = await context.newPage();
+watch(trace);
+await trace.goto(`${base}/trace.log`);
+await trace.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await trace.waitForSelector('.row');
+await trace.locator('.row[data-number="1"] .txt').click();
+const idChips = (await trace.locator('.inspector .trace-id').allTextContents()).join(' | ');
+check('the inspector offers the IDs of a line', idChips === 'traceId 4bf92f3577b34da6a3ce929d0e0e4736 | userId 42', idChips);
+await trace.locator('.inspector .trace-id').first().click();
+await trace.waitForTimeout(300);
+check(
+  'following a trace ID shows its lines in every pod',
+  (await trace.locator('.status').textContent()).startsWith('3 /') &&
+    (await trace.locator('.toast').textContent()) === '3 entries · 3 pods · over 2.2s',
+  `${await trace.locator('.status').textContent()} · ${await trace.locator('.toast').textContent()}`,
+);
+await trace.screenshot({ path: 'docs/trace.png' });
+// the line stays selected, so its IDs are still in the inspector
+await trace.locator('.inspector .trace-id', { hasText: 'userId' }).click();
+await trace.waitForTimeout(300);
+check(
+  'a short ID is followed as its field, not inside other numbers',
+  (await trace.locator('.search').inputValue()) === 'userId=42' &&
+    (await trace.locator('.status').textContent()).startsWith('1 /'),
+  `${await trace.locator('.search').inputValue()} · ${await trace.locator('.status').textContent()}`,
+);
+await trace.close();
 
 // ---- link to a line -----------------------------------------------------------------------
 const linked = await context.newPage();

@@ -219,6 +219,62 @@ export function diffErrors(before: LogLine[], after: LogLine[]): ErrorDiff {
   };
 }
 
+// ---- following one request ---------------------------------------------------------------
+
+export interface LineId {
+  /** The field it came from (traceId, request_id), or "id" for one found in the text. */
+  key: string;
+  value: string;
+}
+
+// fields that name one request, job or user across services: traceId, request_id, x-request-id, orderId…
+const ID_KEY = /^(?:x[_.-]?)?(?:trace|span|request|req|correlation|transaction|txn|session|order|job|user|tenant)[_.-]?id$/i;
+const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+// W3C trace IDs (32 hex) and the trace part of a traceparent header
+const TRACE_HEX = /\b(?=[0-9a-f]*[a-f])[0-9a-f]{32}\b/gi;
+const MAX_IDS = 6;
+
+/** The IDs in a line that other lines of the same request would carry: ID fields, UUIDs, trace IDs. */
+export function lineIds(line: LogLine): LineId[] {
+  const ids: LineId[] = [];
+  const add = (key: string, value: string | undefined) => {
+    const v = value?.trim();
+    if (!v || v.length < 2 || v.length > 100 || ids.some((id) => id.value === v)) return;
+    ids.push({ key, value: v });
+  };
+  for (const key of lineFields(line)) if (ID_KEY.test(key)) add(key, fieldValue(line, key));
+  const text = splitSource(line.text).rest;
+  for (const match of text.matchAll(UUID)) add('id', match[0]);
+  for (const match of text.matchAll(TRACE_HEX)) add('trace', match[0]);
+  return ids.slice(0, MAX_IDS);
+}
+
+export interface IdTrace {
+  /** Entries that mention the ID (stack-trace lines go with their entry). */
+  entries: number;
+  sources: string[];
+  first: number | null;
+  last: number | null;
+}
+
+/** Where an ID appears in the whole log: how many entries, in which pods, over how long. */
+export function traceId(lines: LogLine[], value: string): IdTrace {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // whole tokens only: user 42 shouldn't find 1420
+  const re = new RegExp(`(?<![\\w-])${escaped}(?![\\w-])`);
+  const trace: IdTrace = { entries: 0, sources: [], first: null, last: null };
+  for (const line of lines) {
+    if (line.continuation || !line.text.includes(value) || !re.test(line.text)) continue;
+    trace.entries++;
+    if (line.source !== null && !trace.sources.includes(line.source)) trace.sources.push(line.source);
+    if (line.time !== null) {
+      trace.first = trace.first === null ? line.time : Math.min(trace.first, line.time);
+      trace.last = trace.last === null ? line.time : Math.max(trace.last, line.time);
+    }
+  }
+  return trace;
+}
+
 // ---- GitHub Actions groups ---------------------------------------------------------------
 
 export interface LogGroup {

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Follow one request.** Click a line and the inspector offers its IDs: `traceId`, `request_id`, `orderId`,
+  UUIDs and W3C trace IDs. Click one to see every line of that request across pods and services, with a
+  summary like "3 entries · 3 pods · over 2.2s". Short IDs (`userId=42`) are followed as their field, so they
+  don't match inside other numbers.
+
 ## 0.9.0
 
 ### Added

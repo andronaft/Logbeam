@@ -818,5 +818,26 @@
   },
   "optionsThemeLight": {
     "message": "Light"
+  },
+  "viewerTrace": {
+    "message": "Follow:"
+  },
+  "viewerTraceTitle": {
+    "message": "Show every line with {id}, in all pods"
+  },
+  "viewerTraceEntries_one": {
+    "message": "{n} entry"
+  },
+  "viewerTraceEntries_other": {
+    "message": "{n} entries"
+  },
+  "viewerTracePods_one": {
+    "message": "{n} pod"
+  },
+  "viewerTracePods_other": {
+    "message": "{n} pods"
+  },
+  "viewerTraceOver": {
+    "message": "over {time}"
   }
 }

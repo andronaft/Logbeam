@@ -27,11 +27,14 @@ import {
   formatTime,
   groupErrors,
   isMostlyJson,
+  LineId,
   lineFields,
+  lineIds,
   localizeTimestamp,
   numericStats,
   tableCells,
   toCsv,
+  traceId,
 } from '../lib/insights';
 import { findSecrets, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
 import { loadSettings, saveSettings } from '../shared/settings';
@@ -729,6 +732,25 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       });
       parts.push(note);
     }
+    const ids = lineIds(line);
+    if (ids.length > 0) {
+      const chips = ids.map((id) => {
+        const chip = el(
+          'button',
+          {
+            className: 'trace-id',
+            title: t('viewerTraceTitle', 'Show every line with {id}, in all pods', { id: id.value }),
+          },
+          el('span', { className: 'name' }, id.key),
+          ` ${id.value.length > 40 ? `${id.value.slice(0, 18)}…${id.value.slice(-8)}` : id.value}`,
+        );
+        chip.addEventListener('click', () => followId(id));
+        return chip;
+      });
+      parts.push(
+        el('div', { className: 'fields' }, el('span', { className: 'facts' }, `${t('viewerTrace', 'Follow:')} `), ...chips),
+      );
+    }
     const keys = lineFields(line);
     if (keys.length > 0) {
       const statsBox = el('div', { className: 'stats' });
@@ -754,6 +776,26 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       parts.push(el('pre', { className: 'json' }, state.maskSecrets ? maskSecrets(json) : json));
     }
     inspector.replaceChildren(...parts);
+  }
+
+  /**
+   * Shows every line of one request across pods and services: the ID as plain text, so traceId=…,
+   * trace_id=… and the bare ID in a message all match. A short value (user 42) would match inside
+   * other numbers as text, so it is searched as its field instead.
+   */
+  function followId(id: LineId): void {
+    const trace = traceId(allLines, id.value);
+    if (state.regex) regexToggle.click();
+    const asText = id.value.length >= 6 || id.key === 'id' || id.key === 'trace';
+    search.value = asText ? id.value : `${id.key}=${/[\s"]/.test(id.value) ? JSON.stringify(id.value) : id.value}`;
+    state.query = search.value;
+    void refresh();
+    const parts = [tn('viewerTraceEntries', trace.entries, '{n} entry', '{n} entries')];
+    if (trace.sources.length > 1) parts.push(tn('viewerTracePods', trace.sources.length, '{n} pod', '{n} pods'));
+    if (trace.first !== null && trace.last !== null && trace.last > trace.first) {
+      parts.push(t('viewerTraceOver', 'over {time}', { time: formatGap(trace.last - trace.first).replace(/^\+/, '') }));
+    }
+    showToast(parts.join(' · '));
   }
 
   /** Shows only the entries whose field is at least this number: duration>=950ms. */
