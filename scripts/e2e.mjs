@@ -358,6 +358,42 @@ check(
 );
 await trace.close();
 
+// ---- the viewer remembers how it was left -------------------------------------------------------
+const prefs = await context.newPage();
+watch(prefs);
+await prefs.goto(`chrome-extension://${extensionId}/viewer.html`);
+// a secret, so the Mask button is there
+const twoLines = '2026-10-04 10:00:00 INFO first password=hunter2hunter2\n2026-10-04 10:00:01 ERROR second\n';
+await prefs.locator('#file').setInputFiles({ name: 'one.log', mimeType: 'text/plain', buffer: Buffer.from(twoLines) });
+await prefs.waitForSelector('.row');
+const maskButton = prefs.locator('.toggle', { hasText: 'Mask' });
+check('toggles say whether they are on', (await maskButton.getAttribute('aria-pressed')) === 'false');
+check(
+  'icon buttons have a name for screen readers',
+  (await prefs.locator('.toggle', { hasText: /^\.\*$/ }).getAttribute('aria-label')) === 'Regular expression',
+);
+await maskButton.click();
+await prefs.locator('select.context').selectOption('2');
+await prefs.waitForTimeout(300);
+// open another log in the same viewer
+await prefs.evaluate((text) => {
+  const transfer = new DataTransfer();
+  transfer.items.add(new File([text], 'two.log'));
+  document.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true }));
+}, twoLines);
+await prefs.waitForFunction(() => document.title.startsWith('two.log'));
+await prefs.waitForSelector('.row');
+check(
+  'Mask and Context are kept for the next log',
+  (await prefs.locator('.toggle', { hasText: 'Mask' }).getAttribute('aria-pressed')) === 'true' &&
+    (await prefs.locator('select.context').inputValue()) === '2',
+);
+// back as it was, for the checks below
+await prefs.locator('.toggle', { hasText: 'Mask' }).click();
+await prefs.locator('select.context').selectOption('0');
+await prefs.waitForTimeout(300);
+await prefs.close();
+
 // ---- link to a line -----------------------------------------------------------------------
 const linked = await context.newPage();
 watch(linked);

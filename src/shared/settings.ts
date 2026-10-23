@@ -6,6 +6,16 @@ export interface CustomSecret {
   pattern: string;
 }
 
+/** How the log viewer was left: kept for the next log. */
+export interface ViewPrefs {
+  collapse: boolean;
+  showGaps: boolean;
+  showTimeline: boolean;
+  maskSecrets: boolean;
+  /** Lines of context around search matches. */
+  context: number;
+}
+
 export interface Settings {
   /** Pauses between entries shorter than this aren't shown in the viewer. */
   gapThresholdMs: number;
@@ -19,6 +29,7 @@ export interface Settings {
   customLevels: CustomLevel[];
   /** Colours of Logbeam's pages: follow the system, or always dark or light. */
   theme: 'auto' | 'dark' | 'light';
+  view: ViewPrefs;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   timeMode: 'utc',
   customLevels: [],
   theme: 'auto',
+  view: { collapse: false, showGaps: true, showTimeline: true, maskSecrets: false, context: 0 },
 };
 
 export const SETTINGS_KEY = 'settings';
@@ -35,7 +47,9 @@ export const SETTINGS_KEY = 'settings';
 export async function loadSettings(): Promise<Settings> {
   try {
     const data = await chrome.storage.sync.get(SETTINGS_KEY);
-    return { ...DEFAULT_SETTINGS, ...(data[SETTINGS_KEY] as Partial<Settings> | undefined) };
+    const stored = data[SETTINGS_KEY] as Partial<Settings> | undefined;
+    // view grows new options over time: settings saved before one existed get its default
+    return { ...DEFAULT_SETTINGS, ...stored, view: { ...DEFAULT_SETTINGS.view, ...stored?.view } };
   } catch {
     // e.g. the viewer injected into a page by a test, without extension APIs
     return { ...DEFAULT_SETTINGS };

@@ -37,7 +37,7 @@ import {
   traceId,
 } from '../lib/insights';
 import { findSecrets, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
-import { loadSettings, saveSettings } from '../shared/settings';
+import { ViewPrefs, loadSettings, saveSettings } from '../shared/settings';
 import { applyTheme } from '../shared/theme';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
@@ -188,6 +188,7 @@ export async function openViewer(text: string = readPageText(), name?: string): 
     title,
     gapThreshold: settings.gapThresholdMs,
     timeMode: settings.timeMode,
+    view: settings.view,
     parseOptions,
     signal: viewer.signal,
   });
@@ -203,6 +204,7 @@ interface ViewerOptions {
   title: string;
   gapThreshold: number;
   timeMode: TimeMode;
+  view: ViewPrefs;
   parseOptions: ParseOptions;
   signal: AbortSignal;
 }
@@ -234,12 +236,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     query: '',
     regex: false,
     caseSensitive: false,
-    context: 0,
-    collapse: false,
-    showGaps: true,
-    maskSecrets: false,
+    context: options.view.context,
+    collapse: options.view.collapse,
+    showGaps: options.view.showGaps,
+    maskSecrets: options.view.maskSecrets,
     searchError: '',
-    showTimeline: timeline !== null,
+    showTimeline: timeline !== null && options.view.showTimeline,
     selected: null,
     timeRange: null,
     hiddenSources: new Set(),
@@ -269,26 +271,44 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       `${text} `,
       count,
     );
+    button.setAttribute('aria-pressed', 'true');
     chipCounts[key] = [button, count];
     button.addEventListener('click', () => {
       if (key === 'UNKNOWN') state.includeUnknown = !state.includeUnknown;
       else if (state.levels.has(key)) state.levels.delete(key);
       else state.levels.add(key);
-      button.classList.toggle('on');
+      button.setAttribute('aria-pressed', String(button.classList.toggle('on')));
       void refresh();
     });
     button.hidden = counts[key] === 0; // nothing to filter
     return button;
   };
-  const toggleButton = (text: string, title: string, on: boolean, apply: () => void) => {
+  const toggleButton = (text: string, title: string, on: boolean, apply: () => void, remember = false) => {
     const button = el('button', { className: `toggle${on ? ' on' : ''}`, title }, text);
+    button.setAttribute('aria-pressed', String(on));
+    // ".*", "Aa": a screen reader reads the title instead
+    if (text.length <= 2) button.setAttribute('aria-label', title);
     button.addEventListener('click', () => {
-      button.classList.toggle('on');
+      button.setAttribute('aria-pressed', String(button.classList.toggle('on')));
       apply();
+      if (remember) rememberView();
       void refresh();
     });
     return button;
   };
+  /** Keeps Collapse, Gaps, Timeline, Mask and Context as they are for the next log. */
+  function rememberView(): void {
+    const view: ViewPrefs = {
+      collapse: state.collapse,
+      showGaps: state.showGaps,
+      showTimeline: state.showTimeline,
+      maskSecrets: state.maskSecrets,
+      context: state.context,
+    };
+    void loadSettings()
+      .then((settings) => saveSettings({ ...settings, view }))
+      .catch(() => undefined);
+  }
 
   const search = el('input', {
     type: 'search',
@@ -317,6 +337,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     },
     '🖍',
   );
+  highlightButton.setAttribute('aria-label', highlightButton.title);
   const regexToggle = toggleButton('.*', t('viewerRegexTitle', 'Regular expression'), false, () => (state.regex = !state.regex));
   const caseToggle = toggleButton(
     'Aa',
@@ -335,22 +356,27 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     el('option', { value: '5' }, t('viewerContext5', 'Context: 5')),
     el('option', { value: '10' }, t('viewerContext10', 'Context: 10')),
   );
+  contextSelect.value = String(state.context);
+  contextSelect.classList.toggle('on', state.context > 0);
   contextSelect.addEventListener('change', () => {
     state.context = Number(contextSelect.value);
     contextSelect.classList.toggle('on', state.context > 0);
+    rememberView();
     void refresh();
   });
   const collapseToggle = toggleButton(
     t('viewerCollapse', 'Collapse'),
     t('viewerCollapseTitle', 'Collapse repeated lines (×N)'),
-    false,
+    state.collapse,
     () => (state.collapse = !state.collapse),
+    true,
   );
   const gapsToggle = toggleButton(
     t('viewerGaps', 'Gaps'),
     t('viewerGapsTitle', 'Show pauses longer than {seconds}s', { seconds: gapThreshold / 1000 }),
-    true,
+    state.showGaps,
     () => (state.showGaps = !state.showGaps),
+    true,
   );
   const timelineToggle = toggleButton(
     t('viewerTimeline', 'Timeline'),
@@ -360,13 +386,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       state.showTimeline = !state.showTimeline;
       timelineEl.hidden = !state.showTimeline;
     },
+    true,
   );
   timelineToggle.hidden = timeline === null;
   const maskToggle = toggleButton(
     t('viewerMask', 'Mask'),
     t('viewerMaskTitle', 'Hide secret values on screen and in copied text'),
-    false,
+    state.maskSecrets,
     () => (state.maskSecrets = !state.maskSecrets),
+    true,
   );
   const secretsButton = el(
     'button',
@@ -439,6 +467,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     t('viewerReport', 'Report'),
   );
   const helpButton = el('button', { className: 'toggle', title: t('viewerHelpTitle', 'Keyboard shortcuts ( ? )') }, '?');
+  helpButton.setAttribute('aria-label', helpButton.title);
   const groupsButton = el(
     'button',
     {

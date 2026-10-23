@@ -9,6 +9,13 @@
   summary like "3 entries · 3 pods · over 2.2s". Short IDs (`userId=42`) are followed as their field, so they
   don't match inside other numbers.
 
+### Improved
+
+- **The viewer remembers how you left it**: Collapse, Gaps, Timeline, Mask and Context stay as they were for the
+  next log, so if you always mask secrets, you turn Mask on once.
+- **Screen readers**: toggles and level filters say whether they are on (`aria-pressed`), and the icon buttons
+  (`.*`, `Aa`, 🖍, `?`) have names.
+
 ## 0.9.0
 
 ### Added
