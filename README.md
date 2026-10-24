@@ -196,6 +196,11 @@ src/
 ├── background.ts        service worker: context menu, keyboard shortcuts, permission events
 ├── content/
 │   ├── logViewer.ts     virtualized log viewer: filters, inspector, timeline, secrets, bookmarks, #L links
+│   ├── viewerState.ts   the viewer's state, options and fixed sizes
+│   ├── timelineView.ts  the error timeline, with dragging to pick a time range
+│   ├── fieldStatsPanel.ts  top values and percentiles of a field, in the inspector
+│   ├── errorGroupsPanel.ts the Groups panel: each different error once
+│   ├── dom.ts           el(): DOM from nodes, never innerHTML (Trusted Types)
 │   ├── viewerStyles.ts  its CSS, dark and light
 │   ├── shortcuts.ts     the ? list of keys
 │   ├── parseAsync.ts    Web Worker parsing with a chunked main-thread fallback

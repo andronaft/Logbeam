@@ -10,28 +10,22 @@ import {
   filterLines,
   formatGap,
   LogParser,
-  ParseOptions,
   splitLines,
   splitSource,
 } from '../lib/logs';
 import {
   Bookmark,
-  TimeMode,
   appendedText,
   bookmarkReport,
   defaultColumns,
-  fieldStats,
   findGroups,
   foldGroups,
-  formatDuration,
   formatTime,
-  groupErrors,
   isMostlyJson,
   LineId,
   lineFields,
   lineIds,
   localizeTimestamp,
-  numericStats,
   tableCells,
   toCsv,
   traceId,
@@ -47,6 +41,22 @@ import { COMPARE_ADD } from '../shared/compare';
 import { t, tn, uiLanguage } from '../shared/i18n';
 import { RegexSearch } from './regexSearch';
 import { shortcutsHelp } from './shortcuts';
+import { Child, el } from './dom';
+import {
+  FOLLOW_INTERVAL_MS,
+  HIGHLIGHT_LIMIT,
+  LINE_HASH,
+  MAX_HIGHLIGHTS,
+  MAX_SOURCES,
+  OVERSCAN,
+  ROW_HEIGHT,
+  State,
+  ViewerOptions,
+  entryTimes,
+} from './viewerState';
+import { renderErrorGroups } from './errorGroupsPanel';
+import { renderFieldStats } from './fieldStatsPanel';
+import { createTimelineView } from './timelineView';
 import { VIEWER_CSS } from './viewerStyles';
 
 /**
@@ -55,59 +65,6 @@ import { VIEWER_CSS } from './viewerStyles';
  * Everything is built from DOM nodes, never innerHTML, so it also works on pages that
  * enforce Trusted Types (GitHub, Google).
  */
-
-const ROW_HEIGHT = 20;
-const OVERSCAN = 30;
-/** Pods with their own chip and colour; more than this and the chips would fill the screen. */
-const MAX_SOURCES = 24;
-const MAX_HIGHLIGHTS = 5;
-const LINE_HASH = /^#L(\d+)$/;
-/** Highlighting only looks at the start of very long lines (a minified bundle, say); rows don't wrap anyway. */
-const HIGHLIGHT_LIMIT = 5000;
-
-interface State {
-  levels: Set<Level>;
-  includeUnknown: boolean;
-  query: string;
-  regex: boolean;
-  caseSensitive: boolean;
-  context: number;
-  collapse: boolean;
-  showGaps: boolean;
-  maskSecrets: boolean;
-  showTimeline: boolean;
-  /** Why the current search can't run (invalid or too slow regex); empty when it's fine. */
-  searchError: string;
-  selected: number | null;
-  /** Only entries in this time range, chosen by dragging across the timeline. */
-  timeRange: [number, number] | null;
-  /** Pods or containers switched off with their chips. */
-  hiddenSources: Set<string>;
-  /** Terms pinned with their own colour, independent of the search. */
-  highlights: string[];
-  /** Bookmarked line numbers and their notes. */
-  bookmarks: Map<number, string>;
-  timeMode: TimeMode;
-  /** Only the entries of this error group (see Groups). */
-  group: { key: string; lines: Set<number>; label: string } | null;
-  /** JSON records as a table with these columns. */
-  table: string[] | null;
-}
-
-/** How often Follow reads the page again. */
-const FOLLOW_INTERVAL_MS = 3000;
-
-type Child = Node | string;
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  props: Partial<HTMLElementTagNameMap[K]> = {},
-  ...children: Child[]
-): HTMLElementTagNameMap[K] {
-  const element = Object.assign(document.createElement(tag), props);
-  element.append(...children);
-  return element;
-}
 
 export function readPageText(): string {
   const body = document.body;
@@ -197,30 +154,6 @@ export async function openViewer(text: string = readPageText(), name?: string): 
 /** Opens a dropped or chosen file (plain or gzip) in the viewer, replacing the current log. */
 export async function openFile(file: File): Promise<void> {
   await openViewer(await readLogFile(file), displayName(file.name));
-}
-
-interface ViewerOptions {
-  text: string;
-  title: string;
-  gapThreshold: number;
-  timeMode: TimeMode;
-  view: ViewPrefs;
-  parseOptions: ParseOptions;
-  signal: AbortSignal;
-}
-
-/**
- * The time of the entry each line belongs to: continuation lines and lines without a timestamp
- * take the time of the entry above, so a time range keeps whole stack traces.
- */
-function entryTimes(lines: LogLine[]): Float64Array {
-  const times = new Float64Array(lines.length);
-  let current = Number.NaN;
-  lines.forEach((line, i) => {
-    if (line.time !== null) current = line.time;
-    times[i] = current;
-  });
-  return times;
 }
 
 function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOptions): void {
@@ -569,82 +502,22 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   );
 
   // ---- timeline -------------------------------------------------------------------------
-  const timelineEl = el('div', { className: 'timeline' });
-  timelineEl.hidden = !state.showTimeline;
-  function drawTimeline(): void {
-    timelineEl.replaceChildren();
-    const current = timeline;
-    if (!current) return;
-    const fmt = (t: number) => formatTime(t, state.timeMode).slice(0, 19);
-    current.buckets.forEach((bucket, i) => {
-      const height = (n: number) => `${Math.round((n / current.max) * 100)}%`;
-      const other = bucket.total - bucket.errors - bucket.warnings;
-      const bar = el(
-        'button',
-        {
-          className: 'bucket',
-          title: `${fmt(bucket.from)} – ${fmt(bucket.to)}\n${t(
-            'viewerBucketTitle',
-            '{total} entries, {errors} errors, {warnings} warnings',
-            {
-              total: bucket.total,
-              errors: bucket.errors,
-              warnings: bucket.warnings,
-            },
-          )}`,
-        },
-        el('span', { className: 'b-err' }),
-        el('span', { className: 'b-warn' }),
-        el('span', { className: 'b-other' }),
-      );
-      (bar.children[0] as HTMLElement).style.height = height(bucket.errors);
-      (bar.children[1] as HTMLElement).style.height = height(bucket.warnings);
-      (bar.children[2] as HTMLElement).style.height = height(other);
-      // a click jumps there; dragging across bars keeps only that time range
-      bar.addEventListener('pointerdown', (event) => {
-        event.preventDefault();
-        drag = { from: i, to: i };
-        markDrag();
-      });
-      bar.addEventListener('pointerenter', () => {
-        if (!drag) return;
-        drag.to = i;
-        markDrag();
-      });
-      timelineEl.append(bar);
-    });
-  }
-  drawTimeline();
-  document.addEventListener(
-    'pointerup',
-    () => {
-      const current = timeline;
-      if (!drag || !current) return;
-      const [first, last] = [Math.min(drag.from, drag.to), Math.max(drag.from, drag.to)];
-      drag = null;
-      markDrag();
-      if (first === last) {
-        const index = visible.findIndex((l) => l.time !== null && l.time >= current.buckets[first].from);
-        if (index >= 0) scrollToIndex(index, true);
-        return;
-      }
-      state.timeRange = [current.buckets[first].from, current.buckets[last].to];
+  const timelineView = createTimelineView({
+    signal,
+    jump: (time) => {
+      const index = visible.findIndex((l) => l.time !== null && l.time >= time);
+      if (index >= 0) scrollToIndex(index, true);
+    },
+    pickRange: (from, to) => {
+      state.timeRange = [from, to];
       void refresh();
     },
-    { signal },
-  );
-  let drag: { from: number; to: number } | null = null;
-  function markDrag(): void {
-    const buckets = timelineEl.children;
-    const range = state.timeRange;
-    for (let i = 0; i < buckets.length && timeline; i++) {
-      const bucket = timeline.buckets[i];
-      const dragging = drag !== null && i >= Math.min(drag.from, drag.to) && i <= Math.max(drag.from, drag.to);
-      const inRange = range !== null && bucket.to > range[0] && bucket.from < range[1];
-      buckets[i].classList.toggle('dragging', dragging);
-      buckets[i].classList.toggle('outside', range !== null && !inRange && !dragging);
-    }
-  }
+  });
+  const timelineEl = timelineView.element;
+  timelineEl.hidden = !state.showTimeline;
+  const drawTimeline = () => timelineView.draw(timeline, state.timeMode, state.timeRange);
+  const markDrag = () => timelineView.mark(state.timeRange);
+  drawTimeline();
 
   // ---- rows and inspector ---------------------------------------------------------------
   const spacer = el('div', { className: 'spacer' });
@@ -827,75 +700,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     showToast(parts.join(' · '));
   }
 
-  /** Shows only the entries whose field is at least this number: duration>=950ms. */
-  function filterAtLeast(key: string, value: string): void {
-    search.value = `${key}>=${value}`;
-    state.query = search.value;
+  /** Filters by a field query (status=502, duration>=950ms), as if typed into the search box. */
+  function setQuery(query: string): void {
+    search.value = query;
+    state.query = query;
     void refresh();
   }
 
-  /**
-   * Top values of a field over the lines shown now; click a value to filter by it. A field of numbers
-   * or durations also gets min, median, p95, p99 and max; click one to see the entries at or above it.
-   */
   function showStats(box: HTMLElement, key: string): void {
-    const { values, total } = fieldStats(visible, key);
-    const max = values[0]?.count ?? 1;
-    const numbers = numericStats(visible, key);
-    const percentiles: Node[] = [];
-    if (numbers) {
-      const show = (n: number) =>
-        numbers.duration ? formatDuration(n) : n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-      const parts = [
-        [t('viewerStatMin', 'min'), numbers.min],
-        [t('viewerStatMedian', 'median'), numbers.median],
-        ['p95', numbers.p95],
-        ['p99', numbers.p99],
-        [t('viewerStatMax', 'max'), numbers.max],
-      ] as const;
-      percentiles.push(
-        el(
-          'div',
-          { className: 'percentiles' },
-          ...parts.map(([name, n]) => {
-            const chip = el(
-              'button',
-              { className: 'percentile', title: t('viewerShowOnly', 'Show only {filter}', { filter: `${key} ≥ ${show(n)}` }) },
-              el('span', { className: 'name' }, name),
-              ` ${show(n)}`,
-            );
-            chip.addEventListener('click', () => filterAtLeast(key, numbers.duration ? `${n}ms` : String(n)));
-            return chip;
-          }),
-        ),
-      );
-    }
-    box.replaceChildren(
-      el(
-        'div',
-        { className: 'stats-head' },
-        t('viewerStatsHead', '{field}: {n} of the shown entries have it', { field: key, n: total.toLocaleString() }),
-      ),
-      ...percentiles,
-      ...values.map(({ value, count }) => {
-        const bar = el('span', { className: 'bar' });
-        bar.style.width = `${Math.max(2, Math.round((count / max) * 100))}%`;
-        const row = el(
-          'button',
-          { className: 'stat', title: t('viewerShowOnly', 'Show only {filter}', { filter: `${key}=${value}` }) },
-          el('span', { className: 'value' }, value || '""'),
-          el('span', { className: 'bar-wrap' }, bar),
-          el('span', { className: 'n' }, `×${count.toLocaleString()}`),
-        );
-        row.addEventListener('click', () => {
-          const quoted = /[\s"]/.test(value) || value === '' ? JSON.stringify(value) : value;
-          search.value = `${key}=${quoted}`;
-          state.query = search.value;
-          void refresh();
-        });
-        return row;
-      }),
-    );
+    renderFieldStats(box, visible, key, setQuery);
   }
 
   // bookmarks are kept for this page while the browser is open (in memory, not on disk)
@@ -934,37 +747,13 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   }
 
   function renderGroups(): void {
-    const groups = groupErrors(allLines);
-    const items = groups.slice(0, 50).map((group) => {
-      const where = group.sources.length ? ` · ${tn('viewerPods', group.sources.length, '{n} pod', '{n} pods')}` : '';
-      const when =
-        group.first !== null && group.last !== null && group.last > group.first
-          ? ` · ${formatTime(group.first, state.timeMode).slice(11, 19)}–${formatTime(group.last, state.timeMode).slice(11, 19)}`
-          : '';
-      const item = el(
-        'button',
-        { className: 'group-item', title: t('viewerGroupItemTitle', 'Show only this error') },
-        el('span', { className: 'n' }, `×${group.count}`),
-        el('span', { className: 'sample' }, group.sample),
-        el('span', { className: 'meta' }, `${where}${when}`),
-      );
-      item.addEventListener('click', () => {
-        state.group = { key: group.key, lines: new Set(group.lines), label: `×${group.count} ${group.sample.slice(0, 60)}` };
-        void refresh().then(() => {
-          const index = visible.findIndex((l) => l.number === group.lines[0]);
-          if (index >= 0) scrollToIndex(index, true);
-        });
+    renderErrorGroups(groupsPanel, allLines, state.timeMode, (group) => {
+      state.group = { key: group.key, lines: new Set(group.lines), label: `×${group.count} ${group.sample.slice(0, 60)}` };
+      void refresh().then(() => {
+        const index = visible.findIndex((l) => l.number === group.lines[0]);
+        if (index >= 0) scrollToIndex(index, true);
       });
-      return item;
     });
-    groupsPanel.replaceChildren(
-      el(
-        'div',
-        { className: 'groups-head' },
-        tn('viewerDifferentErrors', groups.length, '{n} different error', '{n} different errors'),
-      ),
-      ...(items.length ? items : [el('div', { className: 'facts' }, t('viewerNoErrors', 'No errors in this log.'))]),
-    );
   }
 
   function select(number: number | null): void {
