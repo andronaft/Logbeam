@@ -273,6 +273,8 @@ Ideas, bug reports, translations and pull requests are welcome: see [CONTRIBUTIN
 [good first issues](https://github.com/andronaft/Logbeam/labels/good%20first%20issue). Security problems:
 [SECURITY.md](SECURITY.md).
 
+The story behind it: [How to stop a user's regex from freezing a browser tab](https://zhukovskyi.space/blog/logbeam-regex-timeout/). Made by [Andrii Zhukovskyi](https://zhukovskyi.space/).
+
 ## License
 
 [MIT](LICENSE)
