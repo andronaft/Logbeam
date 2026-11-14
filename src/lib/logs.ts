@@ -82,29 +82,129 @@ const LEVEL_ALIASES: Record<string, Level> = {
   SEVERE: 'ERROR',
   CRITICAL: 'ERROR',
   PANIC: 'ERROR',
+  // syslog and nginx severities, Google Cloud's EMERGENCY
+  EMERG: 'ERROR',
+  EMERGENCY: 'ERROR',
+  CRIT: 'ERROR',
+  // .NET's "fail:", and what test runners and build tools print: "FAIL src/pay.test.ts", "BUILD FAILED"
+  FAIL: 'ERROR',
+  FAILED: 'ERROR',
+  FAILURE: 'ERROR',
   WARN: 'WARN',
   WARNING: 'WARN',
   INFO: 'INFO',
   NOTICE: 'INFO',
   DEBUG: 'DEBUG',
   DBG: 'DEBUG',
+  DBUG: 'DEBUG',
   FINE: 'DEBUG',
   TRACE: 'TRACE',
+  TRCE: 'TRACE',
+  VERBOSE: 'TRACE',
   FINER: 'TRACE',
   FINEST: 'TRACE',
 };
 
-const LEVEL_WORDS = 'ERROR|ERR|FATAL|SEVERE|CRITICAL|PANIC|WARN|WARNING|INFO|NOTICE|DEBUG|DBG|FINE|TRACE|FINER|FINEST';
-// An upper-case level word on its own: "ERROR", "[WARN]", "W0301 WARNING:". Case-sensitive, so prose like
-// "no error here" doesn't turn a line red.
-const LEVEL_UPPER_RE = new RegExp(`(?:^|[\\s[(|:=<])(${LEVEL_WORDS})(?=$|[\\s\\]):|,>])`);
-// Lower- or mixed-case levels only where the context says it's a level: "level=info", "[warn]", "<debug>",
-// or a line starting with "Error: …"
+const LEVEL_WORDS = Object.keys(LEVEL_ALIASES).join('|');
+// An upper-case level word on its own: "ERROR", "[WARN]", "W0301 WARNING:", Celery's "ERROR/MainProcess".
+// Case-sensitive, so prose like "no error here" doesn't turn a line red.
+const LEVEL_UPPER_RE = new RegExp(`(?:^|[\\s[(|:=<])(${LEVEL_WORDS})(?=$|[\\s\\]):|,>/])`);
+// Lower- or mixed-case levels only where the context says it's a level: "level=info", "[warn]", "<debug>"
 const LEVEL_CONTEXT_RES = [
   new RegExp(`\\blevel["']?\\s*[=:]\\s*["']?(${LEVEL_WORDS})\\b`, 'i'),
   new RegExp(`[[<(](${LEVEL_WORDS})[\\]>)]`, 'i'),
-  new RegExp(`^\\s*(${LEVEL_WORDS})(?=:\\s|\\s*$)`, 'i'),
 ];
+// …or where the message starts with it: "Error: …", .NET's "fail: …", Terraform's "│ Error: …", and zap's
+// console format, where a tab follows ("error\thandler.go:42\t…")
+const LEVEL_START_RES = [
+  new RegExp(`^[\\s│╷╵]*(${LEVEL_WORDS})(?=:\\s|\\s*$)`, 'i'),
+  new RegExp(`^(${LEVEL_WORDS.toLowerCase()})(?=\\t)`),
+];
+
+/**
+ * A timestamp at the start of the line, with the stream and flag that container runtimes add
+ * ("2026-10-04T10:00:00.1Z stderr F …"). What follows is the message, so "error: …" or
+ * "npm ERR! …" after it is read as at the start of a line.
+ */
+const LEADING_TIME_RE =
+  /^\[?\d{4}[-/]\d\d[-/]\d\d[T ]\d\d:\d\d:\d\d(?:[.,]\d+)?(?:Z|[+-]\d\d:?\d\d)?\]?[\t ]+(?:(?:stdout|stderr) [FP] )?/;
+
+const SYSLOG_LEVELS: Record<string, Level> = {
+  emerg: 'ERROR',
+  alert: 'ERROR',
+  crit: 'ERROR',
+  error: 'ERROR',
+  err: 'ERROR',
+  warning: 'WARN',
+  warn: 'WARN',
+  notice: 'INFO',
+  info: 'INFO',
+  debug: 'DEBUG',
+  trace: 'TRACE',
+};
+
+/**
+ * Formats that say the level in their own way. They are checked before the level words, because
+ * the message after them can have a level word of its own ("LOG:  statement: … ERROR …").
+ */
+const SHAPES: [RegExp, Record<string, Level>][] = [
+  // klog (Kubernetes components): "E1004 10:00:01.000000       1 reflector.go:138] Failed to watch"
+  [/^([IWEF])\d{4} \d\d:\d\d:\d\d\.\d{6}\s/, { I: 'INFO', W: 'WARN', E: 'ERROR', F: 'ERROR' }],
+  // Serilog: "[10:00:00 INF] Now listening on …"
+  [
+    /^\[\d\d:\d\d:\d\d(?:\.\d+)? (VRB|DBG|INF|WRN|ERR|FTL)\]/,
+    { VRB: 'TRACE', DBG: 'DEBUG', INF: 'INFO', WRN: 'WARN', ERR: 'ERROR', FTL: 'ERROR' },
+  ],
+  // Monolog (Laravel, Symfony): "production.ERROR: Undefined variable"
+  [new RegExp(`(?:^|\\s)[\\w-]+\\.(${LEVEL_WORDS}):`), LEVEL_ALIASES],
+  // nginx: "[alert] 1#1: …". ALERT on its own is not a level word: people use it for their own
+  // (Settings → your own level words)
+  [/\[(alert)\] \d+#\d+: /, SYSLOG_LEVELS],
+  // Apache error log: "[core:error]", "[ssl:warn]", "[proxy:trace3]"
+  [/\[[\w-]+:(emerg|alert|crit|error|warn|notice|info|debug|trace)\d?\]/, SYSLOG_LEVELS],
+  // Redis: "1234:M 04 Oct 2026 10:00:00.123 # WARNING overcommit_memory is set to 0"
+  [
+    /^\d+:[XCSM] \d\d [A-Z][a-z]{2} \d{4} \d\d:\d\d:\d\d\.\d{3} ([.\-*#]) /,
+    { '.': 'DEBUG', '-': 'DEBUG', '*': 'INFO', '#': 'WARN' },
+  ],
+  // npm: "npm ERR! code ELIFECYCLE", and "npm error" / "npm warn" since npm 10
+  [/^npm (ERR!|error|WARN|warn|notice)(?=\s|$)/, { 'ERR!': 'ERROR', error: 'ERROR', WARN: 'WARN', warn: 'WARN', notice: 'INFO' }],
+  // GitHub Actions workflow commands: "::error file=app.js,line=1::Missing semicolon"
+  [/^::(error|warning|notice|debug)(?=[ :])/, SYSLOG_LEVELS],
+  // PHP: "PHP Fatal error:  Uncaught Exception: boom"
+  [
+    /\bPHP (Fatal error|Parse error|Recoverable fatal error|Warning|Deprecated|Notice):/,
+    {
+      'Fatal error': 'ERROR',
+      'Parse error': 'ERROR',
+      'Recoverable fatal error': 'ERROR',
+      Warning: 'WARN',
+      Deprecated: 'WARN',
+      Notice: 'INFO',
+    },
+  ],
+  // PostgreSQL: "LOG:  database system is ready" (its ERROR:, WARNING: and FATAL: are level words)
+  [/(?:^|\s)(LOG): {2}/, { LOG: 'INFO' }],
+  // MySQL: "0 [Note] [MY-010931] [Server] ready for connections", "0 [System] …"
+  [/^\d+ \[(Note|System)\] /, { Note: 'INFO', System: 'INFO' }],
+];
+
+/** The shapes that are tied to the start of the line, which are cheap to rule out. */
+const START_SHAPES = SHAPES.filter(([re]) => re.source.startsWith('^'));
+/** What the other shapes have in them, so that a line without any of it skips them (150k lines add up). */
+const SHAPE_HINT_RE = /\.[A-Z]{3,9}:|:[a-z]+\d?\]|\bPHP |LOG: {2}|\[alert\]/;
+
+// Compilers and linters: "main.c:12:5: error: …", "app.ts(12,5): error TS2304: …", "error[E0425]: …",
+// and ESLint's "  12:5  error  Missing semicolon"
+const DIAGNOSTIC_RES = [
+  /(?:^|:\s)(fatal error|error|warning)(?=:\s|\[[A-Z]\d+\]|\s[A-Z]{2,}\d+:)/,
+  /^\s+\d+:\d+\s+(error|warning)\s{2,}/,
+];
+// Access logs (nginx, Apache, Envoy): the status after the request says how it went
+const ACCESS_RE = /"(?:GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE|PROPFIND) \S+ HTTP\/\d(?:\.\d)?" (\d)\d\d(?=\s|$)/;
+// syslog priority: "<34>1 2026-10-04T10:00:00Z host su …"; the severity is its last three bits
+const SYSLOG_PRIORITY_RE = /^<(\d{1,3})>/;
+const SYSLOG_SEVERITIES: Level[] = ['ERROR', 'ERROR', 'ERROR', 'ERROR', 'WARN', 'INFO', 'INFO', 'DEBUG'];
 // Android logcat: "E/ActivityManager( 123): …" and threadtime "09-29 10:00:00.123  123  456 W Tag: …"
 const ANDROID_RE = /^\s*([VDIWEF])\/[\w.$-]+\s*(?:\(\s*\d+\))?\s*:|^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3}\s+\d+\s+\d+\s+([VDIWEF])\s/;
 // Single-letter level in brackets near the start: "[W] disk almost full"
@@ -133,18 +233,45 @@ export function detectLevel(text: string, custom: CustomLevels | null = null): L
     const level = word ? custom.byName.get(word.toLowerCase()) : undefined;
     if (level) return level;
   }
-  const word = LEVEL_UPPER_RE.exec(head) ?? LEVEL_CONTEXT_RES.map((re) => re.exec(head)).find(Boolean);
+  const first = <T>(found: (T | null)[]) => found.find((match) => match !== null) ?? null;
+  // the message, without a timestamp in front of it
+  const message = head.replace(LEADING_TIME_RE, '');
+  for (const [re, levels] of SHAPE_HINT_RE.test(message) ? SHAPES : START_SHAPES) {
+    const shape = re.exec(message);
+    if (shape) return levels[shape[1]];
+  }
+  const word =
+    LEVEL_UPPER_RE.exec(head) ??
+    first(LEVEL_CONTEXT_RES.map((re) => re.exec(head))) ??
+    first(LEVEL_START_RES.map((re) => re.exec(message)));
   if (word) return LEVEL_ALIASES[word[1].toUpperCase()];
+  const diagnostic = first(DIAGNOSTIC_RES.map((re) => re.exec(message)));
+  if (diagnostic) return diagnostic[1] === 'warning' ? 'WARN' : 'ERROR';
   const letter = ANDROID_RE.exec(head) ?? LETTER_RE.exec(head);
   if (letter) return LETTER_LEVELS[letter[1] ?? letter[2]];
+  // a request path can be long
+  const status = ACCESS_RE.exec(text.slice(0, 2000));
+  if (status) return status[1] === '5' ? 'ERROR' : status[1] === '4' ? 'WARN' : 'INFO';
+  const priority = SYSLOG_PRIORITY_RE.exec(head);
+  if (priority && Number(priority[1]) < 192) return SYSLOG_SEVERITIES[Number(priority[1]) % 8];
   return null;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // nginx / Apache common log format: [29/Sep/2026:10:00:00 +0000]
 const CLF_RE = /(\d{2})\/([A-Z][a-z]{2})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})(?: ([+-]\d{4}))?/;
-// syslog: "Sep 29 10:00:00" at the start (no year)
-const SYSLOG_RE = /^([A-Z][a-z]{2}) {1,2}(\d{1,2}) (\d{2}):(\d{2}):(\d{2})\b/;
+// syslog: "Sep 29 10:00:00" at the start (no year), also after a priority: "<34>Sep 29 10:00:00"
+const SYSLOG_RE = /^(?:<\d{1,3}>)?([A-Z][a-z]{2}) {1,2}(\d{1,2}) (\d{2}):(\d{2}):(\d{2})\b/;
+// PHP "04-Oct-2026 10:00:00" and Redis "04 Oct 2026 10:00:00.123"
+const DAY_MONTH_YEAR_RE = /(\d{2})[- ]([A-Z][a-z]{2})[- ](\d{4}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?/;
+// Apache error log: "[Sun Oct 04 10:00:00.123456 2026]"
+const APACHE_RE = /\[(?:[A-Z][a-z]{2} )?([A-Z][a-z]{2}) (\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3})\d*)? (\d{4})\]/;
+// java.util.logging: "Oct 04, 2026 10:00:00 AM"
+const JUL_RE = /^([A-Z][a-z]{2}) (\d{1,2}), (\d{4}) (\d{1,2}):(\d{2}):(\d{2}) ([AP]M)\b/;
+// klog: "E1004 10:00:01.000000" (no year)
+const KLOG_RE = /^[IWEF](\d{2})(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{3})\d{3}\s/;
+// only a time: "10:00:00.123 [main] INFO …" (Logback's default pattern), "[10:00:00 INF] …" (Serilog)
+const TIME_ONLY_RE = /^\[?(\d{2}):(\d{2}):(\d{2})(?:[.,](\d{1,3})\d*)?(?=[\s\]])/;
 // Android logcat threadtime: "09-29 10:00:00.123" at the start (no year)
 const MONTH_DAY_RE = /^(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{3})\b/;
 // Unix time at the start of the line, seconds (optionally with a fraction) or millis, 2001–2100
@@ -180,6 +307,26 @@ function parseOtherTimestamp(head: string): number | null {
     const offset = (zone[0] === '-' ? -1 : 1) * (+zone.slice(1, 3) * 60 + +zone.slice(3)) * 60_000;
     return time - offset;
   }
+  const dayFirst = DAY_MONTH_YEAR_RE.exec(head);
+  if (dayFirst && MONTHS.includes(dayFirst[2])) {
+    const [, d, mon, y, h, mi, s, ms = '0'] = dayFirst;
+    return utc(+y, MONTHS.indexOf(mon), +d, +h, +mi, +s, +ms.padEnd(3, '0'));
+  }
+  const apache = APACHE_RE.exec(head);
+  if (apache && MONTHS.includes(apache[1])) {
+    const [, mon, d, h, mi, s, ms = '0', y] = apache;
+    return utc(+y, MONTHS.indexOf(mon), +d, +h, +mi, +s, +ms.padEnd(3, '0'));
+  }
+  const jul = JUL_RE.exec(head);
+  if (jul && MONTHS.includes(jul[1])) {
+    const [, mon, d, y, h, mi, s, half] = jul;
+    return utc(+y, MONTHS.indexOf(mon), +d, (+h % 12) + (half === 'PM' ? 12 : 0), +mi, +s);
+  }
+  const klog = KLOG_RE.exec(head);
+  if (klog) {
+    const [, mo, d, h, mi, s, ms] = klog;
+    return utc(CURRENT_YEAR, +mo - 1, +d, +h, +mi, +s, +ms);
+  }
   const syslog = SYSLOG_RE.exec(head);
   if (syslog && MONTHS.includes(syslog[1])) {
     const [, mon, d, h, mi, s] = syslog;
@@ -197,6 +344,15 @@ function parseOtherTimestamp(head: string): number | null {
     return millis >= 978_307_200_000 && millis < 4_102_444_800_000 ? Math.round(millis) : null;
   }
   return null;
+}
+
+/** Millis since midnight for a line that starts with a time and no date; null for any other line. */
+export function parseTimeOfDay(text: string): number | null {
+  const m = TIME_ONLY_RE.exec(text.slice(0, 20));
+  if (!m) return null;
+  const [, h, mi, s, ms = '0'] = m;
+  if (+h > 23 || +mi > 59 || +s > 60) return null;
+  return ((+h * 60 + +mi) * 60 + +s) * 1000 + +ms.padEnd(3, '0');
 }
 
 function normalizeZone(zone: string | undefined): string {
@@ -225,7 +381,22 @@ export function parseJsonRecord(text: string): Record<string, unknown> | null {
 
 const JSON_LEVEL_KEYS = ['level', 'severity', 'lvl', 'log.level', 'levelname'];
 const JSON_TIME_KEYS = ['@timestamp', 'timestamp', 'time', 'ts', 'datetime'];
-const JSON_MESSAGE_KEYS = ['message', 'msg', 'text', 'event'];
+// "log" is the line itself in Docker's json-file logs and in Fluent Bit records
+const JSON_MESSAGE_KEYS = ['message', 'msg', 'text', 'event', 'log'];
+// MongoDB's own keys: {"t": {"$date": "…"}, "s": "I", "c": "NETWORK", "msg": "Connection accepted"}
+const MONGO_LEVELS: Record<string, Level> = { F: 'ERROR', E: 'ERROR', W: 'WARN', I: 'INFO' };
+
+function mongoTime(record: Record<string, unknown>): string | null {
+  const t = record.t;
+  const date = t && typeof t === 'object' ? (t as Record<string, unknown>).$date : undefined;
+  return typeof date === 'string' && typeof record.s === 'string' ? date : null;
+}
+
+function mongoLevel(record: Record<string, unknown>): Level | null {
+  if (mongoTime(record) === null) return null;
+  const severity = record.s as string;
+  return MONGO_LEVELS[severity] ?? (/^D[1-5]?$/.test(severity) ? 'DEBUG' : null);
+}
 
 function pick(record: Record<string, unknown>, keys: string[]): unknown {
   for (const key of keys) {
@@ -239,14 +410,17 @@ function pick(record: Record<string, unknown>, keys: string[]): unknown {
 /** Renders a JSON record as "time LEVEL message {other fields}" so it reads like a plain log line. */
 export function formatJsonRecord(record: Record<string, unknown>): string {
   // pino and zap write epoch numbers and numeric levels; show them as a date and a level name
-  const rawTime = pick(record, JSON_TIME_KEYS);
+  const mongo = mongoTime(record);
+  const rawTime = mongo ?? pick(record, JSON_TIME_KEYS);
   const millis = typeof rawTime === 'number' ? jsonTime(record) : null;
   const time = millis !== null ? new Date(millis).toISOString() : rawTime;
-  const rawLevel = pick(record, JSON_LEVEL_KEYS);
+  const rawLevel = mongo ? (mongoLevel(record) ?? record.s) : pick(record, JSON_LEVEL_KEYS);
   const level = typeof rawLevel === 'number' ? (jsonLevel(record) ?? rawLevel) : rawLevel;
-  const message = pick(record, JSON_MESSAGE_KEYS);
+  const rawMessage = pick(record, JSON_MESSAGE_KEYS);
+  // a row is one line: Docker's "log" ends with a line break, and a message can have a stack trace in it
+  const message = typeof rawMessage === 'string' ? rawMessage.trimEnd().replace(/\r?\n/g, ' ⏎ ') : rawMessage;
   const rest: Record<string, unknown> = {};
-  const used = new Set([...JSON_TIME_KEYS, ...JSON_LEVEL_KEYS, ...JSON_MESSAGE_KEYS]);
+  const used = new Set([...JSON_TIME_KEYS, ...JSON_LEVEL_KEYS, ...JSON_MESSAGE_KEYS, ...(mongo ? ['t', 's'] : [])]);
   for (const [key, value] of Object.entries(record)) {
     if (!used.has(key)) {
       rest[key] = value;
@@ -262,7 +436,9 @@ export function formatJsonRecord(record: Record<string, unknown>): string {
 function jsonLevel(record: Record<string, unknown>, custom: CustomLevels | null = null): Level | null {
   const value = pick(record, JSON_LEVEL_KEYS);
   if (typeof value === 'string') {
-    return custom?.byName.get(value.toLowerCase()) ?? LEVEL_ALIASES[value.toUpperCase()] ?? null;
+    // "ALERT" is a severity in Google Cloud's structured logs
+    const name = value.toUpperCase();
+    return custom?.byName.get(value.toLowerCase()) ?? LEVEL_ALIASES[name] ?? (name === 'ALERT' ? 'ERROR' : null);
   }
   // pino/bunyan numeric levels
   if (typeof value === 'number') {
@@ -272,11 +448,14 @@ function jsonLevel(record: Record<string, unknown>, custom: CustomLevels | null 
     if (value >= 20) return 'DEBUG';
     return 'TRACE';
   }
-  return null;
+  if (value !== undefined) return null;
+  // no level field: MongoDB's "s", or a plain log line wrapped in JSON (Docker's {"log": "… ERROR …"})
+  const message = pick(record, JSON_MESSAGE_KEYS);
+  return mongoLevel(record) ?? (typeof message === 'string' ? detectLevel(message, custom) : null);
 }
 
 function jsonTime(record: Record<string, unknown>): number | null {
-  const value = pick(record, JSON_TIME_KEYS);
+  const value = mongoTime(record) ?? pick(record, JSON_TIME_KEYS);
   if (typeof value === 'number') {
     return Math.round(value < 1e12 ? value * 1000 : value); // seconds (zap: with a fraction) or millis
   }
@@ -327,6 +506,8 @@ interface JsonBlock {
   timeAfterHead: number | null;
 }
 
+const DAY_MS = 86_400_000;
+
 /** A pretty-printed record longer than this is more likely an unbalanced brace than JSON. */
 const MAX_JSON_BLOCK_LINES = 5000;
 
@@ -343,6 +524,9 @@ export class LogParser {
   private count = 0;
   private block: JsonBlock | null = null;
   private readonly custom: CustomLevels | null;
+  /** For lines with a time and no date: the day they are on, and the last time of day seen. */
+  private day = Math.floor(Date.now() / DAY_MS) * DAY_MS;
+  private lastTimeOfDay: number | null = null;
 
   constructor(options: ParseOptions = {}) {
     this.custom = compileCustomLevels(options.customLevels);
@@ -350,6 +534,20 @@ export class LogParser {
 
   push(rawLines: string[]): LogLine[] {
     return rawLines.map((raw) => this.next(raw));
+  }
+
+  /**
+   * A full timestamp, or only a time ("10:00:00.123 [main] INFO …"). Those are put on today's
+   * date, so gaps and the timeline work; a time that jumps back by half a day is the next day.
+   */
+  private readTime(text: string): number | null {
+    const time = parseTimestamp(text);
+    if (time !== null) return time;
+    const ofDay = parseTimeOfDay(text);
+    if (ofDay === null) return null;
+    if (this.lastTimeOfDay !== null && this.lastTimeOfDay - ofDay > DAY_MS / 2) this.day += DAY_MS;
+    this.lastTimeOfDay = ofDay;
+    return this.day + ofDay;
   }
 
   private next(input: string): LogLine {
@@ -503,7 +701,7 @@ export class LogParser {
       level = this.currentLevel;
     } else {
       level = json ? jsonLevel(json, this.custom) : detectLevel(rest, this.custom);
-      time = json ? jsonTime(json) : parseTimestamp(rest);
+      time = json ? jsonTime(json) : this.readTime(rest);
       // a line without its own level but with a timestamp starts a new, unknown-level entry
       if (level !== null || time !== null) {
         this.currentLevel = level;
