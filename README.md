@@ -40,6 +40,11 @@ Open any raw log (a `.log` file, "View raw logs" in GitHub Actions, Jenkins cons
 piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup:
 
 - **Levels in colour** (`ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE`) with counters and one-click filters
+- **Reads the format you have**: Spring and Logback, Python, Go (slog, zap, logrus), .NET and Serilog, Rails,
+  Laravel, PHP, nginx and Apache (access logs get their level from the status: 5xx is an error, 4xx a warning),
+  PostgreSQL, MySQL, Redis, MongoDB, Kubernetes (klog, container log files), Docker's json-file, syslog and
+  Android logcat. In CI logs also npm, compilers and linters (`error TS2304`, `main.c:12:5: error:`), failed tests
+  (`FAIL`, `FAILED`) and GitHub Actions' `::error`
 - **Stack traces stay with their error**: Java `at …` / `Caused by:`, Python tracebacks and Go goroutines are
   grouped with the entry above, so filtering by `ERROR` shows the whole trace
 - **Search** as plain text or **regex**, case-sensitive if you like, with highlighted matches and, like `grep -C`,
@@ -253,7 +258,7 @@ src/
   (different origin), so the worker is built separately, inlined as a string and started from a Blob. Pages
   whose CSP blocks that fall back to parsing in chunks between frames. The e2e test covers both paths.
 - **Pure core.** Parsing, secret detection and transforms have no DOM or `chrome.*` dependencies, which keeps
-  them easy to test: 191 unit tests, plus over 150 end-to-end checks in a real Chromium and 28 in Firefox.
+  them easy to test: 299 unit tests, plus over 150 end-to-end checks in a real Chromium and 28 in Firefox.
 
 ## Roadmap
 

@@ -21,6 +21,23 @@
 
 ### Improved
 
+- **Many more log formats are read as they come.** Tried on one real line of each of 80 formats, Logbeam found
+  the level and the time in 25; now in all of them:
+  - servers: nginx and Apache error logs (`[crit]`, `[core:error]`), PostgreSQL (`LOG:`), MySQL (`[Note]`), Redis,
+    MongoDB, syslog priorities (`<34>`), and **access logs, which get their level from the status**: 5xx is an
+    error, 4xx a warning;
+  - applications: .NET (`fail:`, `crit:`, `dbug:`), Serilog (`[10:00:00 INF]`), Laravel and Symfony
+    (`production.ERROR:`), PHP (`PHP Fatal error:`), Celery, zap and winston (`error` after the timestamp);
+  - Kubernetes: klog (`E1004 10:00:01.000000`), container log files (`… stderr F …`), Docker's json-file, and
+    Google Cloud's `EMERGENCY` and `ALERT` severities;
+  - **CI logs**: failed tests and builds are errors (`FAIL src/pay.test.ts`, `--- FAIL: TestCharge`,
+    `FAILED tests/test_pay.py`, `BUILD FAILED`), and so are `npm ERR!`, compiler and linter errors
+    (`main.c:12:5: error:`, `error TS2304:`, `error[E0425]`), Terraform's `│ Error:` and `::error`. So `e` jumps
+    to them, and Compare lists them among the new errors.
+- **Logs with only a time** (`10:00:00.123 [main] INFO …`, Logback's default pattern) get pauses and a timeline,
+  also over midnight. More dates are read too: PHP, Redis, the Apache error log, `java.util.logging`.
+- A JSON record without a level field takes the level from its message, and a message with line breaks stays
+  on one row (`⏎` marks the breaks).
 - **The viewer remembers how you left it**: Collapse, Gaps, Timeline, Mask and Context stay as they were for the
   next log, so if you always mask secrets, you turn Mask on once.
 - **Screen readers**: toggles, level filters and pod chips say whether they are on (`aria-pressed`), and the icon

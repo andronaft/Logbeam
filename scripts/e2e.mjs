@@ -312,7 +312,8 @@ check(
   (await toggles()).join(' | ') === '▸ 4 lines | ▸ 2 lines | ▾ 3 lines' && (await actionsStatus()).startsWith('8 / 14'),
   `${(await toggles()).join(' | ')} · ${await actionsStatus()}`,
 );
-check('a section shows its errors', (await actions.locator('.group-errors').textContent()) === '✖ 1');
+// the failing test ("FAIL test/payments.test.ts …") and the ERROR line under it
+check('a section shows its errors', (await actions.locator('.group-errors').textContent()) === '✖ 2');
 await actions.screenshot({ path: 'docs/sections.png' });
 await actions.locator('.row[data-number="1"] .fold-toggle').click();
 check(
