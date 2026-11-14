@@ -456,7 +456,7 @@
     "message": "Similar consecutive lines"
   },
   "viewerLineLinkTitle": {
-    "message": "Copy a link to this line"
+    "message": "Copy a link to this line (Shift+click: to the lines from the selected one)"
   },
   "viewerRegexTimeout": {
     "message": "This regex took over {seconds}s and was stopped. Simplify it."
@@ -716,6 +716,15 @@
   "keyHelp": {
     "message": "Show or hide these keys"
   },
+  "keySelectRange": {
+    "message": "Select the lines from the selected one to the clicked one"
+  },
+  "keyExtendSelection": {
+    "message": "Add the next line to the selection / take it back"
+  },
+  "keyCopyViewLink": {
+    "message": "Copy a link to this view, with its filters and selected lines"
+  },
   "localeCode": {
     "message": "en",
     "description": "The code of this translation (en, uk, …). Used for plural forms and the page language; not shown."
@@ -839,5 +848,29 @@
   },
   "viewerTraceOver": {
     "message": "over {time}"
+  },
+  "viewerViewLinkTitle": {
+    "message": "Copy a link that opens this view: the levels, the search, the time range, the pods and the selected lines ( y )"
+  },
+  "viewerViewLinkCopied": {
+    "message": "Link to this view copied"
+  },
+  "viewerRangeLinkCopied": {
+    "message": "Link to lines {from}–{to} copied"
+  },
+  "viewerRangeLines": {
+    "message": "Lines {from}–{to}"
+  },
+  "viewerRangeShown": {
+    "message": "{shown} of {total} lines shown"
+  },
+  "viewerCopyLines": {
+    "message": "Copy lines"
+  },
+  "viewerRangeMore_one": {
+    "message": "… and {n} more line"
+  },
+  "viewerRangeMore_other": {
+    "message": "… and {n} more lines"
   }
 }

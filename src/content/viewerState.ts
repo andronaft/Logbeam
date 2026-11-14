@@ -8,7 +8,6 @@ export const OVERSCAN = 30;
 /** Pods with their own chip and colour; more than this and the chips would fill the screen. */
 export const MAX_SOURCES = 24;
 export const MAX_HIGHLIGHTS = 5;
-export const LINE_HASH = /^#L(\d+)$/;
 /** Highlighting only looks at the start of very long lines (a minified bundle, say); rows don't wrap anyway. */
 export const HIGHLIGHT_LIMIT = 5000;
 
@@ -26,6 +25,8 @@ export interface State {
   /** Why the current search can't run (invalid or too slow regex); empty when it's fine. */
   searchError: string;
   selected: number | null;
+  /** The other end of a range of lines chosen with Shift+click; null when one line is selected. */
+  selectedTo: number | null;
   /** Only entries in this time range, chosen by dragging across the timeline. */
   timeRange: [number, number] | null;
   /** Pods or containers switched off with their chips. */

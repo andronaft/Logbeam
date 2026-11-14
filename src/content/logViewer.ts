@@ -36,6 +36,7 @@ import { applyTheme } from '../shared/theme';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
 import { keepInView, targetLineIndex } from '../lib/navigation';
+import { LINK_LEVELS, ViewLink, formatViewLink, parseViewLink } from '../lib/viewLink';
 import { parseLogAsync } from './parseAsync';
 import { COMPARE_ADD } from '../shared/compare';
 import { t, tn, uiLanguage } from '../shared/i18n';
@@ -45,7 +46,6 @@ import { Child, el } from './dom';
 import {
   FOLLOW_INTERVAL_MS,
   HIGHLIGHT_LIMIT,
-  LINE_HASH,
   MAX_HIGHLIGHTS,
   MAX_SOURCES,
   OVERSCAN,
@@ -56,6 +56,7 @@ import {
 } from './viewerState';
 import { renderErrorGroups } from './errorGroupsPanel';
 import { renderFieldStats } from './fieldStatsPanel';
+import { renderRange } from './rangePanel';
 import { createTimelineView } from './timelineView';
 import { VIEWER_CSS } from './viewerStyles';
 
@@ -153,7 +154,10 @@ export async function openViewer(text: string = readPageText(), name?: string): 
 
 /** Opens a dropped or chosen file (plain or gzip) in the viewer, replacing the current log. */
 export async function openFile(file: File): Promise<void> {
-  await openViewer(await readLogFile(file), displayName(file.name));
+  const text = await readLogFile(file);
+  // the line and the filters in the address belong to the log that was open before
+  if (parseViewLink(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+  await openViewer(text, displayName(file.name));
 }
 
 function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOptions): void {
@@ -176,6 +180,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     searchError: '',
     showTimeline: timeline !== null && options.view.showTimeline,
     selected: null,
+    selectedTo: null,
     timeRange: null,
     hiddenSources: new Set(),
     highlights: [],
@@ -186,6 +191,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   };
   let times = entryTimes(allLines);
   const sources = [...new Set(allLines.map((l) => l.source).filter((s): s is string => s !== null))];
+  /** The pods that have a chip to switch them off with. */
+  const chipSources = sources.slice(0, MAX_SOURCES);
   const sourceIndex = new Map(sources.map((source, i) => [source, i]));
   const fields = commonFields(allLines);
   let visible: CollapsedLine[] = [];
@@ -195,6 +202,10 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const openGroups = new Set(groups.filter((g) => g.errors > 0).map((g) => g.start));
 
   // ---- toolbar ----------------------------------------------------------------------------
+  const setPressed = (button: HTMLElement, on: boolean) => {
+    button.classList.toggle('on', on);
+    button.setAttribute('aria-pressed', String(on));
+  };
   const chipCounts: Partial<Record<Level | 'UNKNOWN', [HTMLButtonElement, HTMLSpanElement]>> = {};
   const chip = (key: Level | 'UNKNOWN', text: string) => {
     const count = el('span', { className: 'count' }, String(counts[key]));
@@ -349,6 +360,20 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     { className: 'toggle', title: t('viewerCopyTitle', 'Copy visible lines') },
     t('viewerCopy', 'Copy'),
   );
+  const linkButton = el(
+    'button',
+    {
+      className: 'toggle',
+      title: t(
+        'viewerViewLinkTitle',
+        'Copy a link that opens this view: the levels, the search, the time range, the pods and the selected lines ( y )',
+      ),
+    },
+    '🔗',
+  );
+  linkButton.setAttribute('aria-label', linkButton.title);
+  // pasted text and files have no address to share
+  linkButton.hidden = ON_EXTENSION_PAGE;
   const compareButton = el(
     'button',
     {
@@ -441,16 +466,17 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const rangeChip = el('button', { className: 'toggle on range', title: t('viewerRangeTitle', 'Show all times again') });
   const highlightChips = el('span', { className: 'group' });
   const sourceChips = el('span', { className: 'group sources' });
-  const sourceButtons = sources.slice(0, MAX_SOURCES).map((source, i) => {
+  const sourceButtons = chipSources.map((source, i) => {
     const button = el(
       'button',
       { className: `chip on src-${i % 8}`, title: t('viewerSourceTitle', 'Show/hide lines from {source}', { source }) },
       source,
     );
+    button.setAttribute('aria-pressed', 'true');
     button.addEventListener('click', () => {
       if (state.hiddenSources.has(source)) state.hiddenSources.delete(source);
       else state.hiddenSources.add(source);
-      button.classList.toggle('on');
+      setPressed(button, !state.hiddenSources.has(source));
       void refresh();
     });
     return button;
@@ -491,6 +517,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     el('span', { className: 'group' }, bookmarksButton, reportButton),
     followToggle,
     copyButton,
+    linkButton,
     saveButton,
     compareButton,
     openButton,
@@ -554,8 +581,53 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     setTimeout(() => toast.classList.remove('show'), 1600);
   }
 
-  function lineLink(number: number): string {
-    return `${location.href.split('#')[0]}#L${number}`;
+  /** The selected range as [first, last] line numbers; null when one line or none is selected. */
+  function selectedRange(): [number, number] | null {
+    if (state.selected === null || state.selectedTo === null) return null;
+    return [Math.min(state.selected, state.selectedTo), Math.max(state.selected, state.selectedTo)];
+  }
+
+  /** What a link has to keep to open this view again: the selection and what narrows the lines. */
+  function currentView(): ViewLink {
+    const range = selectedRange();
+    // a level this log doesn't have has no chip, so it is neither shown nor hidden
+    const present = LINK_LEVELS.filter((level) => counts[level === 'OTHER' ? 'UNKNOWN' : level] > 0);
+    const shown = present.filter((level) => (level === 'OTHER' ? state.includeUnknown : state.levels.has(level)));
+    const hiddenPods = chipSources.filter((source) => state.hiddenSources.has(source));
+    const shownPods = chipSources.filter((source) => !state.hiddenSources.has(source));
+    // whichever list of pods is shorter
+    const listShown = hiddenPods.length > 0 && shownPods.length <= hiddenPods.length;
+    return {
+      line: range ? range[0] : state.selected,
+      lineEnd: range ? range[1] : null,
+      levels: shown.length === present.length ? null : shown,
+      query: state.query,
+      regex: state.regex,
+      caseSensitive: state.caseSensitive,
+      timeRange: state.timeRange,
+      pods: listShown ? shownPods : null,
+      hiddenPods: listShown ? null : hiddenPods,
+    };
+  }
+
+  function viewUrl(): string {
+    return `${location.href.split('#')[0]}${formatViewLink(currentView())}`;
+  }
+
+  /**
+   * Keeps the view in the address, so the address bar is always a link to what is on screen.
+   * replaceState adds no history entry per key typed. A page's own #anchor stays until there
+   * is something to write instead.
+   */
+  function syncAddress(): void {
+    const hash = formatViewLink(currentView());
+    if (hash === location.hash) return;
+    if (!hash && parseViewLink(location.hash) === null) return;
+    try {
+      history.replaceState(null, '', hash || location.pathname + location.search);
+    } catch {
+      // a sandboxed page that may not touch its history: the Link button still works
+    }
   }
 
   function appendText(parent: HTMLElement, line: LogLine): void {
@@ -588,6 +660,26 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const line = state.selected === null ? undefined : allLines[state.selected - 1];
     inspector.hidden = !line;
     if (!line) return;
+    const range = selectedRange();
+    if (range) {
+      const shown = visible.filter((l) => l.number >= range[0] && l.number <= range[1]);
+      const first = times[range[0] - 1];
+      const last = times[range[1] - 1];
+      renderRange(inspector, {
+        from: range[0],
+        to: range[1],
+        lines: shown.map(displayText),
+        span: last > first ? formatGap(last - first).replace(/^\+/, '') : '',
+        onCopyLines: () =>
+          void copy(
+            shown.map(displayText).join('\n'),
+            tn('viewerLinesCopied', shown.length, '{n} line copied', '{n} lines copied'),
+          ),
+        onCopyLink: () => void copy(viewUrl(), t('viewerLinkCopied', 'Link copied')),
+        onClose: () => select(null),
+      });
+      return;
+    }
     const facts: Child[] = [t('viewerLineNumber', 'Line {n}', { n: line.number })];
     if (line.level) facts.push(' · ', el('b', { className: `lvl-${line.level}` }, line.level));
     if (line.time !== null) facts.push(` · ${formatTime(line.time, state.timeMode)}`);
@@ -597,7 +689,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const copyLine = el('button', { className: 'toggle' }, t('viewerCopyLine', 'Copy line'));
     copyLine.addEventListener('click', () => void copy(displayText(line), t('viewerLineCopied', 'Line copied')));
     const copyLink = el('button', { className: 'toggle' }, t('viewerCopyLink', 'Copy link'));
-    copyLink.addEventListener('click', () => void copy(lineLink(line.number), t('viewerLinkCopied', 'Link copied')));
+    copyLink.addEventListener('click', () => void copy(viewUrl(), t('viewerLinkCopied', 'Link copied')));
     const close = el('button', { className: 'toggle', title: t('viewerCloseTitle', 'Close ( Esc )') }, '×');
     close.addEventListener('click', () => select(null));
     const marked = state.bookmarks.has(line.number);
@@ -756,9 +848,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     });
   }
 
-  function select(number: number | null): void {
+  /** Selects one line, or with `to` the lines from `number` to it. */
+  function select(number: number | null, to: number | null = null): void {
     state.selected = number;
-    history.replaceState(null, '', number === null ? location.pathname + location.search : `#L${number}`);
+    state.selectedTo = number === null || to === number ? null : to;
+    syncAddress();
     renderInspector();
     render();
   }
@@ -989,6 +1083,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   signal.addEventListener('abort', () => clearInterval(followTimer));
 
   secretsButton.addEventListener('click', () => jumpToNext((l) => l.secret));
+  const copyViewLink = () => void copy(viewUrl(), t('viewerViewLinkCopied', 'Link to this view copied'));
+  linkButton.addEventListener('click', copyViewLink);
   copyButton.addEventListener(
     'click',
     () =>
@@ -1016,14 +1112,31 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       toggleGroup(number);
       return;
     }
+    // Shift+click: the lines from the selected one to this one, like #L120-L135 on GitHub
+    const extend = event.shiftKey && state.selected !== null;
     if (target.classList.contains('ln')) {
-      select(number);
-      void copy(lineLink(number), t('viewerLineLinkCopied', 'Link to line {n} copied', { n: number }));
+      if (extend) select(state.selected, number);
+      else select(number);
+      const range = selectedRange();
+      void copy(
+        viewUrl(),
+        range
+          ? t('viewerRangeLinkCopied', 'Link to lines {from}–{to} copied', { from: range[0], to: range[1] })
+          : t('viewerLineLinkCopied', 'Link to line {n} copied', { n: number }),
+      );
+      return;
+    }
+    if (extend) {
+      select(state.selected, number);
       return;
     }
     // don't steal clicks that finish a text selection
     if (window.getSelection()?.toString()) return;
-    select(state.selected === number ? null : number);
+    select(state.selected === number && state.selectedTo === null ? null : number);
+  });
+  // with a line selected, Shift+click picks a range of lines, not a range of text
+  rows.addEventListener('mousedown', (event) => {
+    if (event.shiftKey && state.selected !== null) event.preventDefault();
   });
 
   document.addEventListener(
@@ -1058,6 +1171,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       } else if (event.key === 'k') {
         event.preventDefault();
         moveSelection(-1);
+      } else if (event.key === 'J') {
+        event.preventDefault();
+        extendSelection(1);
+      } else if (event.key === 'K') {
+        event.preventDefault();
+        extendSelection(-1);
+      } else if (event.key === 'y' && !ON_EXTENSION_PAGE) {
+        copyViewLink();
       } else if (event.key === 'g') {
         event.preventDefault();
         selectLineAtIndex(0);
@@ -1082,15 +1203,30 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   scroller.addEventListener('scroll', () => render(), { passive: true });
   window.addEventListener('resize', () => render(), { signal });
 
-  function selectLineAtIndex(index: number): void {
-    if (visible.length === 0) return;
-    const clamped = Math.max(0, Math.min(visible.length - 1, index));
-    select(visible[clamped].number);
-    const newScroll = keepInView(clamped, ROW_HEIGHT, scroller.scrollTop, scroller.clientHeight);
+  function reveal(index: number): void {
+    const newScroll = keepInView(index, ROW_HEIGHT, scroller.scrollTop, scroller.clientHeight);
     if (newScroll !== scroller.scrollTop) {
       scroller.scrollTop = newScroll;
       render();
     }
+  }
+
+  function selectLineAtIndex(index: number): void {
+    if (visible.length === 0) return;
+    const clamped = Math.max(0, Math.min(visible.length - 1, index));
+    select(visible[clamped].number);
+    reveal(clamped);
+  }
+
+  /** J / K: grows or shrinks the selected range by one shown line, from its moving end. */
+  function extendSelection(delta: number): void {
+    if (state.selected === null) return moveSelection(delta);
+    const end = state.selectedTo ?? state.selected;
+    const current = visible.findIndex((l) => l.number === end);
+    if (current < 0) return;
+    const target = Math.max(0, Math.min(visible.length - 1, current + delta));
+    select(state.selected, visible[target].number);
+    reveal(target);
   }
 
   function moveSelection(delta: number): void {
@@ -1216,6 +1352,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         shown: matchCount.toLocaleString(),
         total: allLines.length.toLocaleString(),
       }) + conditionNote;
+    syncAddress();
     renderSubbar();
     renderInspector();
     render();
@@ -1224,9 +1361,10 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   // looked up once: render() runs on every scroll
   const gapTitle = t('viewerGapTitle', 'Pause since the previous entry');
   const repeatTitle = t('viewerRepeatTitle', 'Similar consecutive lines');
-  const lineLinkTitle = t('viewerLineLinkTitle', 'Copy a link to this line');
+  const lineLinkTitle = t('viewerLineLinkTitle', 'Copy a link to this line (Shift+click: to the lines from the selected one)');
 
   function render(): void {
+    const range = selectedRange();
     const first = Math.max(0, Math.floor(scroller.scrollTop / ROW_HEIGHT) - OVERSCAN);
     const count = Math.ceil(scroller.clientHeight / ROW_HEIGHT) + OVERSCAN * 2;
     const slice = visible.slice(first, first + count);
@@ -1238,7 +1376,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         if (line.secret) classes.push('has-secret');
         if (line.isContext) classes.push('context');
         if (line.gapAbove) classes.push('gap-above');
-        if (line.number === state.selected) classes.push('selected');
+        if (range ? line.number >= range[0] && line.number <= range[1] : line.number === state.selected) classes.push('selected');
         if (state.bookmarks.has(line.number)) classes.push('bookmarked');
         const row = el('div', { className: classes.join(' ') });
         row.dataset.number = String(line.number);
@@ -1287,20 +1425,61 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     );
   }
 
+  /** Sets the view up as a link describes it: the filters, then the line or the range of lines. */
+  function applyLink(link: ViewLink): void {
+    if (link.levels) {
+      const shown = new Set<string>(link.levels);
+      for (const [key, entry] of Object.entries(chipCounts)) {
+        const level = key as Level | 'UNKNOWN';
+        // a level this log doesn't have stays on: its chip is hidden, nobody could switch it back
+        const on = counts[level] === 0 || shown.has(level === 'UNKNOWN' ? 'OTHER' : level);
+        if (level === 'UNKNOWN') state.includeUnknown = on;
+        else if (on) state.levels.add(level);
+        else state.levels.delete(level);
+        setPressed(entry![0], on);
+      }
+    }
+    search.value = state.query = link.query;
+    state.regex = link.regex;
+    setPressed(regexToggle, link.regex);
+    state.caseSensitive = link.caseSensitive;
+    setPressed(caseToggle, link.caseSensitive);
+    // without timestamps there is no timeline to show the range on, or to take it off again
+    if (link.timeRange && timeline !== null) state.timeRange = link.timeRange;
+    if ((link.pods || link.hiddenPods) && sourceButtons.length >= 2) {
+      sourceButtons.forEach((button, i) => {
+        const source = chipSources[i];
+        const hidden = link.pods ? !link.pods.includes(source) : link.hiddenPods!.includes(source);
+        if (hidden) state.hiddenSources.add(source);
+        setPressed(button, !hidden);
+      });
+    }
+    if (link.line !== null && link.line <= allLines.length) {
+      state.selected = link.line;
+      const end = link.lineEnd === null ? null : Math.min(link.lineEnd, allLines.length);
+      state.selectedTo = end === link.line ? null : end;
+      // open the sections these lines are folded in
+      const last = state.selectedTo ?? link.line;
+      for (const group of groups) if (link.line <= group.end && last > group.start) openGroups.add(group.start);
+    }
+  }
+
+  /** Scrolls to the selected line or range; if a filter hides it, to where it would be. */
+  function showSelection(): void {
+    if (state.selected === null) return;
+    const [first, last] = selectedRange() ?? [state.selected, state.selected];
+    let index = visible.findIndex((l) => l.number >= first);
+    if (index < 0 || visible[index].number > last) index = Math.max(0, (index < 0 ? visible.length : index) - 1);
+    if (visible.length === 0) return;
+    scroller.scrollTop = Math.max(0, index * ROW_HEIGHT - scroller.clientHeight / 3);
+    render();
+  }
+
+  // a link opens the same view: #L120, #L120-L135, and the filters after them
+  const link = parseViewLink(location.hash);
+  if (link) applyLink(link);
   updateBookmarkButtons();
-  void refresh();
+  void refresh().then(showSelection);
   void loadBookmarks();
   scroller.focus();
-
-  // #L120 in the address opens the viewer on that line, opening its section if it is folded
-  const hash = LINE_HASH.exec(location.hash);
-  if (hash) {
-    const inside = groups.find((g) => Number(hash[1]) > g.start && Number(hash[1]) <= g.end);
-    if (inside && !openGroups.has(inside.start)) {
-      openGroups.add(inside.start);
-      void refresh();
-    }
-    const index = visible.findIndex((l) => l.number === Number(hash[1]));
-    if (index >= 0) scrollToIndex(index, true);
-  }
 }

@@ -69,9 +69,12 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge
 - **Error timeline**: a histogram of entries, errors and warnings over time; click a bar to jump there
 - **Line inspector**: click a line to read it in full, with its time, pause and, for JSON records, all fields
-- **Links to lines**: click a line number to copy a `#L120` link that opens the viewer right on that line
-- **Keyboard**: next error (`e`), search (`/`), `j` / `k` between lines, `g` / `G` to the first or last; `?` lists
-  all the keys
+- **Links to lines**: click a line number to copy a `#L120` link that opens the viewer right on that line;
+  **Shift+click** a second line to select everything in between (`#L120-L135`) and copy those lines or a link to them
+- **Links to a view**: the address keeps the levels, the search, the time range and the pods, so the link you
+  send (🔗 or `y`) opens exactly what you see: "the errors from the payments pod after 10:05", not the whole log
+- **Keyboard**: next error (`e`), search (`/`), `j` / `k` between lines, `J` / `K` to select more of them, `g` / `G`
+  to the first or last; `?` lists all the keys
 - **Open automatically** on sites you choose (opt-in per site, only plain-text pages that look like logs)
 - Fast on **150k+ lines**: logs over 1 MB are parsed in a **Web Worker** with a progress bar, and only the
   rows on screen are in the DOM
@@ -79,6 +82,7 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 <p align="center"><img src="docs/log-viewer-filtered.png" alt="Only errors and warnings, repeated retries collapsed" width="860"></p>
 <p align="center"><img src="docs/highlights.png" alt="Two highlights in their own colours" width="860"></p>
 <p align="center"><img src="docs/table.png" alt="JSON log as a table, with bookmarks" width="860"></p>
+<p align="center"><img src="docs/range.png" alt="Four lines selected with Shift+click, with the range in the address" width="860"></p>
 
 ### 🔑 Secret detection
 
@@ -200,6 +204,7 @@ src/
 │   ├── timelineView.ts  the error timeline, with dragging to pick a time range
 │   ├── fieldStatsPanel.ts  top values and percentiles of a field, in the inspector
 │   ├── errorGroupsPanel.ts the Groups panel: each different error once
+│   ├── rangePanel.ts    the inspector for a range of lines
 │   ├── dom.ts           el(): DOM from nodes, never innerHTML (Trusted Types)
 │   ├── viewerStyles.ts  its CSS, dark and light
 │   ├── shortcuts.ts     the ? list of keys
@@ -216,6 +221,7 @@ src/
 │   ├── secrets.ts       credential detection and masking
 │   ├── regexSafety.ts   rejects regexes prone to catastrophic backtracking
 │   ├── timeline.ts      error/warning histogram
+│   ├── viewLink.ts      the view in the address: #L120-L135&levels=ERROR&q=…
 │   ├── segments.ts      overlapping highlights (search matches inside secrets)
 │   ├── files.ts         .log and .gz files
 │   ├── transforms.ts    JSON, JWT, Base64, URL, timestamps, case, lines, mask secrets
@@ -247,7 +253,7 @@ src/
   (different origin), so the worker is built separately, inlined as a string and started from a Blob. Pages
   whose CSP blocks that fall back to parsing in chunks between frames. The e2e test covers both paths.
 - **Pure core.** Parsing, secret detection and transforms have no DOM or `chrome.*` dependencies, which keeps
-  them easy to test: 139 unit tests, plus over 100 end-to-end checks in a real Chromium and 28 in Firefox.
+  them easy to test: 191 unit tests, plus over 150 end-to-end checks in a real Chromium and 28 in Firefox.
 
 ## Roadmap
 
@@ -264,8 +270,9 @@ src/
 - [x] ANSI colours, your own level words, light theme, percentiles for durations
 - [x] Ukrainian for the log viewer, Compare and Settings, `j` / `k`, context around matches, CSV (thanks to our
       first contributors)
+- [x] Links that open the same view: filters in the link, ranges of lines
 - [ ] More languages ([#2](https://github.com/andronaft/Logbeam/issues/2))
-- [ ] Filters in the link, line ranges ([open issues](https://github.com/andronaft/Logbeam/issues))
+- [ ] Jump between search matches, and more ([open issues](https://github.com/andronaft/Logbeam/issues))
 
 ## Contributing
 

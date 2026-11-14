@@ -403,6 +403,154 @@ await linked.waitForSelector('.row.selected');
 check('#L13 opens on line 13', (await linked.locator('.row.selected .ln').textContent()) === '13');
 await linked.close();
 
+// ---- link to a view: the filters are in the address ------------------------------------------
+const open = async (url) => {
+  const tab = await context.newPage();
+  watch(tab);
+  await tab.goto(url);
+  await tab.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+  await tab.waitForSelector('.status');
+  await tab.evaluate(() => {
+    navigator.clipboard.writeText = async (text) => void (window.__copied = text);
+  });
+  return tab;
+};
+const statusOf = (tab) => tab.locator('.status').textContent();
+const pressed = (tab, selector) => tab.locator(selector).getAttribute('aria-pressed');
+
+const view = await open(`${base}/fields.log`);
+await view.locator('.chip.lvl-INFO').click();
+await view.locator('.search').fill('payments');
+// the search waits for typing to stop
+await view.waitForFunction(() => location.hash.endsWith('q=payments'));
+const viewBuckets = view.locator('.bucket');
+const fromBox = await viewBuckets.nth(0).boundingBox();
+const toBox = await viewBuckets.nth(30).boundingBox();
+await view.mouse.move(fromBox.x + 1, fromBox.y + 10);
+await view.mouse.down();
+await view.mouse.move(toBox.x + 1, toBox.y + 10, { steps: 8 });
+await view.mouse.up();
+await view.waitForFunction(() => /&to=\d+$/.test(location.hash));
+check(
+  'levels, search and time range are kept in the address',
+  /\/fields\.log#levels=ERROR,WARN&q=payments&from=\d+&to=\d+$/.test(view.url()) && (await statusOf(view)) === '2 / 7 lines',
+  `${view.url()} · ${await statusOf(view)}`,
+);
+await view.locator('.toggle', { hasText: '🔗' }).click();
+check('the Link button copies the address', (await view.evaluate(() => window.__copied)) === view.url());
+
+const sameView = await open(view.url());
+check(
+  'a link with filters opens the same view',
+  (await statusOf(sameView)) === '2 / 7 lines' &&
+    (await pressed(sameView, '.chip.lvl-INFO')) === 'false' &&
+    (await pressed(sameView, '.chip.lvl-ERROR')) === 'true' &&
+    (await sameView.locator('.search').inputValue()) === 'payments' &&
+    (await sameView.locator('.range').textContent()) === (await view.locator('.range').textContent()),
+  `${await statusOf(sameView)} · ${await sameView.locator('.range').textContent()}`,
+);
+check('…and leaves the address as it was', sameView.url() === view.url(), sameView.url());
+await sameView.locator('.range').click();
+await sameView.locator('.chip.lvl-INFO').click();
+await sameView.locator('.search').fill('');
+await sameView.waitForFunction(() => location.hash === '');
+check('taking the filters off empties the address', sameView.url() === `${base}/fields.log`, sameView.url());
+await sameView.close();
+await view.close();
+
+const regexView = await open(`${base}/app.log#L18&q=Connection%7Crefused&re=1`);
+await regexView.waitForSelector('.row.selected');
+check(
+  'a link with a regex search and a line',
+  (await statusOf(regexView)) === '2 / 65 lines' &&
+    (await pressed(regexView, '.toggle[title="Regular expression"]')) === 'true' &&
+    (await regexView.locator('.inspector .facts').textContent()).startsWith('Line 18'),
+  `${await statusOf(regexView)} · ${await regexView.locator('.inspector .facts').textContent()}`,
+);
+await regexView.close();
+
+const podsView = await open(`${base}/pods.log`);
+await podsView.locator('.sources .chip').nth(1).click();
+check('a hidden pod is kept in the address', /#pods=[^&,]+$/.test(podsView.url()), podsView.url());
+const samePods = await open(podsView.url());
+check(
+  'a link with pods opens the same view',
+  (await statusOf(samePods)) === '2 / 4 lines' &&
+    (await pressed(samePods, '.sources .chip >> nth=0')) === 'true' &&
+    (await pressed(samePods, '.sources .chip >> nth=1')) === 'false',
+  await statusOf(samePods),
+);
+await samePods.close();
+await podsView.close();
+
+const anchor = await open(`${base}/app.log#installation`);
+check("a page's own #anchor is left alone", anchor.url().endsWith('#installation'), anchor.url());
+await anchor.close();
+
+// ---- a range of lines: Shift+click, J / K, #L2-L5 ---------------------------------------------
+const lines = await open(`${base}/app.log`);
+const selectedLines = async (tab) => (await tab.locator('.row.selected .ln').allTextContents()).join(',');
+await lines.locator('.row[data-number="2"] .txt').click();
+await lines.locator('.row[data-number="5"] .txt').click({ modifiers: ['Shift'] });
+check(
+  'Shift+click selects the lines in between',
+  (await selectedLines(lines)) === '2,3,4,5' && lines.url().endsWith('/app.log#L2-L5'),
+  `${await selectedLines(lines)} · ${lines.url()}`,
+);
+check(
+  'the inspector describes the range',
+  (await lines.locator('.inspector .facts').textContent()) === 'Lines 2–5 · 4 lines · over 65ms',
+  await lines.locator('.inspector .facts').textContent(),
+);
+await lines.screenshot({ path: 'docs/range.png' });
+await lines.locator('.inspector .copy-lines').click();
+const copiedLines = (await lines.evaluate(() => window.__copied)).split('\n');
+check(
+  'Copy lines copies those lines',
+  copiedLines.length === 4 && copiedLines[0].includes('Tomcat initialized') && copiedLines[3].includes('HikariConfig'),
+  `${copiedLines.length} lines`,
+);
+await lines.keyboard.press('K');
+check('K takes the last line back', (await selectedLines(lines)) === '2,3,4', await selectedLines(lines));
+await lines.keyboard.press('J');
+await lines.keyboard.press('J');
+check('J adds the next line', (await selectedLines(lines)) === '2,3,4,5,6' && lines.url().endsWith('#L2-L6'), lines.url());
+await lines.locator('.row[data-number="4"] .ln').click({ modifiers: ['Shift'] });
+check(
+  'Shift+click on a line number copies a link to the range',
+  (await lines.evaluate(() => window.__copied)) === `${base}/app.log#L2-L4`,
+  await lines.evaluate(() => window.__copied),
+);
+await lines.locator('.chip.lvl-DEBUG').click();
+check(
+  'a filter inside the range is counted and kept in the link',
+  (await lines.locator('.inspector .facts').textContent()).startsWith('Lines 2–4 · 2 of 3 lines shown') &&
+    lines.url().endsWith('#L2-L4&levels=ERROR,WARN,INFO'),
+  `${await lines.locator('.inspector .facts').textContent()} · ${lines.url()}`,
+);
+await lines.keyboard.press('y');
+check('y copies a link to the view', (await lines.evaluate(() => window.__copied)) === lines.url());
+await lines.keyboard.press('Escape');
+check(
+  'Esc clears the range',
+  (await lines.locator('.row.selected').count()) === 0 && lines.url().endsWith('#levels=ERROR,WARN,INFO'),
+);
+await lines.close();
+
+const rangeLink = await open(`${base}/app.log#L2-L5`);
+await rangeLink.waitForSelector('.row.selected');
+check('#L2-L5 opens with those lines selected', (await selectedLines(rangeLink)) === '2,3,4,5', await selectedLines(rangeLink));
+await rangeLink.close();
+
+const foldedLink = await open(`${base}/actions.log#L3-L4`);
+await foldedLink.waitForSelector('.row.selected');
+check(
+  'a link into a folded section opens that section only',
+  (await selectedLines(foldedLink)) === '3,4' && (await statusOf(foldedLink)).startsWith('12 / 14'),
+  `${await selectedLines(foldedLink)} · ${await statusOf(foldedLink)}`,
+);
+await foldedLink.close();
+
 // ---- big log in the Web Worker ----------------------------------------------------------
 const big = await context.newPage();
 watch(big);
