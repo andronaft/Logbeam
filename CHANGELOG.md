@@ -4,6 +4,16 @@
 
 ### Added
 
+- **A link opens the same view.** The address now keeps what narrows the log: the shown levels, the search
+  (also a regex or a field filter), the time range and the pods, next to the selected line:
+  `…/build.log#L120&levels=ERROR,WARN&q=payments`. Send it, and your colleague sees "the errors from the
+  payments pod after 10:05" instead of setting the same filters again. 🔗 in the toolbar or `y` copies the link;
+  reloading the page keeps the view. `#L120` links from older versions work as before, and a page's own
+  `#anchor` is left alone (#10).
+- **Select a range of lines.** Click a line, then **Shift+click** another one (or press `J` / `K`) to select
+  everything in between, like `#L120-L135` on GitHub. The inspector shows how many lines that is and how long
+  they took, with **Copy lines** and **Copy link**; the link opens with the range selected, scrolled into view
+  and its folded section open. Shift+click a line number to copy the link at once (#11).
 - **Follow one request.** Click a line and the inspector offers its IDs: `traceId`, `request_id`, `orderId`,
   UUIDs and W3C trace IDs. Click one to see every line of that request across pods and services, with a
   summary like "3 entries · 3 pods · over 2.2s". Short IDs (`userId=42`) are followed as their field, so they
@@ -13,8 +23,12 @@
 
 - **The viewer remembers how you left it**: Collapse, Gaps, Timeline, Mask and Context stay as they were for the
   next log, so if you always mask secrets, you turn Mask on once.
-- **Screen readers**: toggles and level filters say whether they are on (`aria-pressed`), and the icon buttons
-  (`.*`, `Aa`, 🖍, `?`) have names.
+- **Screen readers**: toggles, level filters and pod chips say whether they are on (`aria-pressed`), and the icon
+  buttons (`.*`, `Aa`, 🖍, 🔗, `?`) have names.
+
+### Fixed
+
+- Opening or dropping another file no longer jumps to the line that was selected in the log before it.
 
 ## 0.9.0
 

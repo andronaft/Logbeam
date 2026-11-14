@@ -456,7 +456,7 @@
     "message": "Схожі рядки поспіль"
   },
   "viewerLineLinkTitle": {
-    "message": "Скопіювати посилання на цей рядок"
+    "message": "Скопіювати посилання на цей рядок (Shift+клік: на рядки від вибраного)"
   },
   "viewerRegexTimeout": {
     "message": "Цей вираз виконувався понад {seconds} с, тому його зупинено. Спростіть його."
@@ -764,6 +764,15 @@
   "keyHelp": {
     "message": "Показати або сховати цей список"
   },
+  "keySelectRange": {
+    "message": "Вибрати рядки від вибраного до того, на який клацнули"
+  },
+  "keyExtendSelection": {
+    "message": "Додати до вибраного наступний рядок / прибрати його"
+  },
+  "keyCopyViewLink": {
+    "message": "Скопіювати посилання на цей вигляд, з фільтрами та вибраними рядками"
+  },
   "localeCode": {
     "message": "uk",
     "description": "The code of this translation (en, uk, …). Used for plural forms and the page language; not shown."
@@ -917,5 +926,35 @@
   },
   "viewerTraceOver": {
     "message": "за {time}"
+  },
+  "viewerViewLinkTitle": {
+    "message": "Скопіювати посилання, яке відкриє цей самий вигляд: рівні, пошук, проміжок часу, поди та вибрані рядки ( y )"
+  },
+  "viewerViewLinkCopied": {
+    "message": "Посилання на цей вигляд скопійовано"
+  },
+  "viewerRangeLinkCopied": {
+    "message": "Посилання на рядки {from}–{to} скопійовано"
+  },
+  "viewerRangeLines": {
+    "message": "Рядки {from}–{to}"
+  },
+  "viewerRangeShown": {
+    "message": "показано рядків: {shown} з {total}"
+  },
+  "viewerCopyLines": {
+    "message": "Копіювати рядки"
+  },
+  "viewerRangeMore_one": {
+    "message": "… і ще {n} рядок"
+  },
+  "viewerRangeMore_few": {
+    "message": "… і ще {n} рядки"
+  },
+  "viewerRangeMore_many": {
+    "message": "… і ще {n} рядків"
+  },
+  "viewerRangeMore_other": {
+    "message": "… і ще {n} рядка"
   }
 }
