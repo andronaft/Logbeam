@@ -55,8 +55,8 @@ Firefox and geckodriver locally, so it's fine to leave that one to CI).
 ## Translations
 
 Copy `_locales/en/messages.json` to `_locales/<language>/messages.json` and translate the `message` values. Keep
-`{placeholders}` as they are, and keep labels short: the toolbar has little room. See
-[#2](https://github.com/andronaft/Logbeam/issues/2).
+`{placeholders}` as they are, and keep labels short: the toolbar has little room. `npm test` tells you if a
+message is missing or a placeholder is misspelt. See [#2](https://github.com/andronaft/Logbeam/issues/2).
 
 ## Commits and pull requests
 
