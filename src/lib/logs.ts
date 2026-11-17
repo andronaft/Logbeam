@@ -1,5 +1,6 @@
 import { AnsiSpan, parseAnsi, stripAnsi } from './ansi';
 import { hasSecret } from './secrets';
+import { MERGED_EXTENSIONS } from './merge';
 
 export type Level = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE';
 
@@ -65,13 +66,17 @@ function compileCustomLevels(levels: CustomLevel[] | undefined): CustomLevels | 
 const KUBECTL_PREFIX = /^\[pod\/([^/\]\s]+)\/([^\]\s]+)\] /;
 // docker compose logs: "payments-1  | …" (the replica number tells it from "INFO | …")
 const COMPOSE_PREFIX = /^([a-z0-9][\w.-]*-\d+)\s+\| ?/;
+// several files opened together (see merge.ts): "worker.log | …"
+const FILE_PREFIX = new RegExp(`^(\\w[\\w.-]*\\.(?:${MERGED_EXTENSIONS.join('|')}))\\s+\\| `, 'i');
 
-/** Splits off a kubectl or docker compose prefix, so the rest is read like any log line. */
+/** Splits off a kubectl, docker compose or file name prefix, so the rest is read like any log line. */
 export function splitSource(raw: string): { source: string | null; rest: string } {
   const kubectl = KUBECTL_PREFIX.exec(raw);
   if (kubectl) return { source: `${kubectl[1]}/${kubectl[2]}`, rest: raw.slice(kubectl[0].length) };
   const compose = COMPOSE_PREFIX.exec(raw);
   if (compose) return { source: compose[1], rest: raw.slice(compose[0].length) };
+  const file = FILE_PREFIX.exec(raw);
+  if (file) return { source: file[1], rest: raw.slice(file[0].length) };
   return { source: null, rest: raw };
 }
 

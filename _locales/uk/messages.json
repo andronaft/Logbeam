@@ -297,7 +297,7 @@
     "message": "Відкрити…"
   },
   "viewerOpenTitle": {
-    "message": "Відкрити файл .log або .gz (або перетягніть його сюди)"
+    "message": "Відкрити файли .log або .gz (або перетягніть їх сюди); кілька файлів зводяться за часом"
   },
   "viewerRaw": {
     "message": "Оригінал"
@@ -357,7 +357,7 @@
     "message": "Записів: {total}, помилок: {errors}, попереджень: {warnings}"
   },
   "viewerDropHint": {
-    "message": "Перетягніть файл .log або .gz, щоб відкрити його"
+    "message": "Перетягніть файли .log або .gz, щоб відкрити їх; кілька файлів зводяться за часом"
   },
   "viewerCopyFailed": {
     "message": "Не вдалося скопіювати: сторінка не дає доступу до буфера обміну"
@@ -468,10 +468,10 @@
     "message": "Переглядач логів · Logbeam"
   },
   "viewerStartDrop": {
-    "message": "Перетягніть сюди файл логу"
+    "message": "Перетягніть сюди файли логів"
   },
   "viewerStartChoose": {
-    "message": "або клацніть, щоб вибрати: .log, .txt, .json, а також gzip (.gz)"
+    "message": "або клацніть, щоб вибрати: .log, .txt, .json, а також gzip (.gz). Кілька файлів зводяться в один лог за часом"
   },
   "viewerStartOr": {
     "message": "або вставте лог"
@@ -956,5 +956,23 @@
   },
   "viewerRangeMore_other": {
     "message": "… і ще {n} рядка"
+  },
+  "viewerMerging": {
+    "message": "Зводжу за часом: {name}"
+  },
+  "viewerMergedUntimed": {
+    "message": "Без часу в {names}, тому ці рядки в кінці"
+  },
+  "viewerMerged_one": {
+    "message": "{n} файл зведено за часом"
+  },
+  "viewerMerged_few": {
+    "message": "{n} файли зведено за часом"
+  },
+  "viewerMerged_many": {
+    "message": "{n} файлів зведено за часом"
+  },
+  "viewerMerged_other": {
+    "message": "{n} файлу зведено за часом"
   }
 }

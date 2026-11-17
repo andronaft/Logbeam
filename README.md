@@ -58,6 +58,9 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Pods and containers**: `kubectl logs --prefix` and `docker compose logs` get a coloured chip per pod
 - **Pasted text and files**: open a log pasted into the popup, or a `.log` / **`.gz`** file (unpacked in the
   browser); drop a file onto any viewer to open it
+- **Several files as one log**: drop or choose `api.log` and `worker.log` together and they are merged in order of
+  time, with the file name in front of each line and a chip per file, like pods. Stack traces stay with their
+  entry, and each file keeps its own order
 - **Save** the visible lines as a file
 - **Bookmarks and notes** (`m`, `b`): **Report** copies them as Markdown for a ticket, with times and links
 - **Field statistics**: the most common values of a field (`status: 200 ×1520, 502 ×37`), one click to filter;

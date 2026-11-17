@@ -53,6 +53,8 @@ export interface ViewerOptions {
   view: ViewPrefs;
   parseOptions: ParseOptions;
   signal: AbortSignal;
+  /** Said in a toast once the log is open, e.g. that several files were merged; empty for none. */
+  notice?: string;
 }
 
 /**
