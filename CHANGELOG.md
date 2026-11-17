@@ -4,6 +4,11 @@
 
 ### Added
 
+- **Open several logs as one.** Drop or choose two or more files (`api.log`, `worker.log`, the same service on
+  three machines) and Logbeam merges them in order of time into one log, with the file name in front of each line
+  and a coloured chip per file to show or hide it, as with pods. Stack traces and pretty-printed JSON stay with
+  their entry, each file keeps its own order, and a file without timestamps goes at the end. Everything else works
+  on the merged log as usual: filters, the timeline, error groups, links and Compare.
 - **A link opens the same view.** The address now keeps what narrows the log: the shown levels, the search
   (also a regex or a field filter), the time range and the pods, next to the selected line:
   `…/build.log#L120&levels=ERROR,WARN&q=payments`. Send it, and your colleague sees "the errors from the

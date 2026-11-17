@@ -802,6 +802,33 @@ check(
   (await logStatus()) === '2 / 2 lines',
   `${await logs.title()}: ${await logStatus()}`,
 );
+
+// drop two logs at once: one log, in order of time, with a chip per file
+await logs.evaluate(() => {
+  const transfer = new DataTransfer();
+  transfer.items.add(new File(['2026-10-04 10:00:00 INFO POST /orders\n2026-10-04 10:00:02 INFO 200 OK\n'], 'api.log'));
+  transfer.items.add(
+    new File(['2026-10-04 10:00:01 ERROR charge failed\n\tat Payments.charge(Payments.java:42)\n'], 'worker.log'),
+  );
+  document.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true, cancelable: true }));
+});
+await logs.waitForFunction(() => document.title.startsWith('api.log + worker.log'));
+await logs.waitForSelector('.row');
+const mergedRows = await logs.locator('.row .txt').allTextContents();
+check(
+  'two dropped files are merged by time',
+  mergedRows.length === 4 &&
+    mergedRows[1].startsWith('worker.log | 2026-10-04 10:00:01 ERROR') &&
+    mergedRows[2].startsWith('worker.log | \tat') &&
+    mergedRows[3].startsWith('api.log    | 2026-10-04 10:00:02'),
+  mergedRows.join(' / '),
+);
+check(
+  'each merged file gets its own chip',
+  (await logs.locator('.chip[class*="src-"]').allTextContents()).join(',') === 'api.log,worker.log',
+  (await logs.locator('.chip[class*="src-"]').allTextContents()).join(','),
+);
+check('merging says what it did', (await logs.locator('.toast').textContent()) === '2 files merged by time');
 await logs.close();
 
 // ---- bookmarks, field statistics, error groups, table, time zone -----------------------------

@@ -1,5 +1,6 @@
 import { commonFields, filterByFields, parseFieldQuery } from '../lib/fields';
 import { displayName, readLogFile } from '../lib/files';
+import { MergeInput, mergeByTime } from '../lib/merge';
 import {
   CollapsedLine,
   LEVELS,
@@ -99,11 +100,16 @@ let previousViewer: AbortController | null = null;
 const ON_EXTENSION_PAGE = /^(chrome|moz)-extension:$/.test(location.protocol);
 
 export async function openViewer(text: string = readPageText(), name?: string): Promise<void> {
+  await showViewer(async () => ({ text, notice: '' }), name);
+}
+
+/** Text to show, read while the loading screen is up; notice is said once the log is open. */
+type LoadLog = (label: HTMLElement, bar: HTMLElement) => Promise<{ text: string; notice: string }>;
+
+async function showViewer(load: LoadLog, name?: string): Promise<void> {
   previousViewer?.abort();
   const viewer = new AbortController();
   previousViewer = viewer;
-  // the page is about to be replaced; "Compare…" in the context menu reads the log from here
-  (window as unknown as { __logbeamLogText?: string }).__logbeamLogText = text;
   const title = name ?? (document.title || location.pathname.split('/').pop() || 'log');
   const body = resetDocument(title);
 
@@ -119,9 +125,14 @@ export async function openViewer(text: string = readPageText(), name?: string): 
     ),
   );
 
+  const { text, notice } = await load(label, bar);
+  // the page is about to be replaced; "Compare…" in the context menu reads the log from here
+  (window as unknown as { __logbeamLogText?: string }).__logbeamLogText = text;
   const settings = await loadSettings();
   applyTheme(settings.theme);
   const parseOptions = { customLevels: settings.customLevels };
+  bar.style.width = '0';
+  label.textContent = t('viewerParsing', 'Parsing log…');
   const lines = await parseLogAsync(
     text,
     (done, total) => {
@@ -149,15 +160,44 @@ export async function openViewer(text: string = readPageText(), name?: string): 
     view: settings.view,
     parseOptions,
     signal: viewer.signal,
+    notice,
   });
 }
 
-/** Opens a dropped or chosen file (plain or gzip) in the viewer, replacing the current log. */
-export async function openFile(file: File): Promise<void> {
-  const text = await readLogFile(file);
+/**
+ * Opens dropped or chosen files (plain or gzip) in the viewer, replacing the current log. Several
+ * files are merged into one log by time, each with its name in front of its lines (see merge.ts).
+ */
+export async function openFiles(files: File[]): Promise<void> {
+  if (files.length === 0) return;
   // the line and the filters in the address belong to the log that was open before
   if (parseViewLink(location.hash)) history.replaceState(null, '', location.pathname + location.search);
-  await openViewer(text, displayName(file.name));
+  const names = files.map((file) => displayName(file.name));
+  if (files.length === 1) {
+    const text = await readLogFile(files[0]);
+    await showViewer(async () => ({ text, notice: '' }), names[0]);
+    return;
+  }
+  const texts = await Promise.all(files.map(readLogFile));
+  await showViewer(async (label, bar) => {
+    const inputs: MergeInput[] = [];
+    for (const [i, text] of texts.entries()) {
+      label.textContent = t('viewerMerging', 'Merging by time: {name}', { name: names[i] });
+      bar.style.width = `${Math.round((i / texts.length) * 100)}%`;
+      // only when each entry starts matters here; the merged log is parsed again as a whole
+      const parsed = await parseLogAsync(text, () => {});
+      inputs.push({
+        name: names[i],
+        lines: splitLines(text),
+        times: parsed.map((line) => (line.continuation ? null : line.time)),
+      });
+    }
+    const merged = mergeByTime(inputs);
+    const notice = merged.untimed.length
+      ? t('viewerMergedUntimed', 'No timestamps in {names}, so those lines are at the end', { names: merged.untimed.join(', ') })
+      : tn('viewerMerged', files.length, '{n} file merged by time', '{n} files merged by time');
+    return { text: merged.text, notice };
+  }, names.join(' + '));
 }
 
 function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOptions): void {
@@ -389,10 +429,13 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     { className: 'toggle', title: t('viewerSaveTitle', 'Download the visible lines as a file') },
     t('viewerSave', 'Save'),
   );
-  const fileInput = el('input', { type: 'file', hidden: true });
+  const fileInput = el('input', { type: 'file', multiple: true, hidden: true });
   const openButton = el(
     'button',
-    { className: 'toggle', title: t('viewerOpenTitle', 'Open a .log or .gz file (or drop it here)') },
+    {
+      className: 'toggle',
+      title: t('viewerOpenTitle', 'Open .log or .gz files (or drop them here); several are merged by time'),
+    },
     t('viewerOpen', 'Open…'),
   );
   const rawButton = el(
@@ -555,7 +598,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const groupsPanel = el('aside', { className: 'groups' });
   groupsPanel.hidden = true;
   const toast = el('div', { className: 'toast' });
-  const dropHint = el('div', { className: 'drop-hint' }, t('viewerDropHint', 'Drop a .log or .gz file to open it'));
+  const dropHint = el(
+    'div',
+    { className: 'drop-hint' },
+    t('viewerDropHint', 'Drop .log or .gz files to open them; several are merged by time'),
+  );
   const help = shortcutsHelp();
   body.append(toolbar, subbar, timelineEl, groupsPanel, scroller, inspector, toast, dropHint, help);
 
@@ -575,10 +622,10 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     }
   }
 
-  function showToast(message: string): void {
+  function showToast(message: string, ms = 1600): void {
     toast.textContent = message;
     toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 1600);
+    setTimeout(() => toast.classList.remove('show'), ms);
   }
 
   /** The selected range as [first, last] line numbers; null when one line or none is selected. */
@@ -911,14 +958,20 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   });
 
   // open or drop a file (plain or .gz) to replace this log
-  const openChosen = (file: File | undefined) => {
-    if (file)
-      void openFile(file).catch((error) =>
-        showToast(t('viewerCouldNotOpen', 'Couldn’t open {name}: {error}', { name: file.name, error: (error as Error).message })),
+  const openChosen = (list: FileList | null | undefined) => {
+    const files = [...(list ?? [])];
+    if (files.length)
+      void openFiles(files).catch((error) =>
+        showToast(
+          t('viewerCouldNotOpen', 'Couldn’t open {name}: {error}', {
+            name: files.map((file) => file.name).join(', '),
+            error: (error as Error).message,
+          }),
+        ),
       );
   };
   openButton.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', () => openChosen(fileInput.files?.[0]));
+  fileInput.addEventListener('change', () => openChosen(fileInput.files));
   const hasFiles = (event: DragEvent) => event.dataTransfer?.types.includes('Files') ?? false;
   document.addEventListener(
     'dragover',
@@ -942,7 +995,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       dropHint.classList.remove('show');
       if (!hasFiles(event)) return;
       event.preventDefault();
-      openChosen(event.dataTransfer?.files[0]);
+      openChosen(event.dataTransfer?.files);
     },
     { signal },
   );
@@ -1482,4 +1535,5 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   void refresh().then(showSelection);
   void loadBookmarks();
   scroller.focus();
+  if (options.notice) showToast(options.notice, 4000);
 }

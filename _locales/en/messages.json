@@ -297,7 +297,7 @@
     "message": "Open…"
   },
   "viewerOpenTitle": {
-    "message": "Open a .log or .gz file (or drop it here)"
+    "message": "Open .log or .gz files (or drop them here); several are merged by time"
   },
   "viewerRaw": {
     "message": "Raw"
@@ -357,7 +357,7 @@
     "message": "{total} entries, {errors} errors, {warnings} warnings"
   },
   "viewerDropHint": {
-    "message": "Drop a .log or .gz file to open it"
+    "message": "Drop .log or .gz files to open them; several are merged by time"
   },
   "viewerCopyFailed": {
     "message": "Copy failed: the page doesn’t allow clipboard access"
@@ -468,10 +468,10 @@
     "message": "Log viewer · Logbeam"
   },
   "viewerStartDrop": {
-    "message": "Drop a log file here"
+    "message": "Drop log files here"
   },
   "viewerStartChoose": {
-    "message": "or click to choose one: .log, .txt, .json, and gzip (.gz) too"
+    "message": "or click to choose them: .log, .txt, .json, and gzip (.gz) too. Several files are merged into one log by time"
   },
   "viewerStartOr": {
     "message": "or paste a log"
@@ -872,5 +872,17 @@
   },
   "viewerRangeMore_other": {
     "message": "… and {n} more lines"
+  },
+  "viewerMerging": {
+    "message": "Merging by time: {name}"
+  },
+  "viewerMergedUntimed": {
+    "message": "No timestamps in {names}, so those lines are at the end"
+  },
+  "viewerMerged_one": {
+    "message": "{n} file merged by time"
+  },
+  "viewerMerged_other": {
+    "message": "{n} files merged by time"
   }
 }

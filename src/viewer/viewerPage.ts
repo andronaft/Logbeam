@@ -1,4 +1,4 @@
-import { openFile, openViewer } from '../content/logViewer';
+import { openFiles, openViewer } from '../content/logViewer';
 import { localizePage, t } from '../shared/i18n';
 import { loadSettings } from '../shared/settings';
 import { applyTheme } from '../shared/theme';
@@ -25,14 +25,20 @@ async function start(): Promise<void> {
   const file = $<HTMLInputElement>('file');
   const paste = $<HTMLTextAreaElement>('paste');
   const open = $<HTMLButtonElement>('open');
-  const openChosen = (chosen: File | undefined) => {
-    if (chosen)
-      void openFile(chosen).catch((error) =>
-        alert(t('viewerCouldNotOpen', 'Couldn’t open {name}: {error}', { name: chosen.name, error: (error as Error).message })),
+  const openChosen = (list: FileList | null | undefined) => {
+    const chosen = [...(list ?? [])];
+    if (chosen.length)
+      void openFiles(chosen).catch((error) =>
+        alert(
+          t('viewerCouldNotOpen', 'Couldn’t open {name}: {error}', {
+            name: chosen.map((one) => one.name).join(', '),
+            error: (error as Error).message,
+          }),
+        ),
       );
   };
 
-  file.addEventListener('change', () => openChosen(file.files?.[0]));
+  file.addEventListener('change', () => openChosen(file.files));
   drop.addEventListener('dragover', (event) => {
     event.preventDefault();
     drop.classList.add('dragging');
@@ -42,7 +48,7 @@ async function start(): Promise<void> {
   document.addEventListener('dragover', (event) => event.preventDefault());
   document.addEventListener('drop', (event) => {
     event.preventDefault();
-    openChosen(event.dataTransfer?.files[0]);
+    openChosen(event.dataTransfer?.files);
   });
   paste.addEventListener('input', () => (open.disabled = !paste.value.trim()));
   open.addEventListener('click', () => void openViewer(paste.value, t('viewerPastedLog', 'Pasted log')));
