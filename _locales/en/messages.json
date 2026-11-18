@@ -216,7 +216,7 @@
     "message": "Search, or {field}=… ( / )"
   },
   "viewerSearchTitle": {
-    "message": "Text to find, or fields: level=error service=payments duration>500 (key=value, !=, >, <, * wildcards)"
+    "message": "Text to find, fields and words to leave out, in any mix: service=payments timeout -healthz (key=value, !=, >, <, * wildcards; -word or -\"two words\" leaves lines out)"
   },
   "viewerHighlightTitle": {
     "message": "Keep this text highlighted in its own colour ( Enter in the search box )"
@@ -890,5 +890,11 @@
   },
   "viewerMinimapTitle": {
     "message": "Errors, warnings and bookmarks in the shown lines: click to go there"
+  },
+  "viewerExcludedWords_one": {
+    "message": "{n} word left out"
+  },
+  "viewerExcludedWords_other": {
+    "message": "{n} words left out"
   }
 }

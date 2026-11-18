@@ -216,7 +216,7 @@
     "message": "Пошук або {field}=… ( / )"
   },
   "viewerSearchTitle": {
-    "message": "Текст для пошуку або поля: level=error service=payments duration>500 (ключ=значення, !=, >, <, * — будь-які символи)"
+    "message": "Текст, поля й слова, які треба прибрати, у будь-якому поєднанні: service=payments timeout -healthz (ключ=значення, !=, >, <, * — будь-які символи; -слово або -\"два слова\" прибирає рядки)"
   },
   "viewerHighlightTitle": {
     "message": "Підсвічувати цей текст окремим кольором ( Enter у полі пошуку )"
@@ -980,5 +980,17 @@
   },
   "viewerMinimapTitle": {
     "message": "Помилки, попередження й закладки серед показаних рядків: клацніть, щоб перейти"
+  },
+  "viewerExcludedWords_one": {
+    "message": "{n} слово виключено"
+  },
+  "viewerExcludedWords_few": {
+    "message": "{n} слова виключено"
+  },
+  "viewerExcludedWords_many": {
+    "message": "{n} слів виключено"
+  },
+  "viewerExcludedWords_other": {
+    "message": "{n} слова виключено"
   }
 }

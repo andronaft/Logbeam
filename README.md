@@ -51,6 +51,8 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
   a few lines of context around each match
 - **JSON logs** (Logback/Logstash, pino, bunyan, zap…) shown as `time LEVEL message {fields}`, including
   records pretty-printed over several lines
+- **Leave words out and mix it all in one search**: `service=payments timeout -healthz` keeps the payments lines
+  about timeouts, without the health checks; `-"two words"` works too, and an error goes with its stack trace
 - **Filter by fields**: `level=error service=payments duration>500`, on JSON logs and `key=value` lines alike,
   with `!=`, `>`, `<`, `*` wildcards, nested paths (`http.status>=500`) and units (`duration>1.5s`)
 - **Time range**: drag across the timeline to keep only the entries from that time

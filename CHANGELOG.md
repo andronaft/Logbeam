@@ -4,6 +4,10 @@
 
 ### Added
 
+- **One search for fields, text and words to leave out**: `service=payments timeout -healthz`. Before, a search was
+  either all field conditions or all text, and leaving something out took a regex with a negative lookahead. A
+  `-word` (or `-"two words"`) leaves out the lines that have it, an error together with its stack trace; `-5` and
+  `--verbose` are still text. The status line says how many words are left out.
 - **A minimap next to the scrollbar** marks every error, warning and bookmark in the shown lines, so in a long
   log you see at a glance where the trouble is. Click or drag on it to go there; a box shows the part on screen.
 - **`w` jumps to the next warning**, like `e` does to the next error.
