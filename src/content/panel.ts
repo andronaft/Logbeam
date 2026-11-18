@@ -1,5 +1,6 @@
 import { setCustomSecretPatterns } from '../lib/secrets';
 import { findTransform } from '../lib/transforms';
+import { t, toolKey } from '../shared/i18n';
 import { loadSettings } from '../shared/settings';
 
 /**
@@ -100,31 +101,48 @@ function replaceSource(source: Source, value: string): boolean {
 }
 
 const STYLE = `
-  :host { all: initial; }
+  :host {
+    all: initial;
+    --bg: #0f1419; --bg-alt: #151c23; --panel: #1a222b; --border: #2d3640; --button-border: #3a4550;
+    --fg: #e6e1cf; --muted: #8a9199; --accent: #ffb454; --error: #ff6b6b; --shadow: rgba(0, 0, 0, .45);
+  }
+  /* the panel follows the system, not Logbeam's theme setting: it sits on someone else's page */
+  @media (prefers-color-scheme: light) {
+    :host {
+      --bg: #ffffff; --bg-alt: #f5f6f7; --panel: #eef0f2; --border: #d5d9de; --button-border: #c4cad1;
+      --fg: #1f2328; --muted: #5b6370; --accent: #b25e00; --error: #c62828; --shadow: rgba(0, 0, 0, .18);
+    }
+  }
   .panel {
     position: fixed; top: 16px; right: 16px; z-index: 2147483647;
     width: min(520px, calc(100vw - 32px)); max-height: min(70vh, 640px);
-    display: flex; flex-direction: column;
-    background: #0f1419; color: #e6e1cf; border: 1px solid #2d3640; border-radius: 10px;
-    box-shadow: 0 12px 32px rgba(0,0,0,.45);
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 12px 32px var(--shadow);
     font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   }
-  header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #2d3640; }
+  header { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--border); }
   .title { font-weight: 600; flex: 1; }
-  .brand { color: #ffb454; font-weight: 700; }
+  .brand { color: var(--accent); font-weight: 700; }
   pre {
     margin: 0; padding: 12px; overflow: auto; flex: 1; white-space: pre-wrap; word-break: break-word;
+    background: var(--bg-alt);
     font: 12.5px/1.5 ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
   }
-  .error { color: #ff6b6b; }
-  footer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid #2d3640; justify-content: flex-end; }
+  .error { color: var(--error); }
+  footer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); justify-content: flex-end; }
   button {
     font: inherit; cursor: pointer; border-radius: 6px; padding: 5px 12px;
-    border: 1px solid #3a4550; background: #1a222b; color: #e6e1cf;
+    border: 1px solid var(--button-border); background: var(--panel); color: var(--fg);
   }
-  button:hover { border-color: #ffb454; }
-  button.primary { background: #ffb454; color: #0f1419; border-color: #ffb454; font-weight: 600; }
-  .close { border: none; background: none; font-size: 18px; line-height: 1; padding: 2px 6px; }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+  .close {
+    display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0;
+    border: none; border-radius: 6px; background: none; color: var(--muted); font-size: 18px; line-height: 1;
+  }
+  .close:hover { background: var(--panel); color: var(--fg); }
 `;
 
 let host: HTMLElement | null = null;
@@ -167,7 +185,7 @@ function show(title: string, output: string, isError: boolean, source: Source): 
   const closeButton = document.createElement('button');
   closeButton.className = 'close';
   closeButton.textContent = '×';
-  closeButton.title = 'Close (Esc)';
+  closeButton.title = t('panelClose', 'Close (Esc)');
   closeButton.addEventListener('click', close);
   header.append(brand, titleEl, closeButton);
 
@@ -178,13 +196,13 @@ function show(title: string, output: string, isError: boolean, source: Source): 
   const footer = document.createElement('footer');
   if (!isError) {
     const copy = document.createElement('button');
-    copy.textContent = 'Copy';
+    copy.textContent = t('popupCopy', 'Copy');
     copy.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(output);
-        copy.textContent = 'Copied ✓';
+        copy.textContent = t('copied', 'Copied ✓');
       } catch {
-        copy.textContent = 'Copy blocked by the page';
+        copy.textContent = t('panelCopyBlocked', 'Copy blocked by the page');
       }
     });
     footer.append(copy);
@@ -192,10 +210,10 @@ function show(title: string, output: string, isError: boolean, source: Source): 
     if (source.kind !== 'page') {
       const replace = document.createElement('button');
       replace.className = 'primary';
-      replace.textContent = 'Replace selection';
+      replace.textContent = t('panelReplace', 'Replace selection');
       replace.addEventListener('click', () => {
         if (replaceSource(source, output)) close();
-        else replace.textContent = 'Could not replace';
+        else replace.textContent = t('panelReplaceFailed', 'Could not replace');
       });
       footer.append(replace);
     }
@@ -210,17 +228,18 @@ function show(title: string, output: string, isError: boolean, source: Source): 
 async function run(id: string): Promise<void> {
   const transform = findTransform(id);
   if (!transform) return;
+  const title = t(toolKey(transform.id, 'title'), transform.title);
   const { text, source } = captureSelection();
   // the user's own secret patterns, from the settings page
   if (id === 'mask-secrets') setCustomSecretPatterns((await loadSettings()).customSecrets);
   if (!text.trim()) {
-    show(transform.title, 'Select some text first.', true, source);
+    show(title, t('panelSelectFirst', 'Select some text first.'), true, source);
     return;
   }
   try {
-    show(transform.title, transform.apply(text), false, source);
+    show(title, transform.apply(text), false, source);
   } catch (e) {
-    show(transform.title, (e as Error).message, true, source);
+    show(title, (e as Error).message, true, source);
   }
 }
 

@@ -1,11 +1,4 @@
 :root {
-  color-scheme: dark;
-  --bg: #0f1419;
-  --panel: #1a222b;
-  --border: #2d3640;
-  --fg: #e6e1cf;
-  --muted: #8a9199;
-  --accent: #ffb454;
   --add-bg: #12301f;
   --add-fg: #aad94c;
   --add-strong: #2c5a35;
@@ -14,16 +7,10 @@
   --del-strong: #6b2a2f;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }
-/* light: when the system is light (unless Settings say dark), or when Settings say light */
+/* light: when the system is light (unless Settings say dark), or when Settings say light; the colours
+   shared with the other pages are in tokens.css */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme='dark']) {
-    color-scheme: light;
-    --bg: #ffffff;
-    --panel: #eef0f2;
-    --border: #d5d9de;
-    --fg: #1f2328;
-    --muted: #6b7280;
-    --accent: #b25e00;
     --add-bg: #e6f4ea;
     --add-fg: #1e7b34;
     --add-strong: #b7e1c1;
@@ -33,19 +20,16 @@
   }
 }
 :root[data-theme='light'] {
-  color-scheme: light;
-  --bg: #ffffff;
-  --panel: #eef0f2;
-  --border: #d5d9de;
-  --fg: #1f2328;
-  --muted: #6b7280;
-  --accent: #b25e00;
   --add-bg: #e6f4ea;
   --add-fg: #1e7b34;
   --add-strong: #b7e1c1;
   --del-bg: #fdecec;
   --del-fg: #b42318;
   --del-strong: #f5c2c0;
+}
+/* .errors is a grid, which would otherwise show it, empty, when hidden */
+[hidden] {
+  display: none !important;
 }
 * {
   box-sizing: border-box;
@@ -55,7 +39,7 @@ body {
   background: var(--bg);
   color: var(--fg);
   font:
-    13px/1.45 ui-sans-serif,
+    var(--fs) / 1.45 ui-sans-serif,
     system-ui,
     -apple-system,
     'Segoe UI',
@@ -75,7 +59,7 @@ header {
 }
 h1 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-h);
   color: var(--accent);
 }
 h1 span {
@@ -102,7 +86,7 @@ button,
   background: var(--panel);
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r);
   padding: 4px 10px;
   font: inherit;
   cursor: pointer;
@@ -131,8 +115,8 @@ main {
   margin-bottom: 6px;
 }
 .file {
-  font-size: 12px;
-  padding: 2px 8px;
+  font-size: var(--fs-sm);
+  padding: 4px 10px;
   color: var(--muted);
 }
 .file input {
@@ -279,7 +263,6 @@ textarea.dragging {
   text-align: right;
   padding-right: 8px;
   user-select: none;
-  opacity: 0.7;
 }
 .line .sign {
   color: var(--muted);

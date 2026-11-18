@@ -1,3 +1,4 @@
+import type { Mute } from '../lib/mute';
 /** The log viewer's state, options and fixed sizes, shared by its parts. */
 import { TimeMode } from '../lib/insights';
 import { Level, LogLine, ParseOptions } from '../lib/logs';
@@ -33,6 +34,8 @@ export interface State {
   timeRange: [number, number] | null;
   /** Pods or containers switched off with their chips. */
   hiddenSources: Set<string>;
+  /** Kinds of line hidden with "Hide lines like this" (x), the last one last. */
+  mutes: Mute[];
   /** Terms pinned with their own colour, independent of the search. */
   highlights: string[];
   /** Bookmarked line numbers and their notes. */
@@ -59,6 +62,8 @@ export interface ViewerOptions {
   fromFile?: boolean;
   /** Said in a toast once the log is open, e.g. that several files were merged; empty for none. */
   notice?: string;
+  /** Show the line of tips under the toolbar (the first few logs someone opens). */
+  hint?: boolean;
 }
 
 /**

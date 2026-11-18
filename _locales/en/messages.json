@@ -44,6 +44,15 @@
   "popupTextTools": {
     "message": "Text tools"
   },
+  "popupToolsData": {
+    "message": "JSON, tokens & time"
+  },
+  "popupToolsEncode": {
+    "message": "Encode & decode"
+  },
+  "popupToolsText": {
+    "message": "Case & lines"
+  },
   "popupInputPlaceholder": {
     "message": "Paste JSON, a JWT, Base64, a timestamp, a cron expression…"
   },
@@ -212,11 +221,8 @@
   "viewerSearchPlaceholder": {
     "message": "Search… ( / )"
   },
-  "viewerSearchFieldsPlaceholder": {
-    "message": "Search, or {field}=… ( / )"
-  },
   "viewerSearchTitle": {
-    "message": "Text to find, or fields: level=error service=payments duration>500 (key=value, !=, >, <, * wildcards)"
+    "message": "Text to find, fields and words to leave out, in any mix: service=payments timeout -healthz (key=value, !=, >, <, * wildcards; -word or -\"two words\" leaves lines out)"
   },
   "viewerHighlightTitle": {
     "message": "Keep this text highlighted in its own colour ( Enter in the search box )"
@@ -353,9 +359,6 @@
   "viewerColumnsTitle": {
     "message": "Table columns, separated by commas"
   },
-  "viewerBucketTitle": {
-    "message": "{total} entries, {errors} errors, {warnings} warnings"
-  },
   "viewerDropHint": {
     "message": "Drop .log or .gz files to open them; several are merged by time"
   },
@@ -433,9 +436,6 @@
   },
   "viewerLineLinkCopied": {
     "message": "Link to line {n} copied"
-  },
-  "viewerNothingFound": {
-    "message": "Nothing found in the visible lines"
   },
   "viewerOnlyGroup": {
     "message": "Only {group}"
@@ -576,7 +576,7 @@
     "message": "Settings · Logbeam"
   },
   "optionsHeading": {
-    "message": "Logbeam settings"
+    "message": "Settings"
   },
   "optionsSaved": {
     "message": "Saved ✓"
@@ -890,6 +890,162 @@
   },
   "viewerMinimapTitle": {
     "message": "Errors, warnings and bookmarks in the shown lines: click to go there"
+  },
+  "copied": {
+    "message": "Copied ✓"
+  },
+  "copyFailedShort": {
+    "message": "Copy failed"
+  },
+  "panelCopyBlocked": {
+    "message": "Copy blocked by the page"
+  },
+  "panelReplace": {
+    "message": "Replace selection"
+  },
+  "panelReplaceFailed": {
+    "message": "Could not replace"
+  },
+  "panelSelectFirst": {
+    "message": "Select some text first."
+  },
+  "panelClose": {
+    "message": "Close (Esc)"
+  },
+  "popupShortcutChange": {
+    "message": "Click to change"
+  },
+  "popupShortcutNone": {
+    "message": "No shortcut assigned. Click to set one."
+  },
+  "viewerCompareTooBig": {
+    "message": "This log is too big to compare (over about 10 MB)"
+  },
+  "viewerMute": {
+    "message": "Hide lines like this"
+  },
+  "viewerMuteTitle": {
+    "message": "Hide every line like this one, e.g. health checks ( x )"
+  },
+  "viewerUnmuteTitle": {
+    "message": "Show these lines again"
+  },
+  "keyMute": {
+    "message": "Hide lines like the selected one / show the last hidden kind again"
+  },
+  "viewerHiddenNote_one": {
+    "message": "{n} line hidden"
+  },
+  "viewerHiddenNote_other": {
+    "message": "{n} lines hidden"
+  },
+  "viewerMuted_one": {
+    "message": "{n} entry like this hidden · X shows it again"
+  },
+  "viewerMuted_other": {
+    "message": "{n} entries like this hidden · X shows them again"
+  },
+  "viewerFirstError": {
+    "message": "first"
+  },
+  "viewerFirstErrorTitle": {
+    "message": "The first error in the log: often the cause of the ones after it"
+  },
+  "viewerGroupsByCount": {
+    "message": "Most often"
+  },
+  "viewerGroupsByFirst": {
+    "message": "First seen"
+  },
+  "viewerExcludedWords_one": {
+    "message": "{n} word left out"
+  },
+  "viewerExcludedWords_other": {
+    "message": "{n} words left out"
+  },
+  "viewerSearchExamplePlaceholder": {
+    "message": "Search, or {example} ( / )"
+  },
+  "viewerErrorsHidden": {
+    "message": "The errors are hidden by the filters"
+  },
+  "viewerNoWarnings": {
+    "message": "No warnings in this log."
+  },
+  "viewerWarningsHidden": {
+    "message": "The warnings are hidden by the filters"
+  },
+  "viewerNoSecrets": {
+    "message": "No leaked secrets in this log."
+  },
+  "viewerSecretsHidden": {
+    "message": "The secrets are hidden by the filters"
+  },
+  "viewerNoBookmarks": {
+    "message": "No bookmarks yet: select a line and press m"
+  },
+  "viewerBookmarksHidden": {
+    "message": "The bookmarked lines are hidden by the filters"
+  },
+  "viewerEmptyFile": {
+    "message": "This log is empty."
+  },
+  "viewerClearSearch": {
+    "message": "Clear the search"
+  },
+  "viewerShowAllLevels": {
+    "message": "Show all levels"
+  },
+  "viewerNoMatch": {
+    "message": "No lines match “{query}”"
+  },
+  "viewerNothingShown": {
+    "message": "The filters leave no lines to show"
+  },
+  "viewerHintTitle": {
+    "message": "Tips"
+  },
+  "viewerHintNextError": {
+    "message": "next error"
+  },
+  "viewerHintField": {
+    "message": "filter by a field"
+  },
+  "viewerHintTry": {
+    "message": "Try it"
+  },
+  "viewerHintClickLine": {
+    "message": "click a line for details"
+  },
+  "viewerHintDrag": {
+    "message": "drag across the timeline to keep a time range"
+  },
+  "viewerHintKeys": {
+    "message": "all keys"
+  },
+  "viewerHintClose": {
+    "message": "Don’t show tips again"
+  },
+  "viewerBucketHint": {
+    "message": "Click to jump there · drag across bars to keep that time range"
+  },
+  "viewerBucketEntries_one": {
+    "message": "{n} entry"
+  },
+  "viewerBucketEntries_other": {
+    "message": "{n} entries"
+  },
+  "viewerBucketErrors_one": {
+    "message": "{n} error"
+  },
+  "viewerBucketErrors_other": {
+    "message": "{n} errors"
+  },
+  "viewerBucketWarnings_one": {
+    "message": "{n} warning"
+  },
+  "viewerBucketWarnings_other": {
+    "message": "{n} warnings"
   },
   "viewerMoreChars": {
     "message": "+{n} characters (click the line to read it all)"

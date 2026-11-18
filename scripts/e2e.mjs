@@ -220,7 +220,31 @@ await page.locator('.toggle', { hasText: '.*' }).click();
 await page.locator('.chip.lvl-INFO').click();
 await page.locator('.chip.lvl-DEBUG').click();
 await page.locator('.toggle', { hasText: 'Collapse' }).click();
+
+// no blank page when nothing matches: why, and the way back
+await page.locator('.search').fill('zzzz');
 await page.waitForTimeout(300);
+check('an empty result says why', (await page.locator('.empty-state').textContent()).includes('No lines match “zzzz”'));
+await page.locator('.empty-state .toggle', { hasText: 'Clear the search' }).click();
+await page.waitForTimeout(300);
+check('Clear the search brings the lines back', (await status()) === '65 / 65 lines', await status());
+await page.locator('.scroller').focus();
+
+// -word leaves lines out, alongside the text being searched for
+await page.locator('.search').fill('Retry');
+await page.waitForTimeout(300);
+const retries = parseInt(await status(), 10);
+await page.locator('.search').fill('Retry -scheduling-1');
+await page.waitForTimeout(300);
+check(
+  '-word leaves lines out of a search',
+  parseInt(await status(), 10) === retries - 2 && (await status()).includes('1 word left out'),
+  `${retries} → ${await status()}`,
+);
+await page.locator('.search').fill('');
+await page.waitForTimeout(300);
+// keys go to the log again, not the search box
+await page.locator('.scroller').focus();
 
 await page.keyboard.press('e');
 check('next error opens the inspector', await page.locator('.inspector').isVisible());
@@ -248,6 +272,16 @@ check('Esc closes the inspector', await page.locator('.inspector').isHidden());
 // ---- keyboard shortcuts ( ? ) ---------------------------------------------------------------
 await page.keyboard.press('w');
 check('w selects the next warning', (await page.locator('.facts').textContent()).includes('WARN'));
+
+// x hides every line like the selected one, X brings them back
+const statusBefore = await page.locator('.status').textContent();
+await page.keyboard.press('x');
+await page.waitForTimeout(100);
+check('x hides lines like the selected one', (await page.locator('.status').textContent()).includes('hidden'));
+check('a chip shows the hidden kind', await page.locator('.mute-chip').isVisible());
+await page.keyboard.press('X');
+await page.waitForTimeout(100);
+check('X shows them again', (await page.locator('.status').textContent()) === statusBefore);
 
 // the strip next to the scrollbar marks errors and warnings; a click goes there
 const minimapBox = await page.locator('.minimap').boundingBox();
@@ -380,6 +414,11 @@ await prefs.goto(`chrome-extension://${extensionId}/viewer.html`);
 const twoLines = '2026-10-04 10:00:00 INFO first password=hunter2hunter2\n2026-10-04 10:00:01 ERROR second\n';
 await prefs.locator('#file').setInputFiles({ name: 'one.log', mimeType: 'text/plain', buffer: Buffer.from(twoLines) });
 await prefs.waitForSelector('.row');
+check(
+  'the first logs show tips made from the log',
+  (await prefs.locator('.hint').isVisible()) && (await prefs.locator('.hint').textContent()).includes('next error'),
+);
+await prefs.locator('.hint-close').click();
 const maskButton = prefs.locator('.toggle', { hasText: 'Mask' });
 check('toggles say whether they are on', (await maskButton.getAttribute('aria-pressed')) === 'false');
 check(
@@ -397,6 +436,7 @@ await prefs.evaluate((text) => {
 }, twoLines);
 await prefs.waitForFunction(() => document.title.startsWith('two.log'));
 await prefs.waitForSelector('.row');
+check('closed tips stay closed', await prefs.locator('.hint').isHidden());
 check(
   'Mask and Context are kept for the next log',
   (await prefs.locator('.toggle', { hasText: 'Mask' }).getAttribute('aria-pressed')) === 'true' &&
@@ -911,6 +951,10 @@ await insights.keyboard.press('Escape');
 await insights.locator('.toggle', { hasText: 'Groups' }).click();
 const groupItems = await insights.locator('.group-item .n').allTextContents();
 check('errors are grouped', groupItems.join(',') === '×1,×1,×1', groupItems.join(','));
+check('the earliest error is marked "first"', (await insights.locator('.group-item .first-badge').count()) === 1);
+await insights.locator('.group-order .toggle', { hasText: 'First seen' }).click();
+check('First seen puts it on top', (await insights.locator('.group-item').first().locator('.first-badge').count()) === 1);
+await insights.locator('.group-order .toggle', { hasText: 'Most often' }).click();
 await insights.locator('.group-item').nth(2).click();
 await insights.waitForSelector('.group-chip:not([hidden])');
 check('a group shows only its error and stack trace', (await insightStatus()).startsWith('2 /'), await insightStatus());
@@ -1041,6 +1085,8 @@ await lightViewer.addScriptTag({ path: path.join(dist, 'logViewer.js') });
 await lightViewer.waitForSelector('.row');
 await lightViewer.evaluate(() => (document.documentElement.dataset.theme = 'light'));
 check('the log viewer has a light theme', (await background(lightViewer)) === 'rgb(255, 255, 255)');
+// the buttons fade to their new colours (a .12s transition): a screenshot at once caught them still dark
+await lightViewer.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
 await lightViewer.screenshot({ path: 'docs/log-viewer-light.png' });
 await lightViewer.close();
 await options.locator('#theme').selectOption('auto');
@@ -1224,7 +1270,7 @@ await ukViewer.locator('#open').click();
 await ukViewer.waitForSelector('.row');
 check('the log viewer speaks Ukrainian', (await ukViewer.locator('.status').textContent()) === 'Рядків: 7 / 7');
 await ukViewer.locator('.toggle', { hasText: 'Групи' }).click();
-check('Ukrainian plurals', (await ukViewer.locator('.groups-head').textContent()) === '3 різні помилки');
+check('Ukrainian plurals', (await ukViewer.locator('.groups-head > span').first().textContent()) === '3 різні помилки');
 await ukContext.close();
 
 check('no page errors', errors.length === 0, errors.join('; '));

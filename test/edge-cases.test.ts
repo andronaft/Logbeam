@@ -7,7 +7,9 @@ import { collapseRepeats, formatJsonRecord, parseLog, parseTimestamp } from '../
 import { findRegexRisk } from '../src/lib/regexSafety';
 import { maskSecrets } from '../src/lib/secrets';
 import { searchRanges } from '../src/lib/segments';
-import { describeJwt } from '../src/lib/transforms';
+import { convertTimestamp, decodeJwt, describeJwt, toSnakeCase, words } from '../src/lib/transforms';
+import { formatViewLink, parseViewLink, EMPTY_VIEW } from '../src/lib/viewLink';
+import { luminance } from '../src/content/darkPage';
 
 /** Edge cases that were wrong, each found with a real input. */
 
@@ -151,6 +153,79 @@ describe('describeJwt', () => {
     const part = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, '');
     const jwt = `${part({ alg: 'HS256' })}.${part({ exp: 1e17 })}.sig`;
     expect(describeJwt(jwt, 0)).toContain('not a valid date');
+  });
+});
+
+describe('GELF records', () => {
+  it('reads syslog severities and short_message', () => {
+    const lines = parseLog(
+      [
+        '{"version":"1.1","host":"api-1","short_message":"db down","timestamp":1727604000.5,"level":3}',
+        '{"version":"1.1","host":"api-1","short_message":"slow query","timestamp":1727604001,"level":4}',
+        '{"version":"1.1","host":"api-1","short_message":"started","timestamp":1727604002,"level":6}',
+        '{"version":"1.1","host":"api-1","short_message":"cache miss","timestamp":1727604003,"level":7}',
+      ].join('\n'),
+    );
+    expect(lines.map((line) => line.level)).toEqual(['ERROR', 'WARN', 'INFO', 'DEBUG']);
+    expect(lines[0].text).toBe('2024-09-29T10:00:00.500Z ERROR db down {"version":"1.1","host":"api-1"}');
+    // pino's numbers are unchanged
+    expect(parseLog('{"level":30,"msg":"ok"}')[0].level).toBe('INFO');
+  });
+});
+
+describe('ANSI character set escapes', () => {
+  it('takes out the ESC ( B that tput sgr0 writes, so the level is read', () => {
+    const [line] = parseLog('\x1b[31mERROR\x1b(B\x1b[m: payment failed');
+    expect(line.text).toBe('ERROR: payment failed');
+    expect(line.level).toBe('ERROR');
+  });
+});
+
+describe('field keys and values from the field panel', () => {
+  const lines = parseLog('{"k8s/app":"web","path":"/api/*"}\n{"k8s/app":"db","path":"/api/users"}\n');
+  const numbers = (query: string) => filterByFields(lines, parseFieldQuery(query)!).map((line) => line.number);
+
+  it('reads a quoted key with other characters in it', () => {
+    expect(numbers('"k8s/app"=web')).toEqual([1]);
+    expect(parseFieldQuery('k8s/app=web')).toBeNull();
+  });
+
+  it('takes a * in a quoted value as a star, and as a wildcard without quotes', () => {
+    expect(numbers('path="/api/*"')).toEqual([1]);
+    expect(numbers('path=/api/*')).toEqual([1, 2]);
+  });
+});
+
+describe('time range in a link', () => {
+  it('keeps the same entries when the range has fractions of a millisecond', () => {
+    const hash = formatViewLink({ ...EMPTY_VIEW, timeRange: [999.6, 1000.4] });
+    expect(parseViewLink(hash)?.timeRange).toEqual([1000, 1001]);
+  });
+});
+
+describe('text tools', () => {
+  it('reads nanoseconds to the exact millisecond', () => {
+    expect(convertTimestamp('1700000000002000000')).toContain('2023-11-14T22:13:20.002Z');
+  });
+
+  it('says a JWT with a null payload is not valid instead of failing', () => {
+    expect(() => decodeJwt('eyJhbGciOiJIUzI1NiJ9.bnVsbA.sig')).toThrow(/payload is not Base64url-encoded JSON/);
+  });
+
+  it('splits words after letters that are not ASCII', () => {
+    expect(toSnakeCase('caféBar')).toBe('café_bar');
+    expect(words('ÜberGrößeAPI')).toEqual(['über', 'größe', 'api']);
+  });
+});
+
+describe('dark page backgrounds', () => {
+  it('reads oklch, lab and color(srgb) colours', () => {
+    expect(luminance('oklch(0.145 0 0)')).toBeLessThan(0.05);
+    expect(luminance('oklch(98.5% 0 0)')).toBeGreaterThan(0.9);
+    expect(luminance('lab(14 0 0)')).toBeLessThan(0.05);
+    expect(luminance('color(srgb 0.1 0.1 0.12)')).toBeLessThan(0.05);
+    expect(luminance('oklch(0.145 0 0 / 0.2)')).toBeNull();
+    expect(luminance('rgb(15, 20, 25)')).toBeLessThan(0.05);
   });
 });
 
