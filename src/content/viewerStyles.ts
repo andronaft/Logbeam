@@ -106,7 +106,28 @@ select.toggle { padding: 3px 6px; }
 .search.invalid { border-color: var(--error); }
 .status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.log-area { flex: 1; display: flex; min-height: 0; }
+.hint {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px 12px;
+  border-bottom: 1px solid var(--border); background: var(--bg-alt); color: var(--muted); font-size: 12px;
+}
+.hint[hidden] { display: none; }
+.hint-label { color: var(--accent); font-weight: 600; }
+.hint kbd {
+  font: 11px ui-monospace, Menlo, Consolas, monospace; padding: 0 4px; border: 1px solid var(--border);
+  border-radius: 4px; color: var(--fg);
+}
+.hint-example {
+  font: 11px ui-monospace, Menlo, Consolas, monospace; padding: 0 6px; color: var(--accent); cursor: pointer;
+}
+.hint-close { margin-left: auto; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 14px; }
+.empty-state {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; color: var(--muted); pointer-events: none;
+}
+.empty-state[hidden] { display: none; }
+.empty-state p { margin: 0; font-size: 14px; }
+.empty-actions { display: flex; gap: 8px; pointer-events: auto; }
+.log-area { flex: 1; display: flex; min-height: 0; position: relative; }
 .scroller { flex: 1; overflow: auto; position: relative; outline: none; }
 .minimap {
   flex: none; width: 14px; position: relative; cursor: pointer; touch-action: none;

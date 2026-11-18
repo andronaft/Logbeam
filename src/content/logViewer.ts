@@ -1,4 +1,4 @@
-import { commonFields, excludeWords, filterByFields, parseQuery } from '../lib/fields';
+import { commonFields, excludeWords, fieldValue, filterByFields, parseQuery } from '../lib/fields';
 import { displayName, readLogFile } from '../lib/files';
 import { MergeInput, mergeByTime } from '../lib/merge';
 import {
@@ -33,7 +33,7 @@ import {
   traceId,
 } from '../lib/insights';
 import { findSecrets, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
-import { ViewPrefs, loadSettings, saveSettings } from '../shared/settings';
+import { HINT_VIEWS, ViewPrefs, canSaveSettings, loadSettings, saveSettings } from '../shared/settings';
 import { BOOKMARKS_PREFIX, loadBookmarks as loadPageBookmarks, saveBookmarks as savePageBookmarks } from '../shared/bookmarks';
 import { applyTheme } from '../shared/theme';
 import { Range, searchRanges, toSegments } from '../lib/segments';
@@ -155,7 +155,10 @@ async function showViewer(load: LoadLog, name?: string, fromFile = false): Promi
     }
   }
   body.replaceChildren();
+  const hint = canSaveSettings() && settings.hintViews < HINT_VIEWS;
+  if (hint) void saveSettings({ ...settings, hintViews: settings.hintViews + 1 }).catch(() => undefined);
   buildViewer(body, lines, {
+    hint,
     text,
     title,
     gapThreshold: settings.gapThresholdMs,
@@ -312,7 +315,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const search = el('input', {
     type: 'search',
     placeholder: fields.length
-      ? t('viewerSearchFieldsPlaceholder', 'Search, or {field}=… ( / )', { field: fields[0] })
+      ? t('viewerSearchExamplePlaceholder', 'Search, or {example} ( / )', { example: fieldExample() ?? `${fields[0]}=…` })
       : t('viewerSearchPlaceholder', 'Search… ( / )'),
     title: t(
       'viewerSearchTitle',
@@ -613,6 +616,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const spacer = el('div', { className: 'spacer' });
   const rows = el('div', { className: 'rows' });
   const scroller = el('main', { className: 'scroller', tabIndex: 0 }, spacer, rows);
+  // instead of a blank page when the filters leave nothing: why, and the way back
+  const emptyState = el('div', { className: 'empty-state' });
+  emptyState.hidden = true;
+  const hintBar = el('div', { className: 'hint' });
+  hintBar.hidden = true;
   const minimap = createMinimap({
     scroller,
     rowHeight: ROW_HEIGHT,
@@ -638,7 +646,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     subbar,
     timelineEl,
     groupsPanel,
-    el('div', { className: 'log-area' }, scroller, minimap.element),
+    hintBar,
+    el('div', { className: 'log-area' }, scroller, emptyState, minimap.element),
     inspector,
     toast,
     dropHint,
@@ -1050,8 +1059,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     { signal },
   );
 
-  nextError.addEventListener('click', () => jumpToNext((l) => l.level === 'ERROR' && !l.continuation));
-  bookmarksButton.addEventListener('click', () => jumpToNext((l) => state.bookmarks.has(l.number)));
+  nextError.addEventListener('click', () => jumpToNext((l) => l.level === 'ERROR' && !l.continuation, 'error'));
+  bookmarksButton.addEventListener('click', () => jumpToNext((l) => state.bookmarks.has(l.number), 'bookmark'));
   reportButton.addEventListener('click', () => {
     const bookmarks: Bookmark[] = [...state.bookmarks].map(([line, note]) => ({ line, note }));
     const report = bookmarkReport(bookmarks, allLines, {
@@ -1187,7 +1196,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   });
   signal.addEventListener('abort', () => clearInterval(followTimer));
 
-  secretsButton.addEventListener('click', () => jumpToNext((l) => l.secret));
+  secretsButton.addEventListener('click', () => jumpToNext((l) => l.secret, 'secret'));
   const copyViewLink = () => void copy(viewUrl(), t('viewerViewLinkCopied', 'Link to this view copied'));
   linkButton.addEventListener('click', copyViewLink);
   copyButton.addEventListener(
@@ -1293,19 +1302,19 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         event.preventDefault();
         selectLineAtIndex(visible.length - 1);
       } else if (event.key === 'e') {
-        jumpToNext((l) => l.level === 'ERROR' && !l.continuation);
+        jumpToNext((l) => l.level === 'ERROR' && !l.continuation, 'error');
       } else if (event.key === 'w') {
-        jumpToNext((l) => l.level === 'WARN' && !l.continuation);
+        jumpToNext((l) => l.level === 'WARN' && !l.continuation, 'warning');
       } else if (event.key === 'x' && state.selected !== null) {
         muteLike(state.selected);
       } else if (event.key === 'X' && state.mutes.length > 0) {
         unmute(state.mutes[state.mutes.length - 1]);
       } else if (event.key === 's' && secretCount > 0) {
-        jumpToNext((l) => l.secret);
+        jumpToNext((l) => l.secret, 'secret');
       } else if (event.key === 'm' && state.selected !== null) {
         toggleBookmark(state.selected);
       } else if (event.key === 'b' && state.bookmarks.size > 0) {
-        jumpToNext((l) => state.bookmarks.has(l.number));
+        jumpToNext((l) => state.bookmarks.has(l.number), 'bookmark');
       } else if (event.key === 'Escape' && state.selected !== null) {
         select(null);
       }
@@ -1370,7 +1379,25 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     else render();
   }
 
-  function jumpToNext(predicate: (line: CollapsedLine) => boolean): void {
+  /** What e, w, s and b look for, to say why there is nothing to jump to. */
+  type JumpKind = 'error' | 'warning' | 'secret' | 'bookmark';
+  const NOTHING: Record<JumpKind, [none: string, hidden: string]> = {
+    error: [t('viewerNoErrors', 'No errors in this log.'), t('viewerErrorsHidden', 'The errors are hidden by the filters')],
+    warning: [
+      t('viewerNoWarnings', 'No warnings in this log.'),
+      t('viewerWarningsHidden', 'The warnings are hidden by the filters'),
+    ],
+    secret: [
+      t('viewerNoSecrets', 'No leaked secrets in this log.'),
+      t('viewerSecretsHidden', 'The secrets are hidden by the filters'),
+    ],
+    bookmark: [
+      t('viewerNoBookmarks', 'No bookmarks yet: select a line and press m'),
+      t('viewerBookmarksHidden', 'The bookmarked lines are hidden by the filters'),
+    ],
+  };
+
+  function jumpToNext(predicate: (line: LogLine) => boolean, kind: JumpKind): void {
     const current =
       state.selected !== null
         ? visible.findIndex((l) => l.number === state.selected)
@@ -1378,7 +1405,25 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     let target = visible.findIndex((l, i) => i > current && predicate(l));
     if (target < 0) target = visible.findIndex(predicate); // wrap around
     if (target >= 0) scrollToIndex(target, true);
-    else showToast(t('viewerNothingFound', 'Nothing found in the visible lines'));
+    else showToast(NOTHING[kind][allLines.some(predicate) ? 1 : 0]);
+  }
+
+  /**
+   * A field condition worth trying on this log, for the search box's placeholder and the tips:
+   * status>=500 says more than time=….
+   */
+  function fieldExample(): string | null {
+    if (fields.includes('status')) return 'status>=500';
+    const duration = ['duration', 'took', 'elapsed', 'latency'].find((key) => fields.includes(key));
+    if (duration) return `${duration}>1s`;
+    if (fields.includes('level')) return 'level=error';
+    const key = ['service', 'method', 'logger', 'app', 'user'].find((name) => fields.includes(name));
+    if (!key) return null;
+    const value = allLines
+      .slice(0, 500)
+      .map((line) => fieldValue(line, key))
+      .find((v) => v && /^[\w.@/:-]+$/.test(v));
+    return value ? `${key}=${value}` : null;
   }
 
   let fieldMode = false;
@@ -1550,6 +1595,53 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     if (!how.keepInspector || inspector.hidden || !visible.some((l) => l.number === state.selected)) renderInspector();
     render();
     minimap.draw(visible, state.bookmarks);
+    renderEmptyState();
+  }
+
+  function renderEmptyState(): void {
+    emptyState.hidden = visible.length > 0;
+    if (emptyState.hidden) return;
+    if (allLines.length === 0) {
+      emptyState.replaceChildren(el('p', {}, t('viewerEmptyFile', 'This log is empty.')));
+      return;
+    }
+    const actions: HTMLElement[] = [];
+    const action = (label: string, run: () => void) => {
+      const button = el('button', { className: 'toggle' }, label);
+      button.addEventListener('click', run);
+      actions.push(button);
+    };
+    if (state.query) {
+      action(t('viewerClearSearch', 'Clear the search'), () => {
+        search.value = state.query = '';
+        void refresh();
+        scroller.focus();
+      });
+    }
+    const levelsOff = Object.entries(chipCounts).filter(([key, entry]) => {
+      if (entry![0].hidden) return false;
+      return key === 'UNKNOWN' ? !state.includeUnknown : !state.levels.has(key as Level);
+    });
+    if (levelsOff.length > 0) {
+      action(t('viewerShowAllLevels', 'Show all levels'), () => {
+        for (const [key, entry] of levelsOff) {
+          if (key === 'UNKNOWN') state.includeUnknown = true;
+          else state.levels.add(key as Level);
+          setPressed(entry![0], true);
+        }
+        void refresh();
+      });
+    }
+    if (state.timeRange) {
+      action(t('viewerRangeTitle', 'Show all times again'), () => {
+        state.timeRange = null;
+        void refresh();
+      });
+    }
+    const message = state.query
+      ? t('viewerNoMatch', 'No lines match “{query}”', { query: state.query })
+      : t('viewerNothingShown', 'The filters leave no lines to show');
+    emptyState.replaceChildren(el('p', {}, message), el('div', { className: 'empty-actions' }, ...actions));
   }
 
   // looked up once: render() runs on every scroll
@@ -1673,6 +1765,41 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     scroller.scrollTop = Math.max(0, index * ROW_HEIGHT - scroller.clientHeight / 3);
     render();
   }
+
+  /**
+   * One line of tips under the toolbar for the first few logs, made from this log: the keys and
+   * a field condition it actually has, so the ways in are in front of people who never press ?.
+   */
+  function buildHint(): void {
+    const items: Child[][] = [];
+    if (counts.ERROR > 0) items.push([el('kbd', {}, 'e'), ` ${t('viewerHintNextError', 'next error')}`]);
+    const example = fieldExample();
+    if (example) {
+      const tryIt = el('button', { className: 'hint-example', title: t('viewerHintTry', 'Try it') }, example);
+      tryIt.addEventListener('click', () => {
+        search.value = example;
+        search.dispatchEvent(new Event('input'));
+      });
+      items.push([`${t('viewerHintField', 'filter by a field')} `, tryIt]);
+    }
+    items.push([t('viewerHintClickLine', 'click a line for details')]);
+    if (timeline) items.push([t('viewerHintDrag', 'drag across the timeline to keep a time range')]);
+    items.push([el('kbd', {}, '?'), ` ${t('viewerHintKeys', 'all keys')}`]);
+    const close = el('button', { className: 'hint-close', title: t('viewerHintClose', 'Don’t show tips again') }, '×');
+    close.addEventListener('click', () => {
+      hintBar.hidden = true;
+      void loadSettings()
+        .then((settings) => saveSettings({ ...settings, hintViews: HINT_VIEWS }))
+        .catch(() => undefined);
+    });
+    hintBar.replaceChildren(
+      el('span', { className: 'hint-label' }, t('viewerHintTitle', 'Tips')),
+      ...items.map((children, i) => el('span', { className: 'hint-item' }, ...(i > 0 ? ['· '] : []), ...children)),
+      close,
+    );
+    hintBar.hidden = false;
+  }
+  if (options.hint) buildHint();
 
   // a link opens the same view: #L120, #L120-L135, and the filters after them
   const link = parseViewLink(location.hash);

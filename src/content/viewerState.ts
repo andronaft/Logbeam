@@ -60,6 +60,8 @@ export interface ViewerOptions {
   fromFile?: boolean;
   /** Said in a toast once the log is open, e.g. that several files were merged; empty for none. */
   notice?: string;
+  /** Show the line of tips under the toolbar (the first few logs someone opens). */
+  hint?: boolean;
 }
 
 /**

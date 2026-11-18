@@ -221,9 +221,6 @@
   "viewerSearchPlaceholder": {
     "message": "Пошук… ( / )"
   },
-  "viewerSearchFieldsPlaceholder": {
-    "message": "Пошук або {field}=… ( / )"
-  },
   "viewerSearchTitle": {
     "message": "Текст, поля й слова, які треба прибрати, у будь-якому поєднанні: service=payments timeout -healthz (ключ=значення, !=, >, <, * — будь-які символи; -слово або -\"два слова\" прибирає рядки)"
   },
@@ -362,9 +359,6 @@
   "viewerColumnsTitle": {
     "message": "Стовпці таблиці через кому"
   },
-  "viewerBucketTitle": {
-    "message": "Записів: {total}, помилок: {errors}, попереджень: {warnings}"
-  },
   "viewerDropHint": {
     "message": "Перетягніть файли .log або .gz, щоб відкрити їх; кілька файлів зводяться за часом"
   },
@@ -442,9 +436,6 @@
   },
   "viewerLineLinkCopied": {
     "message": "Посилання на рядок {n} скопійовано"
-  },
-  "viewerNothingFound": {
-    "message": "У показаних рядках нічого не знайдено"
   },
   "viewerOnlyGroup": {
     "message": "Лише {group}"
@@ -1079,5 +1070,107 @@
   },
   "viewerExcludedWords_other": {
     "message": "{n} слова виключено"
+  },
+  "viewerSearchExamplePlaceholder": {
+    "message": "Пошук або {example} ( / )"
+  },
+  "viewerErrorsHidden": {
+    "message": "Помилки приховані фільтрами"
+  },
+  "viewerNoWarnings": {
+    "message": "У цьому лозі немає попереджень."
+  },
+  "viewerWarningsHidden": {
+    "message": "Попередження приховані фільтрами"
+  },
+  "viewerNoSecrets": {
+    "message": "У цьому лозі немає витеклих секретів."
+  },
+  "viewerSecretsHidden": {
+    "message": "Секрети приховані фільтрами"
+  },
+  "viewerNoBookmarks": {
+    "message": "Закладок ще немає: виділіть рядок і натисніть m"
+  },
+  "viewerBookmarksHidden": {
+    "message": "Рядки із закладками приховані фільтрами"
+  },
+  "viewerEmptyFile": {
+    "message": "Цей лог порожній."
+  },
+  "viewerClearSearch": {
+    "message": "Очистити пошук"
+  },
+  "viewerShowAllLevels": {
+    "message": "Показати всі рівні"
+  },
+  "viewerNoMatch": {
+    "message": "Немає рядків, що відповідають «{query}»"
+  },
+  "viewerNothingShown": {
+    "message": "Після фільтрів не лишилося жодного рядка"
+  },
+  "viewerHintTitle": {
+    "message": "Підказки"
+  },
+  "viewerHintNextError": {
+    "message": "наступна помилка"
+  },
+  "viewerHintField": {
+    "message": "фільтр за полем"
+  },
+  "viewerHintTry": {
+    "message": "Спробувати"
+  },
+  "viewerHintClickLine": {
+    "message": "клацніть рядок, щоб побачити деталі"
+  },
+  "viewerHintDrag": {
+    "message": "протягніть по таймлайну, щоб лишити проміжок часу"
+  },
+  "viewerHintKeys": {
+    "message": "усі клавіші"
+  },
+  "viewerHintClose": {
+    "message": "Більше не показувати підказки"
+  },
+  "viewerBucketHint": {
+    "message": "Клацніть, щоб перейти · протягніть по стовпцях, щоб лишити цей проміжок"
+  },
+  "viewerBucketEntries_one": {
+    "message": "{n} запис"
+  },
+  "viewerBucketEntries_few": {
+    "message": "{n} записи"
+  },
+  "viewerBucketEntries_many": {
+    "message": "{n} записів"
+  },
+  "viewerBucketEntries_other": {
+    "message": "{n} запису"
+  },
+  "viewerBucketErrors_one": {
+    "message": "{n} помилка"
+  },
+  "viewerBucketErrors_few": {
+    "message": "{n} помилки"
+  },
+  "viewerBucketErrors_many": {
+    "message": "{n} помилок"
+  },
+  "viewerBucketErrors_other": {
+    "message": "{n} помилки"
+  },
+  "viewerBucketWarnings_one": {
+    "message": "{n} попередження"
+  },
+  "viewerBucketWarnings_few": {
+    "message": "{n} попередження"
+  },
+  "viewerBucketWarnings_many": {
+    "message": "{n} попереджень"
+  },
+  "viewerBucketWarnings_other": {
+    "message": "{n} попередження"
   }
 }

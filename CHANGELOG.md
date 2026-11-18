@@ -4,6 +4,12 @@
 
 ### Added
 
+- **Help for the first logs.** The first three logs someone opens show one line of tips made from that log: `e` for
+  the next error when there are errors, a field condition it really has (`status>=500`, click to try it), click a
+  line, drag the timeline, `?` for all keys. × hides them for good. The search box suggests the same condition
+  instead of `time=…`.
+- **No more blank page** when the filters leave nothing: the viewer says why ("No lines match “zzzz”") with
+  buttons to clear the search, show all levels or all times again.
 - **One search for fields, text and words to leave out**: `service=payments timeout -healthz`. Before, a search was
   either all field conditions or all text, and leaving something out took a regex with a negative lookahead. A
   `-word` (or `-"two words"`) leaves out the lines that have it, an error together with its stack trace; `-5` and
@@ -79,6 +85,8 @@
 
 ### Fixed
 
+- `e`, `w`, `s` and `b` say what is missing instead of "Nothing found": no errors in this log at all, or errors that
+  the filters hide. A timeline bar says "1 entry", not "1 entries", and how to drag a range.
 - Changing settings quickly no longer leaves the right-click menu half built ("duplicate id"), and saving the viewer's view no longer rebuilds the menu at all.
 - Remembering dark mode or auto-open for a site no longer fails with "duplicate script id" when Logbeam syncs its sites
   at the same time, or when the popup and the background both finish the request after the permission prompt.

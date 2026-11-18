@@ -1,6 +1,6 @@
 import { TimeMode, formatTime } from '../lib/insights';
 import { Timeline } from '../lib/timeline';
-import { t } from '../shared/i18n';
+import { t, tn } from '../shared/i18n';
 import { el } from './dom';
 
 export interface TimelineView {
@@ -42,6 +42,8 @@ export function createTimelineView(options: {
     element.replaceChildren();
     if (!current) return;
     const fmt = (ms: number) => formatTime(ms, timeMode).slice(0, 19);
+    // looked up once, not per bar
+    const dragHint = t('viewerBucketHint', 'Click to jump there · drag across bars to keep that time range');
     current.buckets.forEach((bucket, i) => {
       const height = (n: number) => `${Math.round((n / current.max) * 100)}%`;
       const other = bucket.total - bucket.errors - bucket.warnings;
@@ -49,11 +51,15 @@ export function createTimelineView(options: {
         'button',
         {
           className: 'bucket',
-          title: `${fmt(bucket.from)} – ${fmt(bucket.to)}\n${t(
-            'viewerBucketTitle',
-            '{total} entries, {errors} errors, {warnings} warnings',
-            { total: bucket.total, errors: bucket.errors, warnings: bucket.warnings },
-          )}`,
+          title: [
+            `${fmt(bucket.from)} – ${fmt(bucket.to)}`,
+            [
+              tn('viewerBucketEntries', bucket.total, '{n} entry', '{n} entries'),
+              tn('viewerBucketErrors', bucket.errors, '{n} error', '{n} errors'),
+              tn('viewerBucketWarnings', bucket.warnings, '{n} warning', '{n} warnings'),
+            ].join(', '),
+            dragHint,
+          ].join('\n'),
         },
         el('span', { className: 'b-err' }),
         el('span', { className: 'b-warn' }),
