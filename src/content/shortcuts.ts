@@ -10,6 +10,7 @@ const SHORTCUTS: { keys: string[]; message: string; text: string }[] = [
   { keys: ['J', 'K'], message: 'keyExtendSelection', text: 'Add the next line to the selection / take it back' },
   { keys: ['y'], message: 'keyCopyViewLink', text: 'Copy a link to this view, with its filters and selected lines' },
   { keys: ['e'], message: 'keyNextError', text: 'Next error' },
+  { keys: ['w'], message: 'keyNextWarning', text: 'Next warning' },
   { keys: ['s'], message: 'keyNextSecret', text: 'Next leaked secret' },
   { keys: ['m'], message: 'keyBookmark', text: 'Bookmark the selected line' },
   { keys: ['b'], message: 'keyNextBookmark', text: 'Next bookmark' },

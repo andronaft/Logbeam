@@ -60,6 +60,7 @@ import { renderErrorGroups } from './errorGroupsPanel';
 import { renderFieldStats } from './fieldStatsPanel';
 import { renderRange } from './rangePanel';
 import { createTimelineView } from './timelineView';
+import { createMinimap } from './minimap';
 import { VIEWER_CSS } from './viewerStyles';
 
 /**
@@ -548,36 +549,36 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const columnsLabel = el('label', { className: 'columns-label' }, `${t('viewerColumns', 'Columns')} `, columnsInput);
   const subbar = el('div', { className: 'subbar' }, rangeChip, groupChip, columnsLabel, highlightChips, sourceChips);
 
+  // controls in groups that wrap as a whole: levels, search, how lines are shown, finding things, actions
+  const tgroup = (name: string, ...children: Child[]) => el('span', { className: `tgroup ${name}` }, ...children);
   const toolbar = el(
     'header',
     { className: 'toolbar' },
     el('span', { className: 'brand' }, 'Logbeam'),
-    chip('ERROR', 'Error'),
-    chip('WARN', 'Warn'),
-    chip('INFO', 'Info'),
-    chip('DEBUG', 'Debug'),
-    chip('TRACE', 'Trace'),
-    chip('UNKNOWN', t('viewerOtherLevel', 'Other')),
-    el('span', { className: 'group' }, search, highlightButton, regexToggle, caseToggle, contextSelect),
-    collapseToggle,
-    gapsToggle,
-    timelineToggle,
-    secretsGroup,
-    nextError,
-    groupsButton,
-    sectionsButton,
-    tableToggle,
-    timeButton,
-    el('span', { className: 'group' }, bookmarksButton, reportButton),
-    followToggle,
-    copyButton,
-    linkButton,
-    saveButton,
-    compareButton,
-    openButton,
-    fileInput,
-    rawButton,
-    helpButton,
+    tgroup(
+      'levels',
+      chip('ERROR', 'Error'),
+      chip('WARN', 'Warn'),
+      chip('INFO', 'Info'),
+      chip('DEBUG', 'Debug'),
+      chip('TRACE', 'Trace'),
+      chip('UNKNOWN', t('viewerOtherLevel', 'Other')),
+    ),
+    tgroup('find', search, highlightButton, regexToggle, caseToggle, contextSelect),
+    tgroup('view', collapseToggle, gapsToggle, timelineToggle, tableToggle, timeButton),
+    tgroup('jump', secretsGroup, nextError, groupsButton, sectionsButton, bookmarksButton, reportButton),
+    tgroup(
+      'actions',
+      followToggle,
+      copyButton,
+      linkButton,
+      saveButton,
+      compareButton,
+      openButton,
+      fileInput,
+      rawButton,
+      helpButton,
+    ),
     status,
     fieldList,
   );
@@ -606,6 +607,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const spacer = el('div', { className: 'spacer' });
   const rows = el('div', { className: 'rows' });
   const scroller = el('main', { className: 'scroller', tabIndex: 0 }, spacer, rows);
+  const minimap = createMinimap({
+    scroller,
+    rowHeight: ROW_HEIGHT,
+    signal,
+    scrollTo: (index) => {
+      scroller.scrollTop = Math.max(0, index * ROW_HEIGHT - scroller.clientHeight / 2);
+      render();
+    },
+  });
   const inspector = el('aside', { className: 'inspector' });
   inspector.hidden = true;
   const groupsPanel = el('aside', { className: 'groups' });
@@ -617,7 +627,17 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     t('viewerDropHint', 'Drop .log or .gz files to open them; several are merged by time'),
   );
   const help = shortcutsHelp();
-  body.append(toolbar, subbar, timelineEl, groupsPanel, scroller, inspector, toast, dropHint, help);
+  body.append(
+    toolbar,
+    subbar,
+    timelineEl,
+    groupsPanel,
+    el('div', { className: 'log-area' }, scroller, minimap.element),
+    inspector,
+    toast,
+    dropHint,
+    help,
+  );
 
   const displayText = (line: LogLine) => {
     const text = localizeTimestamp(line.text, state.timeMode);
@@ -898,6 +918,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   function updateBookmarkButtons(): void {
     bookmarksButton.textContent = `★ ${state.bookmarks.size}`;
     bookmarksButton.hidden = reportButton.hidden = state.bookmarks.size === 0;
+    minimap.draw(visible, state.bookmarks);
   }
 
   function renderGroups(): void {
@@ -1257,6 +1278,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         selectLineAtIndex(visible.length - 1);
       } else if (event.key === 'e') {
         jumpToNext((l) => l.level === 'ERROR' && !l.continuation);
+      } else if (event.key === 'w') {
+        jumpToNext((l) => l.level === 'WARN' && !l.continuation);
       } else if (event.key === 's' && secretCount > 0) {
         jumpToNext((l) => l.secret);
       } else if (event.key === 'm' && state.selected !== null) {
@@ -1270,8 +1293,22 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     { signal },
   );
 
-  scroller.addEventListener('scroll', () => render(), { passive: true });
-  window.addEventListener('resize', () => render(), { signal });
+  scroller.addEventListener(
+    'scroll',
+    () => {
+      render();
+      minimap.follow();
+    },
+    { passive: true },
+  );
+  window.addEventListener(
+    'resize',
+    () => {
+      render();
+      minimap.draw(visible, state.bookmarks);
+    },
+    { signal },
+  );
 
   function reveal(index: number): void {
     const newScroll = keepInView(index, ROW_HEIGHT, scroller.scrollTop, scroller.clientHeight);
@@ -1428,6 +1465,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     renderSubbar();
     if (!how.keepInspector || inspector.hidden || !visible.some((l) => l.number === state.selected)) renderInspector();
     render();
+    minimap.draw(visible, state.bookmarks);
   }
 
   // looked up once: render() runs on every scroll
@@ -1453,7 +1491,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         const row = el('div', { className: classes.join(' ') });
         row.dataset.number = String(line.number);
 
-        const gap = el('span', { className: 'gap' });
+        const gap = el('span', { className: state.showGaps ? 'gap' : 'gap off' });
         if (state.showGaps && line.gap !== null && line.gap >= gapThreshold) {
           gap.textContent = formatGap(line.gap);
           gap.title = gapTitle;

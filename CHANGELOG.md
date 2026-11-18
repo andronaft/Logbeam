@@ -4,6 +4,9 @@
 
 ### Added
 
+- **A minimap next to the scrollbar** marks every error, warning and bookmark in the shown lines, so in a long
+  log you see at a glance where the trouble is. Click or drag on it to go there; a box shows the part on screen.
+- **`w` jumps to the next warning**, like `e` does to the next error.
 - **Open several logs as one.** Drop or choose two or more files (`api.log`, `worker.log`, the same service on
   three machines) and Logbeam merges them in order of time into one log, with the file name in front of each line
   and a coloured chip per file to show or hide it, as with pods. Stack traces and pretty-printed JSON stay with
@@ -26,6 +29,12 @@
 
 ### Improved
 
+- **A calmer toolbar.** The buttons are in groups (levels, search, view, jumps, actions) that wrap as a whole,
+  the level chips have a coloured dot and are crossed out when hidden, and the actions you use now and then
+  (Follow, Copy, Save, Raw) stay quiet until you point at them. Buttons show a focus ring for the keyboard.
+- **Errors and warnings are marked next to the line number**, so you still see the level of a line when it is
+  scrolled sideways, and the pauses (`+30.0s`) stay in view too. The selected line gets an accent mark. With
+  Gaps off, their empty column no longer takes 64 pixels.
 - **Many more log formats are read as they come.** Tried on one real line of each of 80 formats, Logbeam found
   the level and the time in 25; now in all of them:
   - servers: nginx and Apache error logs (`[crit]`, `[core:error]`), PostgreSQL (`LOG:`), MySQL (`[Note]`), Redis,

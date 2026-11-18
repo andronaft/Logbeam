@@ -246,6 +246,19 @@ await page.keyboard.press('Escape');
 check('Esc closes the inspector', await page.locator('.inspector').isHidden());
 
 // ---- keyboard shortcuts ( ? ) ---------------------------------------------------------------
+await page.keyboard.press('w');
+check('w selects the next warning', (await page.locator('.facts').textContent()).includes('WARN'));
+
+// the strip next to the scrollbar marks errors and warnings; a click goes there
+const minimapBox = await page.locator('.minimap').boundingBox();
+check('the minimap is shown next to a long log', minimapBox !== null && minimapBox.width > 0);
+if (minimapBox) {
+  await page.locator('.scroller').evaluate((scroller) => (scroller.scrollTop = 0));
+  await page.mouse.click(minimapBox.x + minimapBox.width / 2, minimapBox.y + minimapBox.height - 2);
+  const scrolled = await page.locator('.scroller').evaluate((s) => s.scrollTop + s.clientHeight >= s.scrollHeight - 40);
+  check('a click on the minimap scrolls there', scrolled);
+}
+
 await page.keyboard.press('?');
 check('? lists the keyboard shortcuts', (await page.locator('.help-box').textContent()).includes('Next leaked secret'));
 await page.keyboard.press('e');

@@ -76,12 +76,13 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Pauses between entries**: `+5.5s` next to lines where the app stalled
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge
 - **Error timeline**: a histogram of entries, errors and warnings over time; click a bar to jump there
+- **Minimap**: every error, warning and bookmark marked on a strip next to the scrollbar; click to go there
 - **Line inspector**: click a line to read it in full, with its time, pause and, for JSON records, all fields
 - **Links to lines**: click a line number to copy a `#L120` link that opens the viewer right on that line;
   **Shift+click** a second line to select everything in between (`#L120-L135`) and copy those lines or a link to them
 - **Links to a view**: the address keeps the levels, the search, the time range and the pods, so the link you
   send (🔗 or `y`) opens exactly what you see: "the errors from the payments pod after 10:05", not the whole log
-- **Keyboard**: next error (`e`), search (`/`), `j` / `k` between lines, `J` / `K` to select more of them, `g` / `G`
+- **Keyboard**: next error (`e`) or warning (`w`), search (`/`), `j` / `k` between lines, `J` / `K` to select more of them, `g` / `G`
   to the first or last; `?` lists all the keys
 - **Open automatically** on sites you choose (opt-in per site, only plain-text pages that look like logs)
 - Fast on **150k+ lines**: logs over 1 MB are parsed in a **Web Worker** with a progress bar, and only the
