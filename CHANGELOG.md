@@ -59,6 +59,10 @@
 
 ### Fixed
 
+- Changing settings quickly no longer leaves the right-click menu half built ("duplicate id"), and saving the viewer's view no longer rebuilds the menu at all.
+- Remembering dark mode or auto-open for a site while Logbeam syncs its sites no longer fails with "duplicate script id".
+- GELF records show their level (syslog 3 = ERROR, 4 = WARN, …) and their `short_message` instead of TRACE and a JSON blob.
+- The text-tool panel on a page and the popup's copy and shortcut labels are translated.
 - **Bookmarks and notes on a web page survive a reload** again (while the browser is open). They were lost,
   because a content script may not use the extension's session storage; the background page keeps them now.
 - **Follow no longer steals the focus** from a bookmark note every 3 seconds (the rest of what you typed became

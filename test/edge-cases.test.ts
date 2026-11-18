@@ -153,3 +153,20 @@ describe('describeJwt', () => {
     expect(describeJwt(jwt, 0)).toContain('not a valid date');
   });
 });
+
+describe('GELF records', () => {
+  it('reads syslog severities and short_message', () => {
+    const lines = parseLog(
+      [
+        '{"version":"1.1","host":"api-1","short_message":"db down","timestamp":1727604000.5,"level":3}',
+        '{"version":"1.1","host":"api-1","short_message":"slow query","timestamp":1727604001,"level":4}',
+        '{"version":"1.1","host":"api-1","short_message":"started","timestamp":1727604002,"level":6}',
+        '{"version":"1.1","host":"api-1","short_message":"cache miss","timestamp":1727604003,"level":7}',
+      ].join('\n'),
+    );
+    expect(lines.map((line) => line.level)).toEqual(['ERROR', 'WARN', 'INFO', 'DEBUG']);
+    expect(lines[0].text).toBe('2024-09-29T10:00:00.500Z ERROR db down {"version":"1.1","host":"api-1"}');
+    // pino's numbers are unchanged
+    expect(parseLog('{"level":30,"msg":"ok"}')[0].level).toBe('INFO');
+  });
+});

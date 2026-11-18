@@ -5,11 +5,13 @@
  */
 
 import { hasPermission, originPattern } from './darkMode';
+import { serial } from './serial';
 
 const STORAGE_KEY = 'autoLogSites';
 const SCRIPT_FILE = 'autoOpen.js';
 
 const scriptId = (pattern: string) => `auto:${pattern}`;
+const queue = serial();
 
 export async function autoOpenSites(): Promise<string[]> {
   const data = await chrome.storage.sync.get(STORAGE_KEY);
@@ -25,22 +27,26 @@ export async function isAutoOpen(url: string | undefined): Promise<boolean> {
   return pattern !== null && (await autoOpenSites()).includes(pattern);
 }
 
-async function register(pattern: string): Promise<void> {
-  const id = scriptId(pattern);
-  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
-  if (existing.length === 0) {
-    await chrome.scripting.registerContentScripts([
-      { id, matches: [pattern], js: [SCRIPT_FILE], runAt: 'document_idle', persistAcrossSessions: true },
-    ]);
-  }
+function register(pattern: string): Promise<void> {
+  return queue(async () => {
+    const id = scriptId(pattern);
+    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+    if (existing.length === 0) {
+      await chrome.scripting.registerContentScripts([
+        { id, matches: [pattern], js: [SCRIPT_FILE], runAt: 'document_idle', persistAcrossSessions: true },
+      ]);
+    }
+  });
 }
 
-async function unregister(pattern: string): Promise<void> {
-  const id = scriptId(pattern);
-  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
-  if (existing.length > 0) {
-    await chrome.scripting.unregisterContentScripts({ ids: [id] });
-  }
+function unregister(pattern: string): Promise<void> {
+  return queue(async () => {
+    const id = scriptId(pattern);
+    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+    if (existing.length > 0) {
+      await chrome.scripting.unregisterContentScripts({ ids: [id] });
+    }
+  });
 }
 
 /** Needs the origin permission to turn on; returns whether the setting is now on. */
