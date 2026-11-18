@@ -953,5 +953,17 @@
   },
   "viewerMuted_other": {
     "message": "{n} entries like this hidden · X shows them again"
+  },
+  "viewerFirstError": {
+    "message": "first"
+  },
+  "viewerFirstErrorTitle": {
+    "message": "The first error in the log: often the cause of the ones after it"
+  },
+  "viewerGroupsByCount": {
+    "message": "Most often"
+  },
+  "viewerGroupsByFirst": {
+    "message": "First seen"
   }
 }

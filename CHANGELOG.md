@@ -4,6 +4,9 @@
 
 ### Added
 
+- **Error groups by first seen.** The Groups panel can list the errors in the order they first happened instead of
+  by count, and marks the earliest one "first" either way: 900 × `upstream timeout` are often the symptom of the one
+  `pool exhausted` three seconds before them.
 - **Hide lines like this** (`x`, or the ⊘ button in the line details): every line of the selected kind, e.g.
   `GET /healthz 200 in 3ms`, leaves the view, with its stack trace, in every pod or file. Numbers, IDs and times
   don't count, the level does, so the 503 marked ERROR stays. Each hidden kind gets a chip with its count; click it

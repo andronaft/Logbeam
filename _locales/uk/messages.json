@@ -1055,5 +1055,17 @@
   },
   "viewerMuted_other": {
     "message": "Сховано {n} такого запису · X поверне"
+  },
+  "viewerFirstError": {
+    "message": "перша"
+  },
+  "viewerFirstErrorTitle": {
+    "message": "Перша помилка в лозі: часто причина тих, що після неї"
+  },
+  "viewerGroupsByCount": {
+    "message": "Найчастіші"
+  },
+  "viewerGroupsByFirst": {
+    "message": "За появою"
   }
 }
