@@ -134,16 +134,51 @@ async function setupShortcuts(): Promise<void> {
     const element = $(id);
     const keys = shortcut(name);
     element.textContent = keys || t('popupSetShortcut', 'set shortcut');
-    element.title = keys ? 'Click to change' : 'No shortcut assigned. Click to set one.';
+    element.title = keys
+      ? t('popupShortcutChange', 'Click to change')
+      : t('popupShortcutNone', 'No shortcut assigned. Click to set one.');
     element.addEventListener('click', openShortcuts);
   }
+}
+
+/**
+ * The text tools in small groups, each under a heading. The ids are those of TRANSFORMS, in its order;
+ * a tool not listed here goes in the last group, so a new one still shows up.
+ */
+const TOOL_GROUPS: { key: string; title: string; ids: string[]; pairs?: boolean }[] = [
+  {
+    key: 'popupToolsData',
+    title: 'JSON, tokens & time',
+    ids: ['mask-secrets', 'json-format', 'json-minify', 'jwt-decode', 'timestamp', 'cron'],
+  },
+  {
+    key: 'popupToolsEncode',
+    title: 'Encode & decode',
+    ids: ['base64-encode', 'base64-decode', 'url-encode', 'url-decode'],
+    pairs: true,
+  },
+  { key: 'popupToolsText', title: 'Case & lines', ids: ['camel', 'snake', 'kebab', 'constant', 'sort-lines', 'unique-lines'] },
+];
+
+function groupedTransforms(): { heading: string; pairs: boolean; transforms: typeof TRANSFORMS }[] {
+  const grouped = new Set(TOOL_GROUPS.flatMap((group) => group.ids));
+  const others = TRANSFORMS.filter((transform) => !grouped.has(transform.id));
+  return TOOL_GROUPS.map((group, i) => {
+    const transforms = TRANSFORMS.filter((transform) => group.ids.includes(transform.id));
+    const last = i === TOOL_GROUPS.length - 1;
+    return {
+      heading: t(group.key, group.title),
+      pairs: Boolean(group.pairs),
+      transforms: last ? [...transforms, ...others] : transforms,
+    };
+  }).filter((group) => group.transforms.length > 0);
 }
 
 function setupTools(): void {
   const input = $<HTMLTextAreaElement>('input');
   const output = $<HTMLPreElement>('output');
   const actions = $('output-actions');
-  const grid = $('transforms');
+  const groups = $('transforms');
   const copy = $<HTMLButtonElement>('copy');
 
   void chrome.storage.session.get(INPUT_KEY).then((data) => {
@@ -153,7 +188,7 @@ function setupTools(): void {
     void chrome.storage.session.set({ [INPUT_KEY]: input.value });
   });
 
-  for (const transform of TRANSFORMS) {
+  const toolButton = (transform: (typeof TRANSFORMS)[number]): HTMLButtonElement => {
     const button = document.createElement('button');
     button.textContent = t(toolKey(transform.id, 'short'), transform.short);
     button.title = t(toolKey(transform.id, 'title'), transform.title);
@@ -168,17 +203,29 @@ function setupTools(): void {
         output.classList.add('error');
         actions.hidden = true;
       }
-      copy.textContent = 'Copy';
+      copy.textContent = t('popupCopy', 'Copy');
     });
-    grid.append(button);
+    return button;
+  };
+  for (const group of groupedTransforms()) {
+    const heading = document.createElement('h3');
+    heading.textContent = group.heading;
+    const grid = document.createElement('div');
+    grid.className = group.pairs ? 'grid pairs' : 'grid';
+    const section = document.createElement('div');
+    section.append(heading, grid);
+    groups.append(section);
+    for (const transform of group.transforms) {
+      grid.append(toolButton(transform));
+    }
   }
 
   copy.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(output.textContent ?? '');
-      copy.textContent = 'Copied ✓';
+      copy.textContent = t('copied', 'Copied ✓');
     } catch {
-      copy.textContent = 'Copy failed';
+      copy.textContent = t('copyFailedShort', 'Copy failed');
     }
   });
   $('use-output').addEventListener('click', () => {

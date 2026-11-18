@@ -44,6 +44,15 @@
   "popupTextTools": {
     "message": "Text tools"
   },
+  "popupToolsData": {
+    "message": "JSON, tokens & time"
+  },
+  "popupToolsEncode": {
+    "message": "Encode & decode"
+  },
+  "popupToolsText": {
+    "message": "Case & lines"
+  },
   "popupInputPlaceholder": {
     "message": "Paste JSON, a JWT, Base64, a timestamp, a cron expression…"
   },
@@ -576,7 +585,7 @@
     "message": "Settings · Logbeam"
   },
   "optionsHeading": {
-    "message": "Logbeam settings"
+    "message": "Settings"
   },
   "optionsSaved": {
     "message": "Saved ✓"
@@ -890,6 +899,60 @@
   },
   "viewerMinimapTitle": {
     "message": "Errors, warnings and bookmarks in the shown lines: click to go there"
+  },
+  "copied": {
+    "message": "Copied ✓"
+  },
+  "copyFailedShort": {
+    "message": "Copy failed"
+  },
+  "panelCopyBlocked": {
+    "message": "Copy blocked by the page"
+  },
+  "panelReplace": {
+    "message": "Replace selection"
+  },
+  "panelReplaceFailed": {
+    "message": "Could not replace"
+  },
+  "panelSelectFirst": {
+    "message": "Select some text first."
+  },
+  "panelClose": {
+    "message": "Close (Esc)"
+  },
+  "popupShortcutChange": {
+    "message": "Click to change"
+  },
+  "popupShortcutNone": {
+    "message": "No shortcut assigned. Click to set one."
+  },
+  "viewerCompareTooBig": {
+    "message": "This log is too big to compare (over about 10 MB)"
+  },
+  "viewerMute": {
+    "message": "Hide lines like this"
+  },
+  "viewerMuteTitle": {
+    "message": "Hide every line like this one, e.g. health checks ( x )"
+  },
+  "viewerUnmuteTitle": {
+    "message": "Show these lines again"
+  },
+  "keyMute": {
+    "message": "Hide lines like the selected one / show the last hidden kind again"
+  },
+  "viewerHiddenNote_one": {
+    "message": "{n} line hidden"
+  },
+  "viewerHiddenNote_other": {
+    "message": "{n} lines hidden"
+  },
+  "viewerMuted_one": {
+    "message": "{n} entry like this hidden · X shows it again"
+  },
+  "viewerMuted_other": {
+    "message": "{n} entries like this hidden · X shows them again"
   },
   "viewerFirstError": {
     "message": "first"

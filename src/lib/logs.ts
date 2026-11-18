@@ -388,8 +388,8 @@ export function parseJsonRecord(text: string): Record<string, unknown> | null {
 
 const JSON_LEVEL_KEYS = ['level', 'severity', 'lvl', 'log.level', 'levelname'];
 const JSON_TIME_KEYS = ['@timestamp', 'timestamp', 'time', 'ts', 'datetime'];
-// "log" is the line itself in Docker's json-file logs and in Fluent Bit records
-const JSON_MESSAGE_KEYS = ['message', 'msg', 'text', 'event', 'log'];
+// "log" is the line itself in Docker's json-file logs and in Fluent Bit records; "short_message" is GELF's
+const JSON_MESSAGE_KEYS = ['message', 'msg', 'text', 'event', 'log', 'short_message'];
 // MongoDB's own keys: {"t": {"$date": "…"}, "s": "I", "c": "NETWORK", "msg": "Connection accepted"}
 const MONGO_LEVELS: Record<string, Level> = { F: 'ERROR', E: 'ERROR', W: 'WARN', I: 'INFO' };
 
@@ -464,8 +464,12 @@ function jsonLevel(record: Record<string, unknown>, custom: CustomLevels | null 
     const name = value.toUpperCase();
     return custom?.byName.get(value.toLowerCase()) ?? LEVEL_ALIASES[name] ?? (name === 'ALERT' ? 'ERROR' : null);
   }
-  // pino/bunyan numeric levels
   if (typeof value === 'number') {
+    // syslog severities 0-7 (GELF): pino and bunyan start at 10
+    if (Number.isInteger(value) && value >= 0 && value <= 7) {
+      return value <= 3 ? 'ERROR' : value === 4 ? 'WARN' : value === 7 ? 'DEBUG' : 'INFO';
+    }
+    // pino/bunyan numeric levels
     if (value >= 50) return 'ERROR';
     if (value >= 40) return 'WARN';
     if (value >= 30) return 'INFO';

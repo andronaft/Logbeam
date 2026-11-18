@@ -249,6 +249,16 @@ check('Esc closes the inspector', await page.locator('.inspector').isHidden());
 await page.keyboard.press('w');
 check('w selects the next warning', (await page.locator('.facts').textContent()).includes('WARN'));
 
+// x hides every line like the selected one, X brings them back
+const statusBefore = await page.locator('.status').textContent();
+await page.keyboard.press('x');
+await page.waitForTimeout(100);
+check('x hides lines like the selected one', (await page.locator('.status').textContent()).includes('hidden'));
+check('a chip shows the hidden kind', await page.locator('.mute-chip').isVisible());
+await page.keyboard.press('X');
+await page.waitForTimeout(100);
+check('X shows them again', (await page.locator('.status').textContent()) === statusBefore);
+
 // the strip next to the scrollbar marks errors and warnings; a click goes there
 const minimapBox = await page.locator('.minimap').boundingBox();
 check('the minimap is shown next to a long log', minimapBox !== null && minimapBox.width > 0);
@@ -1045,6 +1055,8 @@ await lightViewer.addScriptTag({ path: path.join(dist, 'logViewer.js') });
 await lightViewer.waitForSelector('.row');
 await lightViewer.evaluate(() => (document.documentElement.dataset.theme = 'light'));
 check('the log viewer has a light theme', (await background(lightViewer)) === 'rgb(255, 255, 255)');
+// the buttons fade to their new colours (a .12s transition): a screenshot at once caught them still dark
+await lightViewer.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
 await lightViewer.screenshot({ path: 'docs/log-viewer-light.png' });
 await lightViewer.close();
 await options.locator('#theme').selectOption('auto');
