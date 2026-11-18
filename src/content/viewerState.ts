@@ -11,6 +11,8 @@ export const MAX_SOURCES = 24;
 export const MAX_HIGHLIGHTS = 5;
 /** Highlighting only looks at the start of very long lines (a minified bundle, say); rows don't wrap anyway. */
 export const HIGHLIGHT_LIMIT = 5000;
+/** A row shows this much of a line; the line details show all of it. */
+export const ROW_TEXT_LIMIT = HIGHLIGHT_LIMIT;
 
 export interface State {
   levels: Set<Level>;

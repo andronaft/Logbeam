@@ -85,6 +85,13 @@
 
 ### Fixed
 
+- **Follow no longer drops a big batch of new lines.** About 125k new lines at once failed with "Maximum call stack
+  size exceeded", and those lines never showed up, not even later.
+- **Collapse no longer breaks every filter** on a log with one entry of over about 125k lines (a huge dump under one
+  header).
+- **Faster on big logs.** With Collapse on, every click and key on a 600k-line log took about 0.9 s; now about 0.1–0.2 s
+  (each line's signature is worked out once). The minimap is drawn in one pass, field filters skip lines without
+  the key, and a row shows the first 5,000 characters of a very long line (the line details show all of it).
 - `e`, `w`, `s` and `b` say what is missing instead of "Nothing found": no errors in this log at all, or errors that
   the filters hide. A timeline bar says "1 entry", not "1 entries", and how to drag a range.
 - Changing settings quickly no longer leaves the right-click menu half built ("duplicate id"), and saving the viewer's view no longer rebuilds the menu at all.

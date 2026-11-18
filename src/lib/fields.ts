@@ -135,14 +135,14 @@ function jsonField(record: Record<string, unknown>, key: string): unknown {
   return value;
 }
 
-export function fieldValue(line: LogLine, key: string, plain?: Map<string, string>): string | undefined {
+export function fieldValue(line: LogLine, key: string, plain?: ReadonlyMap<string, string>): string | undefined {
   if (line.json) {
     const value = jsonField(line.json, key);
     // pino's {"level": 50}: level=error means the level the line was read as
     if (key === 'level' && typeof value === 'number' && line.level) return line.level;
     if (value !== undefined && value !== null) return typeof value === 'object' ? JSON.stringify(value) : String(value);
   }
-  const fromText = (plain ?? plainFields(line.text)).get(key);
+  const fromText = (plain ?? (line.text.includes(`${key}=`) ? plainFields(line.text) : NO_FIELDS)).get(key);
   if (fromText !== undefined) return fromText;
   // every line has a level, even without a level= field
   if (key === 'level' && line.level) return line.level;
@@ -208,8 +208,16 @@ function sameNumber(actual: string, expected: string): boolean {
 }
 
 /** Whether a line meets every condition. */
+/** No key=value pairs: what a line has that doesn't mention any of the keys asked for. */
+const NO_FIELDS: ReadonlyMap<string, string> = new Map();
+
 export function matchesFields(line: LogLine, conditions: FieldCondition[]): boolean {
-  const plain = line.json ? undefined : plainFields(line.text);
+  // the key=value regex is the slow part (0.3 s over 600k lines): only lines that have a key= need it
+  const plain = line.json
+    ? undefined
+    : conditions.some((condition) => line.text.includes(`${condition.key}=`))
+      ? plainFields(line.text)
+      : NO_FIELDS;
   return conditions.every((condition) => matchesCondition(fieldValue(line, condition.key, plain), condition));
 }
 

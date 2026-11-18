@@ -1046,5 +1046,8 @@
   },
   "viewerBucketWarnings_other": {
     "message": "{n} warnings"
+  },
+  "viewerMoreChars": {
+    "message": "+{n} characters (click the line to read it all)"
   }
 }

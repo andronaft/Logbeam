@@ -3,7 +3,7 @@ import { explainCron } from '../src/lib/cron';
 import { changedRange, diffJson } from '../src/lib/diff';
 import { filterByFields, parseFieldQuery } from '../src/lib/fields';
 import { bookmarkReport, formatDuration } from '../src/lib/insights';
-import { formatJsonRecord, parseLog, parseTimestamp } from '../src/lib/logs';
+import { collapseRepeats, formatJsonRecord, parseLog, parseTimestamp } from '../src/lib/logs';
 import { findRegexRisk } from '../src/lib/regexSafety';
 import { maskSecrets } from '../src/lib/secrets';
 import { searchRanges } from '../src/lib/segments';
@@ -226,5 +226,24 @@ describe('dark page backgrounds', () => {
     expect(luminance('color(srgb 0.1 0.1 0.12)')).toBeLessThan(0.05);
     expect(luminance('oklch(0.145 0 0 / 0.2)')).toBeNull();
     expect(luminance('rgb(15, 20, 25)')).toBeLessThan(0.05);
+  });
+});
+
+describe('big logs', () => {
+  it('collapses an entry of 200k lines without running out of call stack', () => {
+    const text = ['ERROR dump follows', ...Array.from({ length: 200_000 }, (_, i) => `\tframe ${i}`)].join('\n');
+    const lines = parseLog(text);
+    expect(collapseRepeats(lines)).toHaveLength(200_001);
+  });
+
+  it('collapses with signatures worked out by the caller', () => {
+    const lines = parseLog('INFO retry 1\nINFO retry 2\nINFO done\n');
+    let calls = 0;
+    const collapsed = collapseRepeats(lines, (line) => {
+      calls++;
+      return line.text.replace(/\d+/g, '#');
+    });
+    expect(collapsed.map((line) => line.repeat)).toEqual([2, 1]);
+    expect(calls).toBe(3);
   });
 });

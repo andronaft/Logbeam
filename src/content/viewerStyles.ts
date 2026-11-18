@@ -106,6 +106,7 @@ select.toggle { padding: 3px 6px; }
 .search.invalid { border-color: var(--error); }
 .status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+.more-chars { color: var(--muted); font-style: italic; }
 .hint {
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 4px 12px;
   border-bottom: 1px solid var(--border); background: var(--bg-alt); color: var(--muted); font-size: 12px;
