@@ -1228,7 +1228,7 @@ await ukViewer.locator('#open').click();
 await ukViewer.waitForSelector('.row');
 check('the log viewer speaks Ukrainian', (await ukViewer.locator('.status').textContent()) === 'Рядків: 7 / 7');
 await ukViewer.locator('.toggle', { hasText: 'Групи' }).click();
-check('Ukrainian plurals', (await ukViewer.locator('.groups-head').textContent()) === '3 різні помилки');
+check('Ukrainian plurals', (await ukViewer.locator('.groups-head > span').first().textContent()) === '3 різні помилки');
 await ukContext.close();
 
 check('no page errors', errors.length === 0, errors.join('; '));
