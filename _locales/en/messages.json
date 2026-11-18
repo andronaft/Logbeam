@@ -44,6 +44,15 @@
   "popupTextTools": {
     "message": "Text tools"
   },
+  "popupToolsData": {
+    "message": "JSON, tokens & time"
+  },
+  "popupToolsEncode": {
+    "message": "Encode & decode"
+  },
+  "popupToolsText": {
+    "message": "Case & lines"
+  },
   "popupInputPlaceholder": {
     "message": "Paste JSON, a JWT, Base64, a timestamp, a cron expression…"
   },
@@ -576,7 +585,7 @@
     "message": "Settings · Logbeam"
   },
   "optionsHeading": {
-    "message": "Logbeam settings"
+    "message": "Settings"
   },
   "optionsSaved": {
     "message": "Saved ✓"

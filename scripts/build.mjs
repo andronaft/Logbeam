@@ -13,6 +13,7 @@ mkdirSync(outdir, { recursive: true });
 
 for (const file of [
   'dark.css',
+  'shared/tokens.css',
   'popup/popup.html',
   'popup/popup.css',
   'diff/diff.html',

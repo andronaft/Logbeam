@@ -44,6 +44,15 @@
   "popupTextTools": {
     "message": "Інструменти для тексту"
   },
+  "popupToolsData": {
+    "message": "JSON, токени й час"
+  },
+  "popupToolsEncode": {
+    "message": "Кодування й декодування"
+  },
+  "popupToolsText": {
+    "message": "Регістр і рядки"
+  },
   "popupInputPlaceholder": {
     "message": "Вставте JSON, JWT, Base64, мітку часу, cron-вираз…"
   },
@@ -576,7 +585,7 @@
     "message": "Налаштування · Logbeam"
   },
   "optionsHeading": {
-    "message": "Налаштування Logbeam"
+    "message": "Налаштування"
   },
   "optionsSaved": {
     "message": "Збережено ✓"
