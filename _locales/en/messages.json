@@ -891,6 +891,36 @@
   "viewerMinimapTitle": {
     "message": "Errors, warnings and bookmarks in the shown lines: click to go there"
   },
+  "copied": {
+    "message": "Copied ✓"
+  },
+  "copyFailedShort": {
+    "message": "Copy failed"
+  },
+  "panelCopyBlocked": {
+    "message": "Copy blocked by the page"
+  },
+  "panelReplace": {
+    "message": "Replace selection"
+  },
+  "panelReplaceFailed": {
+    "message": "Could not replace"
+  },
+  "panelSelectFirst": {
+    "message": "Select some text first."
+  },
+  "panelClose": {
+    "message": "Close (Esc)"
+  },
+  "popupShortcutChange": {
+    "message": "Click to change"
+  },
+  "popupShortcutNone": {
+    "message": "No shortcut assigned. Click to set one."
+  },
+  "viewerCompareTooBig": {
+    "message": "This log is too big to compare (over about 10 MB)"
+  },
   "viewerMute": {
     "message": "Hide lines like this"
   },

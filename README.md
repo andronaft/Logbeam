@@ -52,7 +52,7 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **JSON logs** (Logback/Logstash, pino, bunyan, zap…) shown as `time LEVEL message {fields}`, including
   records pretty-printed over several lines
 - **Filter by fields**: `level=error service=payments duration>500`, on JSON logs and `key=value` lines alike,
-  with `!=`, `>`, `<`, `*` wildcards, nested paths (`http.status>=500`) and units (`duration>1.5s`)
+  with `!=`, `>`, `<`, `*` wildcards (a "quoted" value is matched as it is), nested paths (`http.status>=500`) and units (`duration>1.5s`)
 - **Time range**: drag across the timeline to keep only the entries from that time
 - **Highlights**: press Enter in the search box to keep a term highlighted in its own colour (up to five)
 - **Pods and containers**: `kubectl logs --prefix` and `docker compose logs` get a coloured chip per pod

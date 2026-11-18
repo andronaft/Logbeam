@@ -1,4 +1,5 @@
 import type { DarkState } from '../content/darkPage';
+import { serial } from './serial';
 
 /**
  * Dark mode per site with the least privilege possible:
@@ -16,6 +17,7 @@ const PENDING_KEY = 'darkPending';
 const CSS_FILE = 'dark.css';
 const API_FILE = 'darkApi.js';
 const AUTO_FILE = 'darkAuto.js';
+const queue = serial();
 
 /** "https://example.com/*" for http(s) pages, null for chrome://, file:// etc. */
 export function originPattern(url: string | undefined): string | null {
@@ -110,29 +112,38 @@ export async function hasPermission(pattern: string): Promise<boolean> {
   return chrome.permissions.contains({ origins: [pattern] });
 }
 
-async function register(pattern: string): Promise<void> {
-  const id = scriptId(pattern);
-  const script = {
-    id,
-    matches: [pattern],
-    css: [CSS_FILE],
-    js: [AUTO_FILE],
-    runAt: 'document_start' as const,
-    allFrames: true,
-    persistAcrossSessions: true,
-  };
-  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
-  // update too: sites remembered by 0.2.0 were registered with the CSS only
-  if (existing.length === 0) await chrome.scripting.registerContentScripts([script]);
-  else await chrome.scripting.updateContentScripts([script]);
+function register(pattern: string): Promise<void> {
+  return queue(async () => {
+    const id = scriptId(pattern);
+    const script = {
+      id,
+      matches: [pattern],
+      css: [CSS_FILE],
+      js: [AUTO_FILE],
+      runAt: 'document_start' as const,
+      allFrames: true,
+      persistAcrossSessions: true,
+    };
+    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+    // update too: sites remembered by 0.2.0 were registered with the CSS only
+    if (existing.length === 0) {
+      // the popup and the background can both get here when a permission is granted: the queue
+      // above is per page, so the other one may have registered it in between
+      await chrome.scripting.registerContentScripts([script]).catch(() => chrome.scripting.updateContentScripts([script]));
+    } else {
+      await chrome.scripting.updateContentScripts([script]);
+    }
+  });
 }
 
-async function unregister(pattern: string): Promise<void> {
-  const id = scriptId(pattern);
-  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
-  if (existing.length > 0) {
-    await chrome.scripting.unregisterContentScripts({ ids: [id] });
-  }
+function unregister(pattern: string): Promise<void> {
+  return queue(async () => {
+    const id = scriptId(pattern);
+    const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+    if (existing.length > 0) {
+      await chrome.scripting.unregisterContentScripts({ ids: [id] });
+    }
+  });
 }
 
 export interface DarkResult {

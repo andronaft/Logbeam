@@ -158,7 +158,8 @@ export function formatViewLink(view: ViewLink): string {
     if (view.regex) parts.push('re=1');
     if (view.caseSensitive) parts.push('case=1');
   }
-  if (view.timeRange) parts.push(`from=${Math.round(view.timeRange[0])}`, `to=${Math.round(view.timeRange[1])}`);
+  // up to whole millis, like the entries' times: the same entries are in [from, to) after as before
+  if (view.timeRange) parts.push(`from=${Math.ceil(view.timeRange[0])}`, `to=${Math.ceil(view.timeRange[1])}`);
   if (view.pods) parts.push(`pods=${view.pods.map(encode).join(',')}`);
   else if (view.hiddenPods?.length) parts.push(`hide=${view.hiddenPods.map(encode).join(',')}`);
   if (view.mutes?.length) parts.push(`mute=${view.mutes.join(',')}`);
