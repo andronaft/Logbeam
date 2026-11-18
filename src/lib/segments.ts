@@ -52,7 +52,7 @@ export function searchRanges(text: string, query: string, regex: boolean, caseSe
   }
   const ranges: Range[] = [];
   for (const match of text.matchAll(re)) {
-    if (match[0].length === 0) break; // /x*/ would otherwise loop forever
+    if (match[0].length === 0) continue; // nothing to mark; matchAll moves on by itself
     const start = match.index ?? 0;
     ranges.push({ start, end: start + match[0].length, cls });
   }

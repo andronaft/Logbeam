@@ -53,6 +53,8 @@ export interface ViewerOptions {
   view: ViewPrefs;
   parseOptions: ParseOptions;
   signal: AbortSignal;
+  /** The log is a file the user opened or dropped, not the page's own text. */
+  fromFile?: boolean;
   /** Said in a toast once the log is open, e.g. that several files were merged; empty for none. */
   notice?: string;
 }

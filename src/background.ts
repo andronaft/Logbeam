@@ -1,4 +1,5 @@
 import { TRANSFORMS } from './lib/transforms';
+import { handleBookmarkMessage } from './shared/bookmarks';
 import { setAutoOpen, syncAutoOpenRegistrations } from './shared/autoOpen';
 import { COMPARE_ADD, compareText } from './shared/compare';
 import { t, toolKey } from './shared/i18n';
@@ -112,9 +113,12 @@ chrome.commands.onCommand.addListener((command, tab) => {
 
 // the log viewer's Compare button (a content script can't open extension pages itself)
 chrome.runtime.onMessage.addListener((message: { type?: string; text?: string; name?: string }, _sender, sendResponse) => {
-  if (message?.type !== COMPARE_ADD || typeof message.text !== 'string') return;
-  void compareText(message.text, message.name).then(sendResponse);
-  return true; // answered asynchronously
+  if (message?.type === COMPARE_ADD && typeof message.text === 'string') {
+    // a log too big for storage.session: say so instead of leaving the viewer waiting
+    void compareText(message.text, message.name).then(sendResponse, () => sendResponse(null));
+    return true; // answered asynchronously
+  }
+  return message ? handleBookmarkMessage(message, sendResponse) : false;
 });
 
 // the settings page changed which text tools appear in the menu

@@ -50,6 +50,34 @@
 
 ### Fixed
 
+- **Bookmarks and notes on a web page survive a reload** again (while the browser is open). They were lost,
+  because a content script may not use the extension's session storage; the background page keeps them now.
+- **Follow no longer steals the focus** from a bookmark note every 3 seconds (the rest of what you typed became
+  shortcuts: `e`, `m`…), and field statistics in the inspector stay open while new lines come in.
+- **Follow works on logs with Windows line ends** (CRLF) instead of saying at once that the log was replaced.
+- A time range dragged up to the last bar of the timeline dropped the last entry, often the "exited with code 1".
+- Opening a log without timestamps no longer turns the Timeline off for the next logs.
+- A regex search on a page whose CSP blocks workers no longer ends in "took over 2s": it searches on the page.
+  Typing a regex quickly over a big log no longer times out valid searches waiting behind each other.
+- A file dropped onto a viewer on a web page: Follow, Link and the address belong to the page, so they are off.
+- Settings no longer undo the time zone or the view you chose in the viewer while the Settings page was open.
+- The viewer page opened every later dropped file twice, and an old log's search worker stayed in memory after
+  another log was opened.
+- **A JSON log with nanosecond or microsecond times** (`"ts": 1727604000123456789`, Go and OpenTelemetry) no longer
+  fails to open, and microseconds no longer show as the year 56715.
+- **`level=error` finds the errors of pino and bunyan logs**, whose level is a number (`"level": 50`).
+- **Mask secrets** now masks a quoted password with an escaped quote in it (`"pa\"ss"`), which it used to leave
+  in full or half, and a short password cut by `,` or `;` (`password=Pa;ssw0rd!`).
+- A JSON record with an object under `event` showed `[object Object]`; fields like `severity` next to a `level`
+  were dropped from the line.
+- A search like `x*` or `colou?r|` found lines but didn't highlight the matches in them.
+- Explain cron: a weekday in the 7-field Quartz form counts from Sunday = 1 (`2` is Monday), and `-5`, `0x1F` or
+  `1e1` are refused instead of read as numbers.
+- Durations no longer round up to `60s` or `1000ms` (in field statistics and JWT expiry).
+- Compare (JSON) saw no change when a key like `constructor` was added; a changed emoji is no longer cut in half.
+- A custom secret pattern like `(.*a){12}` is refused as too slow, like `(a+)+` already was.
+- `2026-02-30` is not read as March 2; a bookmarked line with three backticks no longer breaks the Report; a JWT
+  with an impossible date says so instead of failing.
 - Opening or dropping another file no longer jumps to the line that was selected in the log before it.
 
 ## 0.9.0

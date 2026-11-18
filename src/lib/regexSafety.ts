@@ -39,16 +39,17 @@ export function findRegexRisk(source: string): string | null {
       if (lastClosedHadQuantifier && stack.length > 0) stack[stack.length - 1] = true;
       continue;
     }
-    const isQuantifier = c === '+' || c === '*' || (c === '{' && /^\{\d+,\d*\}/.test(source.slice(i)));
-    if (isQuantifier) {
-      if (lastClosedHadQuantifier) {
-        return t(
-          'regexNestedQuantifiers',
-          'Nested quantifiers like (a+)+ can freeze the page on some lines. Simplify the pattern.',
-        );
-      }
-      if (stack.length > 0) stack[stack.length - 1] = true;
+    // a variable count (+, *, {2,}) makes a group ambiguous; repeating such a group, even an exact
+    // number of times like (.*a){12}, multiplies the ways to match
+    const variable = c === '+' || c === '*' || (c === '{' && /^\{\d+,\d*\}/.test(source.slice(i)));
+    const repeated = variable || (c === '{' && /^\{(?:[2-9]|\d{2,})\}/.test(source.slice(i)));
+    if (repeated && lastClosedHadQuantifier) {
+      return t(
+        'regexNestedQuantifiers',
+        'Nested quantifiers like (a+)+ can freeze the page on some lines. Simplify the pattern.',
+      );
     }
+    if (variable && stack.length > 0) stack[stack.length - 1] = true;
     if (c !== '?') lastClosedHadQuantifier = false;
   }
   return null;

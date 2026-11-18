@@ -59,10 +59,10 @@ export function plainFields(text: string): Map<string, string> {
 
 /** Looks a key up in a JSON record: an exact key first ("log.level"), then a path (http.status). */
 function jsonField(record: Record<string, unknown>, key: string): unknown {
-  if (key in record) return record[key];
+  if (Object.hasOwn(record, key)) return record[key];
   let value: unknown = record;
   for (const part of key.split('.')) {
-    if (value === null || typeof value !== 'object' || !(part in value)) return undefined;
+    if (value === null || typeof value !== 'object' || !Object.hasOwn(value, part)) return undefined;
     value = (value as Record<string, unknown>)[part];
   }
   return value;
@@ -71,6 +71,8 @@ function jsonField(record: Record<string, unknown>, key: string): unknown {
 export function fieldValue(line: LogLine, key: string, plain?: Map<string, string>): string | undefined {
   if (line.json) {
     const value = jsonField(line.json, key);
+    // pino's {"level": 50}: level=error means the level the line was read as
+    if (key === 'level' && typeof value === 'number' && line.level) return line.level;
     if (value !== undefined && value !== null) return typeof value === 'object' ? JSON.stringify(value) : String(value);
   }
   const fromText = (plain ?? plainFields(line.text)).get(key);
