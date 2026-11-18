@@ -49,6 +49,58 @@ export function parseFieldQuery(query: string): FieldCondition[] | null {
   return conditions;
 }
 
+export interface SearchQuery {
+  /** Field conditions: level=error duration>500. */
+  conditions: FieldCondition[];
+  /** Words to leave out: -healthz, -"connection reset". */
+  exclude: string[];
+  /** The rest, found as one piece of text like any search: "timeout after 30s". */
+  text: string;
+}
+
+/**
+ * Reads the search box: field conditions, words to leave out and text, in any mix:
+ * `service=payments timeout -healthz`. A word like -5 or --verbose is text, not a word to leave out.
+ */
+export function parseQuery(query: string): SearchQuery {
+  const words = query.trim().match(/(?:[^\s"]+|"(?:[^"\\]|\\.)*")+/g) ?? [];
+  const conditions: FieldCondition[] = [];
+  const exclude: string[] = [];
+  const text: string[] = [];
+  for (const word of words) {
+    const condition = parseFieldQuery(word);
+    if (condition) conditions.push(...condition);
+    else if (/^-[^-\d]/.test(word) && unquote(word.slice(1))) exclude.push(unquote(word.slice(1)));
+    else text.push(word);
+  }
+  // just text: kept as typed, spaces and all
+  if (conditions.length === 0 && exclude.length === 0) return { conditions, exclude, text: query };
+  return { conditions, exclude, text: text.join(' ') };
+}
+
+/**
+ * The lines without the ones that have any of the words. A stack trace goes with its entry, so
+ * -NullPointerException leaves out the whole error, not just its first line.
+ */
+export function excludeWords(lines: LogLine[], words: string[], caseSensitive: boolean): LogLine[] {
+  if (words.length === 0) return lines;
+  const needles = caseSensitive ? words : words.map((word) => word.toLowerCase());
+  const has = (text: string) => {
+    const haystack = caseSensitive ? text : text.toLowerCase();
+    return needles.some((needle) => haystack.includes(needle));
+  };
+  // in a log with timestamps, a line without one ("java.lang.…Exception") belongs to the entry above
+  let entryOut = false;
+  let timed = false;
+  return lines.filter((line) => {
+    if (!line.continuation && (line.time !== null || !timed)) {
+      entryOut = has(line.text);
+      timed = line.time !== null;
+    }
+    return !entryOut && !has(line.text);
+  });
+}
+
 function unquote(value: string): string {
   if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
     try {

@@ -1,4 +1,4 @@
-import { commonFields, filterByFields, parseFieldQuery } from '../lib/fields';
+import { commonFields, excludeWords, filterByFields, parseQuery } from '../lib/fields';
 import { displayName, readLogFile } from '../lib/files';
 import { MergeInput, mergeByTime } from '../lib/merge';
 import {
@@ -721,7 +721,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   function appendText(parent: HTMLElement, line: LogLine): void {
     const text = displayText(line);
     const head = text.length > HIGHLIGHT_LIMIT ? text.slice(0, HIGHLIGHT_LIMIT) : text;
-    const query = fieldMode ? '' : state.query;
+    const query = searchText;
     const ranges: Range[] = state.searchError ? [] : searchRanges(head, query, state.regex, state.caseSensitive, 'match');
     state.highlights.forEach((term, i) => ranges.push(...searchRanges(head, term, false, false, `hl hl-${i}`)));
     // colours from ANSI codes, unless the shown text was changed (masked, local time)
@@ -1382,6 +1382,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   }
 
   let fieldMode = false;
+  /** The text part of the search, highlighted in the lines: without its field conditions and -words. */
+  let searchText = '';
   const clock = (t: number) => formatTime(t, state.timeMode).slice(11, 19);
 
   /**
@@ -1480,8 +1482,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const id = ++refreshId;
     let error = '';
     let mask: Uint8Array | null = null;
-    const conditions = state.regex ? null : parseFieldQuery(state.query);
-    fieldMode = conditions !== null;
+    // the search box takes fields, -words and text together: service=payments timeout -healthz
+    const parsed = state.regex ? null : parseQuery(state.query);
+    const conditions = parsed?.conditions.length ? parsed.conditions : null;
+    const exclude = parsed?.exclude ?? [];
+    fieldMode = conditions !== null || exclude.length > 0;
+    searchText = parsed ? parsed.text : state.query;
     search.classList.toggle('fields', fieldMode);
     if (state.query && state.regex) {
       status.textContent = t('viewerSearching', 'Searching…');
@@ -1496,6 +1502,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
 
     // fields, time range and pods narrow the lines first; levels and search then filter what's left
     let base = conditions ? filterByFields(allLines, conditions) : allLines;
+    base = excludeWords(base, exclude, state.caseSensitive);
     const range = state.timeRange;
     if (range) base = base.filter((l) => times[l.number - 1] >= range[0] && times[l.number - 1] < range[1]);
     if (state.hiddenSources.size > 0) base = base.filter((l) => l.source === null || !state.hiddenSources.has(l.source));
@@ -1517,7 +1524,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     } else {
       filtered = filterLines(base, {
         ...state,
-        query: fieldMode ? '' : state.query,
+        query: searchText,
         mask: mask ?? undefined,
         context: state.context,
       });
@@ -1526,9 +1533,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     if (groups.length > 0 && !state.query && !state.group) filtered = foldGroups(filtered, groups, openGroups);
     visible = state.collapse ? collapseRepeats(filtered) : filtered.map((l) => ({ ...l, repeat: 1 }));
     spacer.style.height = `${visible.length * ROW_HEIGHT}px`;
-    const conditionNote = conditions
-      ? ` · ${tn('viewerFieldConditions', conditions.length, '{n} field condition', '{n} field conditions')}`
-      : '';
+    const conditionNote =
+      (conditions ? ` · ${tn('viewerFieldConditions', conditions.length, '{n} field condition', '{n} field conditions')}` : '') +
+      (exclude.length ? ` · ${tn('viewerExcludedWords', exclude.length, '{n} word left out', '{n} words left out')}` : '');
     const matchCount = state.query || mask ? filtered.filter((l) => !l.isContext).length : visible.length;
     status.textContent =
       error ||

@@ -4,6 +4,10 @@
 
 ### Added
 
+- **One search for fields, text and words to leave out**: `service=payments timeout -healthz`. Before, a search was
+  either all field conditions or all text, and leaving something out took a regex with a negative lookahead. A
+  `-word` (or `-"two words"`) leaves out the lines that have it, an error together with its stack trace; `-5` and
+  `--verbose` are still text. The status line says how many words are left out.
 - **Error groups by first seen.** The Groups panel can list the errors in the order they first happened instead of
   by count, and marks the earliest one "first" either way: 900 × `upstream timeout` are often the symptom of the one
   `pool exhausted` three seconds before them.

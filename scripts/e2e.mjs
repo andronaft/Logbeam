@@ -220,7 +220,22 @@ await page.locator('.toggle', { hasText: '.*' }).click();
 await page.locator('.chip.lvl-INFO').click();
 await page.locator('.chip.lvl-DEBUG').click();
 await page.locator('.toggle', { hasText: 'Collapse' }).click();
+
+// -word leaves lines out, alongside the text being searched for
+await page.locator('.search').fill('Retry');
 await page.waitForTimeout(300);
+const retries = parseInt(await status(), 10);
+await page.locator('.search').fill('Retry -scheduling-1');
+await page.waitForTimeout(300);
+check(
+  '-word leaves lines out of a search',
+  parseInt(await status(), 10) === retries - 2 && (await status()).includes('1 word left out'),
+  `${retries} → ${await status()}`,
+);
+await page.locator('.search').fill('');
+await page.waitForTimeout(300);
+// keys go to the log again, not the search box
+await page.locator('.scroller').focus();
 
 await page.keyboard.press('e');
 check('next error opens the inspector', await page.locator('.inspector').isVisible());
