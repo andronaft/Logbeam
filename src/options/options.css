@@ -1,35 +1,6 @@
-:root {
-  color-scheme: dark;
-  --bg: #0f1419;
-  --panel: #1a222b;
-  --border: #2d3640;
-  --fg: #e6e1cf;
-  --muted: #8a9199;
-  --accent: #ffb454;
-  --error: #ff6b6b;
-}
-/* light: when the system is light (unless Settings say dark), or when Settings say light */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) {
-    color-scheme: light;
-    --bg: #ffffff;
-    --panel: #eef0f2;
-    --border: #d5d9de;
-    --fg: #1f2328;
-    --muted: #6b7280;
-    --accent: #b25e00;
-    --error: #c62828;
-  }
-}
-:root[data-theme='light'] {
-  color-scheme: light;
-  --bg: #ffffff;
-  --panel: #eef0f2;
-  --border: #d5d9de;
-  --fg: #1f2328;
-  --muted: #6b7280;
-  --accent: #b25e00;
-  --error: #c62828;
+/* display: grid or flex on an element would otherwise show it when hidden */
+[hidden] {
+  display: none !important;
 }
 body {
   margin: 0;
@@ -47,12 +18,25 @@ main {
   margin: 32px auto 64px;
   padding: 0 16px;
 }
+/* the page title, like Compare's: Logbeam in the accent colour, then the page's name; "Saved ✓" at the end */
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin: var(--s4) 0;
+}
 h1 {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s2);
+  margin: 0;
   color: var(--accent);
-  font-size: 22px;
+  font-size: var(--fs-h);
+  font-weight: 700;
+}
+h1 span {
+  color: var(--fg);
+  font-weight: 500;
 }
 h2 {
   font-size: 13px;
@@ -72,8 +56,8 @@ section {
 code {
   background: var(--panel);
   padding: 1px 5px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
 }
 a {
   color: var(--accent);
@@ -84,14 +68,34 @@ button {
   color: var(--fg);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r);
   padding: 4px 8px;
+}
+input {
+  background: var(--bg);
 }
 button {
   cursor: pointer;
 }
 button:hover {
   border-color: var(--accent);
+}
+/* "Add pattern", "Add a level word": quiet text buttons, so the fields above stand out */
+button.add {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+  padding-left: 0;
+}
+/* inline-block: the underline on hover is for the words, not the + */
+button.add::before {
+  content: '+';
+  display: inline-block;
+  margin-right: 0.3em;
+}
+button.add:hover {
+  border-color: transparent;
+  text-decoration: underline;
 }
 #gap {
   width: 80px;
@@ -107,7 +111,7 @@ button:hover {
 #test,
 .result {
   font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12.5px;
+  font-size: var(--fs-mono);
 }
 .problems {
   color: var(--error);
@@ -136,15 +140,18 @@ button:hover {
 .tools label {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
   cursor: pointer;
 }
+/* in line with the first line of a label that wraps */
+.tools input {
+  margin: 3px 0 0;
+}
 .saved {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  margin: 0;
+  margin: 0 0 0 auto;
   color: var(--accent);
+  font-size: var(--fs);
+  font-weight: normal;
 }
 
 .level {
@@ -156,7 +163,7 @@ button:hover {
 }
 .level input {
   font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12.5px;
+  font-size: var(--fs-mono);
 }
 input.invalid {
   border-color: var(--error);
@@ -166,7 +173,9 @@ select {
   color: var(--fg);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r);
   padding: 4px 8px;
+}
+#theme {
   margin-left: 6px;
 }

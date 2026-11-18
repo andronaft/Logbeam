@@ -10,6 +10,7 @@ import {
   formatDuration,
   formatTime,
   groupErrors,
+  sortGroups,
   isMostlyJson,
   lineIds,
   lineFields,
@@ -361,5 +362,35 @@ describe('following one request', () => {
     });
     // userId=42 must not match /orders/1420 or Pay.java:42 in a stack frame
     expect(traceId(log, '42').entries).toBe(1);
+  });
+});
+
+describe('sortGroups', () => {
+  const log = parseLog(
+    [
+      '2026-10-04T10:00:00Z ERROR pool exhausted',
+      '2026-10-04T10:00:03Z ERROR upstream timeout',
+      '2026-10-04T10:00:04Z ERROR upstream timeout',
+      '2026-10-04T10:00:05Z ERROR upstream timeout',
+    ].join('\n'),
+  );
+
+  it('puts the most frequent first, or the earliest', () => {
+    const groups = groupErrors(log);
+    expect(sortGroups(groups, 'count').map((g) => g.count)).toEqual([3, 1]);
+    expect(sortGroups(groups, 'first').map((g) => g.sample)).toEqual([
+      '2026-10-04T10:00:00Z ERROR pool exhausted',
+      '2026-10-04T10:00:03Z ERROR upstream timeout',
+    ]);
+  });
+
+  it('goes by time when pods were written one after another', () => {
+    const pods = parseLog(
+      ['[pod/b/app] 2026-10-04T10:00:09Z ERROR late', '[pod/a/app] 2026-10-04T10:00:01Z ERROR early'].join('\n'),
+    );
+    expect(sortGroups(groupErrors(pods), 'first').map((g) => g.sample)).toEqual([
+      '2026-10-04T10:00:01Z ERROR early',
+      '2026-10-04T10:00:09Z ERROR late',
+    ]);
   });
 });

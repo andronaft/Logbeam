@@ -51,8 +51,10 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
   a few lines of context around each match
 - **JSON logs** (Logback/Logstash, pino, bunyan, zap…) shown as `time LEVEL message {fields}`, including
   records pretty-printed over several lines
+- **Leave words out and mix it all in one search**: `service=payments timeout -healthz` keeps the payments lines
+  about timeouts, without the health checks; `-"two words"` works too, and an error goes with its stack trace
 - **Filter by fields**: `level=error service=payments duration>500`, on JSON logs and `key=value` lines alike,
-  with `!=`, `>`, `<`, `*` wildcards, nested paths (`http.status>=500`) and units (`duration>1.5s`)
+  with `!=`, `>`, `<`, `*` wildcards (a "quoted" value is matched as it is), nested paths (`http.status>=500`) and units (`duration>1.5s`)
 - **Time range**: drag across the timeline to keep only the entries from that time
 - **Highlights**: press Enter in the search box to keep a term highlighted in its own colour (up to five)
 - **Pods and containers**: `kubectl logs --prefix` and `docker compose logs` get a coloured chip per pod
@@ -66,7 +68,8 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Field statistics**: the most common values of a field (`status: 200 ×1520, 502 ×37`), one click to filter;
   for numbers and durations also min, median, p95, p99 and max (`took: p95 1.2s`), one click to see the slow ones
 - **Follow one request**: click a `traceId`, `request_id` or UUID in a line to see that request in every pod
-- **Error groups**: each different error once, with its count, pods and first and last time
+- **Error groups**: each different error once, with its count, pods and first and last time; sorted by count or
+  by **first seen**, with the earliest error marked: the one `pool exhausted` is often the cause of 900 timeouts
 - **Follow** a log that is still being written: new lines are added every 3 seconds
 - **JSON table** with the columns you choose, saved as **CSV**, and **local time** instead of UTC
 - **GitHub Actions sections**: `##[group]` steps folded like in GitHub, the ones with errors open
@@ -74,6 +77,9 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Compare** this log with another one, e.g. a passing and a failing CI run, with the **new errors** listed
   first (see below)
 - **Pauses between entries**: `+5.5s` next to lines where the app stalled
+- **Hide lines like this** (`x`): the health checks that are nine lines in ten go away in one key, in every pod,
+  and the counts, timeline, groups and links follow; a chip or `X` brings them back. A 503 the log marks ERROR
+  is not hidden with the 200s
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge
 - **Error timeline**: a histogram of entries, errors and warnings over time; click a bar to jump there
 - **Minimap**: every error, warning and bookmark marked on a strip next to the scrollbar; click to go there
