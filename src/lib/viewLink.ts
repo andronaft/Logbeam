@@ -7,6 +7,7 @@
  *   #L120-L135                              a range of lines
  *   #L120&levels=ERROR,WARN&q=payments      a line and filters
  *   #q=timeout&re=1&from=1700000000000&to=1700000600000&pods=api-6f9c
+ *   #mute=12,480                            lines like line 12 and like line 480 are hidden
  *
  * Anything else after # (a page's own anchor) is not a view and is left alone.
  */
@@ -31,6 +32,8 @@ export interface ViewLink {
   pods: string[] | null;
   /** These pods or containers are switched off: the other way to say it, when that is shorter. */
   hiddenPods: string[] | null;
+  /** Lines like these (by line number) are hidden: "Hide lines like this". */
+  mutes: number[] | null;
 }
 
 export const EMPTY_VIEW: ViewLink = {
@@ -43,6 +46,7 @@ export const EMPTY_VIEW: ViewLink = {
   timeRange: null,
   pods: null,
   hiddenPods: null,
+  mutes: null,
 };
 
 const LINES = /^L(\d{1,9})(?:-L?(\d{1,9}))?$/;
@@ -124,6 +128,13 @@ export function parseViewLink(hash: string): ViewLink | null {
       case 'hide':
         view.hiddenPods = list(value);
         break;
+      case 'mute':
+        view.mutes = value
+          .split(',')
+          .filter((n) => /^\d{1,9}$/.test(n))
+          .map(Number)
+          .filter((n) => n > 0);
+        break;
       default:
         // a key from a newer version: skipped, so the rest of the link still works
         continue;
@@ -150,5 +161,6 @@ export function formatViewLink(view: ViewLink): string {
   if (view.timeRange) parts.push(`from=${Math.round(view.timeRange[0])}`, `to=${Math.round(view.timeRange[1])}`);
   if (view.pods) parts.push(`pods=${view.pods.map(encode).join(',')}`);
   else if (view.hiddenPods?.length) parts.push(`hide=${view.hiddenPods.map(encode).join(',')}`);
+  if (view.mutes?.length) parts.push(`mute=${view.mutes.join(',')}`);
   return parts.length ? `#${parts.join('&')}` : '';
 }

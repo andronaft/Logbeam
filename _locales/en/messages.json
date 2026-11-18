@@ -890,5 +890,29 @@
   },
   "viewerMinimapTitle": {
     "message": "Errors, warnings and bookmarks in the shown lines: click to go there"
+  },
+  "viewerMute": {
+    "message": "Hide lines like this"
+  },
+  "viewerMuteTitle": {
+    "message": "Hide every line like this one, e.g. health checks ( x )"
+  },
+  "viewerUnmuteTitle": {
+    "message": "Show these lines again"
+  },
+  "keyMute": {
+    "message": "Hide lines like the selected one / show the last hidden kind again"
+  },
+  "viewerHiddenNote_one": {
+    "message": "{n} line hidden"
+  },
+  "viewerHiddenNote_other": {
+    "message": "{n} lines hidden"
+  },
+  "viewerMuted_one": {
+    "message": "{n} entry like this hidden · X shows it again"
+  },
+  "viewerMuted_other": {
+    "message": "{n} entries like this hidden · X shows them again"
   }
 }
