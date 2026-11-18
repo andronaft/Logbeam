@@ -33,11 +33,12 @@ const PATTERNS: Pattern[] = [
   { kind: 'Basic auth', re: /\bAuthorization["']?\s*[=:]\s*["']?Basic\s+([A-Za-z0-9+/]{8,}={0,2})/gi, groups: [1] },
   // scheme://user:password@host, where the password itself may contain "@" (split at the last one)
   { kind: 'Password in URL', re: /\b[a-z][a-z0-9+.-]{0,20}:\/\/[^\s:/@]+:([^\s/]{3,})@[^\s@/]+/gi, groups: [1] },
-  // password=..., "apiKey": "...", SECRET_KEY: ..., access_token=..., with quoted values that may contain spaces.
+  // password=..., "apiKey": "...", SECRET_KEY: ..., access_token=..., with quoted values that may contain spaces
+  // and escaped quotes. A short unquoted value cut by "," or ";" (password=Pa;ssw0rd!) is masked with what follows.
   // A colon must follow the key directly (YAML, JSON): "JwtTokenFilter   : Rejected …" in a Spring log is a logger name.
   {
     kind: 'Password',
-    re: /\b[\w.-]{0,40}(?:password|passwd|pwd|passphrase|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)[\w.-]{0,40}["']?(?:\s*=|:)\s*(?:"([^"\n]{4,200})"|'([^'\n]{4,200})'|([^\s"',;&}]{4,}))/gi,
+    re: /\b[\w.-]{0,40}(?:password|passwd|pwd|passphrase|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)[\w.-]{0,40}["']?(?:\s*=|:)\s*(?:"((?:[^"\\\n]|\\.){4,200})"|'((?:[^'\\\n]|\\.){4,200})'|((?:[^\s"',;&}]{4,}|[^\s"',;&}]{1,3}[,;][^\s"',;&}]*)))/gi,
     groups: [1, 2, 3],
   },
 ];
@@ -54,7 +55,8 @@ function isPlaceholder(value: string): boolean {
     /^\*+$/.test(value) ||
     /\*{3,}/.test(value) ||
     /^(null|none|true|false|undefined|changeme|change-me|example|redacted|xxx+)$/i.test(value) ||
-    /^\d{1,7}$/.test(value) // counters like tokens_used=1234, not credentials
+    /^\d{1,7}$/.test(value) || // counters like tokens_used=1234, not credentials
+    /^[\d.,;]+$/.test(value) // tokens=1,234
   );
 }
 

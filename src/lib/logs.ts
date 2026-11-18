@@ -300,7 +300,9 @@ export function parseTimestamp(text: string): number | null {
   const millis = Number(frac.padEnd(3, '0').slice(0, 3));
   const iso = `${y}-${mo}-${d}T${h}:${mi}:${s}.${String(millis).padStart(3, '0')}${normalizeZone(zone)}`;
   const time = Date.parse(iso);
-  return Number.isNaN(time) ? null : time;
+  // Date.parse rolls 2026-02-30 over to March 2: such a date isn't a timestamp
+  if (Number.isNaN(time) || +d > new Date(Date.UTC(+y, +mo, 0)).getUTCDate()) return null;
+  return time;
 }
 
 function parseOtherTimestamp(head: string): number | null {
@@ -403,11 +405,23 @@ function mongoLevel(record: Record<string, unknown>): Level | null {
   return MONGO_LEVELS[severity] ?? (/^D[1-5]?$/.test(severity) ? 'DEBUG' : null);
 }
 
-function pick(record: Record<string, unknown>, keys: string[]): unknown {
+/** The first of these keys the record has, with its value. */
+function pickEntry(record: Record<string, unknown>, keys: string[]): [string, unknown] | undefined {
   for (const key of keys) {
-    if (record[key] !== undefined) {
-      return record[key];
-    }
+    if (Object.hasOwn(record, key) && record[key] !== undefined) return [key, record[key]];
+  }
+  return undefined;
+}
+
+function pick(record: Record<string, unknown>, keys: string[]): unknown {
+  return pickEntry(record, keys)?.[1];
+}
+
+/** The message: the first of the message keys that holds text ({"event": {...}} is a field, not a message). */
+function pickMessage(record: Record<string, unknown>): [string, string] | undefined {
+  for (const key of JSON_MESSAGE_KEYS) {
+    const value = record[key];
+    if (Object.hasOwn(record, key) && typeof value === 'string') return [key, value];
   }
   return undefined;
 }
@@ -416,22 +430,27 @@ function pick(record: Record<string, unknown>, keys: string[]): unknown {
 export function formatJsonRecord(record: Record<string, unknown>): string {
   // pino and zap write epoch numbers and numeric levels; show them as a date and a level name
   const mongo = mongoTime(record);
-  const rawTime = mongo ?? pick(record, JSON_TIME_KEYS);
+  const timeEntry = mongo ? undefined : pickEntry(record, JSON_TIME_KEYS);
+  const rawTime = mongo ?? timeEntry?.[1];
   const millis = typeof rawTime === 'number' ? jsonTime(record) : null;
   const time = millis !== null ? new Date(millis).toISOString() : rawTime;
-  const rawLevel = mongo ? (mongoLevel(record) ?? record.s) : pick(record, JSON_LEVEL_KEYS);
+  const levelEntry = mongo ? undefined : pickEntry(record, JSON_LEVEL_KEYS);
+  const rawLevel = mongo ? (mongoLevel(record) ?? record.s) : levelEntry?.[1];
   const level = typeof rawLevel === 'number' ? (jsonLevel(record) ?? rawLevel) : rawLevel;
-  const rawMessage = pick(record, JSON_MESSAGE_KEYS);
+  const messageEntry = pickMessage(record);
   // a row is one line: Docker's "log" ends with a line break, and a message can have a stack trace in it
-  const message = typeof rawMessage === 'string' ? rawMessage.trimEnd().replace(/\r?\n/g, ' ⏎ ') : rawMessage;
+  const message = messageEntry?.[1].trimEnd().replace(/\r?\n/g, ' ⏎ ');
   const rest: Record<string, unknown> = {};
-  const used = new Set([...JSON_TIME_KEYS, ...JSON_LEVEL_KEYS, ...JSON_MESSAGE_KEYS, ...(mongo ? ['t', 's'] : [])]);
+  // only the keys shown in front: {"message": "hi", "severity": "high", "level": "info"} keeps severity
+  const used = new Set([timeEntry?.[0], levelEntry?.[0], messageEntry?.[0], ...(mongo ? ['t', 's'] : [])]);
   for (const [key, value] of Object.entries(record)) {
     if (!used.has(key)) {
       rest[key] = value;
     }
   }
-  const parts = [time, level, message].filter((p) => p !== undefined).map(String);
+  const parts = [time, level, message]
+    .filter((p) => p !== undefined)
+    .map((p) => (typeof p === 'object' ? JSON.stringify(p) : String(p)));
   if (Object.keys(rest).length > 0) {
     parts.push(JSON.stringify(rest));
   }
@@ -455,14 +474,18 @@ function jsonLevel(record: Record<string, unknown>, custom: CustomLevels | null 
   }
   if (value !== undefined) return null;
   // no level field: MongoDB's "s", or a plain log line wrapped in JSON (Docker's {"log": "… ERROR …"})
-  const message = pick(record, JSON_MESSAGE_KEYS);
-  return mongoLevel(record) ?? (typeof message === 'string' ? detectLevel(message, custom) : null);
+  const message = pickMessage(record)?.[1];
+  return mongoLevel(record) ?? (message !== undefined ? detectLevel(message, custom) : null);
 }
 
 function jsonTime(record: Record<string, unknown>): number | null {
   const value = mongoTime(record) ?? pick(record, JSON_TIME_KEYS);
   if (typeof value === 'number') {
-    return Math.round(value < 1e12 ? value * 1000 : value); // seconds (zap: with a fraction) or millis
+    // seconds (zap: with a fraction), millis, micros or nanos (Go, OpenTelemetry), told apart by size
+    const size = Math.abs(value);
+    const millis = Math.round(size < 1e12 ? value * 1000 : size < 1e15 ? value : size < 1e18 ? value / 1e3 : value / 1e6);
+    // past what a Date can hold, it isn't a time
+    return Math.abs(millis) <= 8.64e15 ? millis : null;
   }
   return typeof value === 'string' ? parseTimestamp(value) : null;
 }

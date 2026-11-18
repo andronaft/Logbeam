@@ -41,7 +41,9 @@ export function bookmarkReport(bookmarks: Bookmark[], lines: LogLine[], options:
     if (time !== null) previousTime = time;
     out.push(`- **${where}**${when}${after}${bookmark.note ? ` — ${bookmark.note}` : ''}`);
     const text = options.mask ? options.mask(line.text) : line.text;
-    out.push('  ```', `  ${text.length > 500 ? `${text.slice(0, 500)}…` : text}`, '  ```');
+    // a fence longer than any run of backticks in the line, so the line can't close it
+    const fence = '`'.repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map((run) => run[0].length + 1)));
+    out.push(`  ${fence}`, `  ${text.length > 500 ? `${text.slice(0, 500)}…` : text}`, `  ${fence}`);
   }
   return out.join('\n');
 }
@@ -130,11 +132,13 @@ export function numericStats(lines: LogLine[], key: string): NumericStats | null
 
 /** A duration in milliseconds as people write it in logs: 0.4ms, 120ms, 1.2s, 3.5m. */
 export function formatDuration(ms: number): string {
-  const round = (n: number) => String(Math.round(n * 10) / 10);
+  const round = (n: number) => Math.round(n * 10) / 10;
+  // the unit is chosen after rounding, so 59 999 ms is "1m", not "60s"
+  const fits = (n: number, limit: number) => Math.abs(round(n)) < limit;
   if (Math.abs(ms) < 1) return `${Math.round(ms * 1000) / 1000}ms`;
-  if (Math.abs(ms) < 1000) return `${round(ms)}ms`;
-  if (Math.abs(ms) < 60_000) return `${round(ms / 1000)}s`;
-  if (Math.abs(ms) < 3_600_000) return `${round(ms / 60_000)}m`;
+  if (fits(ms, 1000)) return `${round(ms)}ms`;
+  if (fits(ms / 1000, 60)) return `${round(ms / 1000)}s`;
+  if (fits(ms / 60_000, 60)) return `${round(ms / 60_000)}m`;
   return `${round(ms / 3_600_000)}h`;
 }
 

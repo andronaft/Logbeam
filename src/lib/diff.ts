@@ -129,6 +129,10 @@ export function changedRange(before: string, after: string): { before: [number, 
   ) {
     end++;
   }
+  // don't cut an emoji (a surrogate pair) in half
+  const low = (text: string, i: number) => i > 0 && i < text.length && /[\udc00-\udfff]/.test(text[i]);
+  while (start > 0 && (low(before, start) || low(after, start))) start--;
+  while (end > 0 && (low(before, before.length - end) || low(after, after.length - end))) end--;
   return { before: [start, before.length - end], after: [start, after.length - end] };
 }
 
@@ -275,11 +279,12 @@ function walk(before: unknown, after: unknown, path: string, changes: JsonChange
     return;
   }
   if (isObject(before) && isObject(after)) {
-    const keys = [...Object.keys(before), ...Object.keys(after).filter((key) => !(key in before))];
+    // own keys only: "constructor" or "toString" in a record are keys like any other
+    const keys = [...Object.keys(before), ...Object.keys(after).filter((key) => !Object.hasOwn(before, key))];
     for (const key of keys) {
       const keyPath = `${path}${/^[A-Za-z_$][\w$]*$/.test(key) ? `.${key}` : `[${JSON.stringify(key)}]`}`;
-      if (!(key in after)) changes.push({ path: keyPath, kind: 'removed', before: before[key] });
-      else if (!(key in before)) changes.push({ path: keyPath, kind: 'added', after: after[key] });
+      if (!Object.hasOwn(after, key)) changes.push({ path: keyPath, kind: 'removed', before: before[key] });
+      else if (!Object.hasOwn(before, key)) changes.push({ path: keyPath, kind: 'added', after: after[key] });
       else walk(before[key], after[key], keyPath, changes);
     }
     return;

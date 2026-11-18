@@ -144,7 +144,8 @@ export function describeJwt(input: string, now: number = Date.now()): string {
     if (typeof value === 'number') {
       const millis = looksLikeMillis(value) ? value : value * 1000;
       const note = looksLikeMillis(value) ? '  (looks like milliseconds; JWT dates should be seconds)' : '';
-      claims.push(`${claim}: ${new Date(millis).toISOString()}${note}`);
+      const date = new Date(millis);
+      claims.push(`${claim}: ${Number.isNaN(date.getTime()) ? `${value} (not a valid date)` : date.toISOString()}${note}`);
     }
   }
   if (typeof payload.exp === 'number') {

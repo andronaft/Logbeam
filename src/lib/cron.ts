@@ -59,11 +59,21 @@ const MACROS: Record<string, string> = {
 function parseValue(raw: string, spec: FieldSpec): number {
   const upper = raw.toUpperCase();
   const index = spec.names?.indexOf(upper) ?? -1;
-  const value = index >= 0 ? index + (spec === MONTH ? 1 : 0) : Number(raw);
+  // only plain digits: Number() would also take "", "0x1F" and "1e1"
+  const value = index >= 0 ? index + (spec === MONTH ? 1 : 0) : /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
   if (!Number.isInteger(value) || value < spec.min || value > spec.max) {
     throw new Error(`"${raw}" is out of range for ${spec.name} (${spec.min}-${spec.max})`);
   }
   return value;
+}
+
+/** Quartz counts weekdays 1-7 from Sunday (SUN=1); cron counts 0-6. Steps (after "/") stay as they are. */
+function quartzWeekday(field: string): string {
+  return field.replace(/(?<![/\d])\d+/g, (digits) => {
+    const n = Number(digits);
+    if (n < 1 || n > 7) throw new Error(`"${digits}" is out of range for weekday (1-7, SUN=1 in the 7-field Quartz form)`);
+    return String(n - 1);
+  });
 }
 
 function label(value: number, spec: FieldSpec): string {
@@ -148,7 +158,7 @@ export function explainCron(input: string): string {
     // Quartz: seconds first and a year last
     second = parseField(fields[0], SECOND);
     year = fields[6] === '*' || fields[6] === '?' ? null : fields[6];
-    rest = fields.slice(1, 6);
+    rest = [...fields.slice(1, 5), quartzWeekday(fields[5])];
   } else if (fields.length === 6) {
     if (looksLikeYear(fields[5]) && !looksLikeYear(fields[0])) {
       throw new Error(
