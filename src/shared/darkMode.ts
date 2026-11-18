@@ -126,8 +126,13 @@ function register(pattern: string): Promise<void> {
     };
     const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
     // update too: sites remembered by 0.2.0 were registered with the CSS only
-    if (existing.length === 0) await chrome.scripting.registerContentScripts([script]);
-    else await chrome.scripting.updateContentScripts([script]);
+    if (existing.length === 0) {
+      // the popup and the background can both get here when a permission is granted: the queue
+      // above is per page, so the other one may have registered it in between
+      await chrome.scripting.registerContentScripts([script]).catch(() => chrome.scripting.updateContentScripts([script]));
+    } else {
+      await chrome.scripting.updateContentScripts([script]);
+    }
   });
 }
 

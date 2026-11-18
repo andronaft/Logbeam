@@ -32,9 +32,15 @@ function register(pattern: string): Promise<void> {
     const id = scriptId(pattern);
     const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
     if (existing.length === 0) {
-      await chrome.scripting.registerContentScripts([
-        { id, matches: [pattern], js: [SCRIPT_FILE], runAt: 'document_idle', persistAcrossSessions: true },
-      ]);
+      try {
+        await chrome.scripting.registerContentScripts([
+          { id, matches: [pattern], js: [SCRIPT_FILE], runAt: 'document_idle', persistAcrossSessions: true },
+        ]);
+      } catch (error) {
+        // registered by the popup or the background in between (the queue is per page): that's fine
+        const now = await chrome.scripting.getRegisteredContentScripts({ ids: [id] });
+        if (now.length === 0) throw error;
+      }
     }
   });
 }

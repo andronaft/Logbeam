@@ -60,7 +60,8 @@
 ### Fixed
 
 - Changing settings quickly no longer leaves the right-click menu half built ("duplicate id"), and saving the viewer's view no longer rebuilds the menu at all.
-- Remembering dark mode or auto-open for a site while Logbeam syncs its sites no longer fails with "duplicate script id".
+- Remembering dark mode or auto-open for a site no longer fails with "duplicate script id" when Logbeam syncs its sites
+  at the same time, or when the popup and the background both finish the request after the permission prompt.
 - GELF records show their level (syslog 3 = ERROR, 4 = WARN, …) and their `short_message` instead of TRACE and a JSON blob.
 - The text-tool panel on a page and the popup's copy and shortcut labels are translated.
 - Colourful CI logs that end colours with `tput sgr0` (`ESC ( B`) show clean text and keep their level.
