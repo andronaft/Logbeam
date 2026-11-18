@@ -4,6 +4,11 @@
 
 ### Added
 
+- **Hide lines like this** (`x`, or the ⊘ button in the line details): every line of the selected kind, e.g.
+  `GET /healthz 200 in 3ms`, leaves the view, with its stack trace, in every pod or file. Numbers, IDs and times
+  don't count, the level does, so the 503 marked ERROR stays. Each hidden kind gets a chip with its count; click it
+  or press `X` to bring the last one back. The status line says how many lines are hidden, and the view link
+  keeps them (`#mute=12`).
 - **A minimap next to the scrollbar** marks every error, warning and bookmark in the shown lines, so in a long
   log you see at a glance where the trouble is. Click or drag on it to go there; a box shows the part on screen.
 - **`w` jumps to the next warning**, like `e` does to the next error.

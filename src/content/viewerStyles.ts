@@ -216,6 +216,8 @@ select.toggle:focus { outline: none; border-color: var(--accent); }
 .hl-0 { background: #ffd866; } .hl-1 { background: #78dce8; } .hl-2 { background: #a9dc76; }
 .hl-3 { background: #fc9867; } .hl-4 { background: #ab9df2; }
 .hl-chip { color: #0f1419; border-color: transparent; font-weight: 600; }
+.mute-chip { color: var(--muted); border-style: dashed; max-width: 32em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mute-chip.error { color: var(--error); border-color: var(--error); }
 
 /* pods and containers */
 .sources .chip { opacity: .4; font: 12px ui-monospace, Menlo, Consolas, monospace; }

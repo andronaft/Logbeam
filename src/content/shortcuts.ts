@@ -11,6 +11,7 @@ const SHORTCUTS: { keys: string[]; message: string; text: string }[] = [
   { keys: ['y'], message: 'keyCopyViewLink', text: 'Copy a link to this view, with its filters and selected lines' },
   { keys: ['e'], message: 'keyNextError', text: 'Next error' },
   { keys: ['w'], message: 'keyNextWarning', text: 'Next warning' },
+  { keys: ['x', 'X'], message: 'keyMute', text: 'Hide lines like the selected one / show the last hidden kind again' },
   { keys: ['s'], message: 'keyNextSecret', text: 'Next leaked secret' },
   { keys: ['m'], message: 'keyBookmark', text: 'Bookmark the selected line' },
   { keys: ['b'], message: 'keyNextBookmark', text: 'Next bookmark' },

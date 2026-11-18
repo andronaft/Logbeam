@@ -94,6 +94,12 @@ describe('formatViewLink', () => {
     expect(formatViewLink(view({ hiddenPods: [] }))).toBe('');
   });
 
+  it('keeps the hidden kinds of line by the number of a line of each', () => {
+    expect(formatViewLink(view({ mutes: [12, 480] }))).toBe('#mute=12,480');
+    expect(parseViewLink('#mute=12,x,0,480')?.mutes).toEqual([12, 480]);
+    expect(formatViewLink(view({ mutes: [] }))).toBe('');
+  });
+
   it('does not fail on half of an emoji', () => {
     expect(formatViewLink(view({ query: 'a\ud83d' }))).toBe('#q=a%EF%BF%BD');
   });
@@ -108,6 +114,7 @@ describe('formatViewLink', () => {
       caseSensitive: true,
       timeRange: [1700000000000, 1700000600000],
       pods: ['pod/payments-7d9f8-x2k4p/app', 'weird,name & co'],
+      mutes: [3, 120],
     });
     const hash = formatViewLink(full);
     expect(hash).not.toMatch(/[\s"<>()']/);

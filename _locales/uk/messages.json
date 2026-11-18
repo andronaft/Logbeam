@@ -1010,5 +1010,41 @@
   },
   "viewerCompareTooBig": {
     "message": "Цей лог завеликий для порівняння (понад ~10 МБ)"
+  },
+  "viewerMute": {
+    "message": "Сховати такі рядки"
+  },
+  "viewerMuteTitle": {
+    "message": "Сховати всі рядки, схожі на цей, наприклад health-check ( x )"
+  },
+  "viewerUnmuteTitle": {
+    "message": "Знову показати ці рядки"
+  },
+  "keyMute": {
+    "message": "Сховати рядки, схожі на виділений / повернути останні сховані"
+  },
+  "viewerHiddenNote_one": {
+    "message": "{n} рядок сховано"
+  },
+  "viewerHiddenNote_few": {
+    "message": "{n} рядки сховано"
+  },
+  "viewerHiddenNote_many": {
+    "message": "{n} рядків сховано"
+  },
+  "viewerHiddenNote_other": {
+    "message": "{n} рядка сховано"
+  },
+  "viewerMuted_one": {
+    "message": "Сховано {n} такий запис · X поверне"
+  },
+  "viewerMuted_few": {
+    "message": "Сховано {n} такі записи · X поверне"
+  },
+  "viewerMuted_many": {
+    "message": "Сховано {n} таких записів · X поверне"
+  },
+  "viewerMuted_other": {
+    "message": "Сховано {n} такого запису · X поверне"
   }
 }

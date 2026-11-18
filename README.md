@@ -74,6 +74,9 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **Compare** this log with another one, e.g. a passing and a failing CI run, with the **new errors** listed
   first (see below)
 - **Pauses between entries**: `+5.5s` next to lines where the app stalled
+- **Hide lines like this** (`x`): the health checks that are nine lines in ten go away in one key, in every pod,
+  and the counts, timeline, groups and links follow; a chip or `X` brings them back. A 503 the log marks ERROR
+  is not hidden with the 200s
 - **Collapse repeats**: 500 × `retry 17 of 50 for job 8123` becomes one line with a `×500` badge
 - **Error timeline**: a histogram of entries, errors and warnings over time; click a bar to jump there
 - **Minimap**: every error, warning and bookmark marked on a strip next to the scrollbar; click to go there
