@@ -884,5 +884,11 @@
   },
   "viewerMerged_other": {
     "message": "{n} files merged by time"
+  },
+  "keyNextWarning": {
+    "message": "Next warning"
+  },
+  "viewerMinimapTitle": {
+    "message": "Errors, warnings and bookmarks in the shown lines: click to go there"
   }
 }
