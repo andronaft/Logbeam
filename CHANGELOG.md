@@ -8,6 +8,14 @@
   either all field conditions or all text, and leaving something out took a regex with a negative lookahead. A
   `-word` (or `-"two words"`) leaves out the lines that have it, an error together with its stack trace; `-5` and
   `--verbose` are still text. The status line says how many words are left out.
+- **Error groups by first seen.** The Groups panel can list the errors in the order they first happened instead of
+  by count, and marks the earliest one "first" either way: 900 × `upstream timeout` are often the symptom of the one
+  `pool exhausted` three seconds before them.
+- **Hide lines like this** (`x`, or the ⊘ button in the line details): every line of the selected kind, e.g.
+  `GET /healthz 200 in 3ms`, leaves the view, with its stack trace, in every pod or file. Numbers, IDs and times
+  don't count, the level does, so the 503 marked ERROR stays. Each hidden kind gets a chip with its count; click it
+  or press `X` to bring the last one back. The status line says how many lines are hidden, and the view link
+  keeps them (`#mute=12`).
 - **A minimap next to the scrollbar** marks every error, warning and bookmark in the shown lines, so in a long
   log you see at a glance where the trouble is. Click or drag on it to go there; a box shows the part on screen.
 - **`w` jumps to the next warning**, like `e` does to the next error.
@@ -60,9 +68,31 @@
   next log, so if you always mask secrets, you turn Mask on once.
 - **Screen readers**: toggles, level filters and pod chips say whether they are on (`aria-pressed`), and the icon
   buttons (`.*`, `Aa`, 🖍, 🔗, `?`) have names.
+- **One look across the popup, Settings and Compare**: they share the same colours, corners and sizes, and grey
+  text is easier to read in both themes (line numbers too). Toggles that are on are tinted and bold, hidden level
+  chips are easier to read, and every button and the Context menu show a focus ring for the keyboard. Compare no
+  longer shows an empty box where the list of new errors goes.
+- **The popup**: "Open as log" is the main button, the text tools are in small groups (JSON, tokens & time;
+  Encode & decode; Case & lines), and a result no longer looks like a button. **Settings**: a smaller title with
+  "Saved ✓" next to it instead of in the corner, and quieter "+ Add" buttons. The panel of the right-click tools
+  follows the system's light or dark mode.
 
 ### Fixed
 
+- Changing settings quickly no longer leaves the right-click menu half built ("duplicate id"), and saving the viewer's view no longer rebuilds the menu at all.
+- Remembering dark mode or auto-open for a site no longer fails with "duplicate script id" when Logbeam syncs its sites
+  at the same time, or when the popup and the background both finish the request after the permission prompt.
+- GELF records show their level (syslog 3 = ERROR, 4 = WARN, …) and their `short_message` instead of TRACE and a JSON blob.
+- The text-tool panel on a page and the popup's copy and shortcut labels are translated.
+- Colourful CI logs that end colours with `tput sgr0` (`ESC ( B`) show clean text and keep their level.
+- A click on a field value in the field panel works for keys like `k8s/app` or `user:id` (written `"k8s/app"=web`),
+  and for values with a `*` in them: a quoted value is matched as it is, `*` is a wildcard only without quotes.
+- Dark mode leaves sites alone that are already dark with `oklch()`, `lab()` or `color(srgb …)` backgrounds
+  (Tailwind 4) instead of turning them light.
+- Compare says when a log is too big to keep (over about 10 MB) instead of doing nothing, and reads `.gz` files.
+- A time range picked on the timeline keeps the same entries in a link.
+- The timestamp tool reads nanoseconds to the exact millisecond; the JWT tool explains a `null` payload instead of
+  failing; the case tools split `caféBar` into `café_bar`.
 - **Bookmarks and notes on a web page survive a reload** again (while the browser is open). They were lost,
   because a content script may not use the extension's session storage; the background page keeps them now.
 - **Follow no longer steals the focus** from a bookmark note every 3 seconds (the rest of what you typed became

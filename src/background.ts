@@ -1,5 +1,6 @@
 import { TRANSFORMS } from './lib/transforms';
 import { handleBookmarkMessage } from './shared/bookmarks';
+import { serial } from './shared/serial';
 import { setAutoOpen, syncAutoOpenRegistrations } from './shared/autoOpen';
 import { COMPARE_ADD, compareText } from './shared/compare';
 import { t, toolKey } from './shared/i18n';
@@ -13,10 +14,16 @@ const MENU_DARK = 'logbeam:dark';
 const MENU_COMPARE = 'logbeam:compare';
 const TRANSFORM_PREFIX = 'logbeam:transform:';
 
-async function createMenus(): Promise<void> {
+const menuQueue = serial();
+
+function createMenus(): Promise<void> {
+  return menuQueue(buildMenus);
+}
+
+async function buildMenus(): Promise<void> {
   const { hiddenTools } = await loadSettings();
   // promise form (missing from @types/chrome): Firefox builds use browser.*, which has no callbacks
-  void (chrome.contextMenus.removeAll() as unknown as Promise<void>).then(() => {
+  await (chrome.contextMenus.removeAll() as unknown as Promise<void>).then(() => {
     chrome.contextMenus.create({ id: MENU_ROOT, title: 'Logbeam', contexts: ['selection', 'editable', 'page'] });
     for (const transform of TRANSFORMS.filter((t) => !hiddenTools.includes(t.id))) {
       chrome.contextMenus.create({
@@ -92,10 +99,18 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   } else if (id === MENU_DARK) {
     void toggleDarkMode(tab).then((result) => reportOnIcon(tabId, result));
   } else if (id === MENU_COMPARE) {
-    void readTextForCompare(tabId, info.frameId).then(async (text) => {
-      if (text) await compareText(text, tab.title);
-      else await reportOnIcon(tabId, { ok: false, reason: 'Logbeam couldn’t read text on this page to compare.' });
-    });
+    void readTextForCompare(tabId, info.frameId)
+      .then(async (text) => {
+        if (text) await compareText(text, tab.title);
+        else await reportOnIcon(tabId, { ok: false, reason: 'Logbeam couldn’t read text on this page to compare.' });
+      })
+      // too big for the storage Compare uses
+      .catch(() =>
+        reportOnIcon(tabId, {
+          ok: false,
+          reason: t('viewerCompareTooBig', 'This log is too big to compare (over about 10 MB)'),
+        }),
+      );
   } else if (id.startsWith(TRANSFORM_PREFIX)) {
     void runTransformInTab(tabId, id.slice(TRANSFORM_PREFIX.length), info.frameId).then((result) => reportOnIcon(tabId, result));
   }
@@ -122,6 +137,10 @@ chrome.runtime.onMessage.addListener((message: { type?: string; text?: string; n
 });
 
 // the settings page changed which text tools appear in the menu
+// (the viewer saves the settings too, for the time mode and view: rebuild only when the tools changed)
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === 'sync' && SETTINGS_KEY in changes) void createMenus();
+  const change = area === 'sync' ? changes[SETTINGS_KEY] : undefined;
+  if (!change) return;
+  const tools = (value: unknown) => JSON.stringify((value as { hiddenTools?: string[] } | undefined)?.hiddenTools ?? []);
+  if (tools(change.oldValue) !== tools(change.newValue)) void createMenus();
 });

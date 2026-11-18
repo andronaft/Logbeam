@@ -196,6 +196,19 @@ export function groupErrors(lines: LogLine[]): ErrorGroup[] {
   return [...groups.values()].sort((a, b) => b.count - a.count || a.lines[0] - b.lines[0]);
 }
 
+export type GroupOrder = 'count' | 'first';
+
+/**
+ * The groups most often first (as groupErrors gives them), or in the order they first happened:
+ * 900 timeouts are often the symptom of the one "pool exhausted" three seconds before them.
+ */
+export function sortGroups(groups: ErrorGroup[], order: GroupOrder): ErrorGroup[] {
+  if (order === 'count') return groups;
+  // by time when every group has one (pods' logs one after another), else by where they are in the log
+  const timed = groups.every((group) => group.first !== null);
+  return [...groups].sort((a, b) => (timed ? a.first! - b.first! : 0) || a.lines[0] - b.lines[0]);
+}
+
 export interface ErrorDiff {
   /** Errors in the second log that the first one doesn't have. */
   added: ErrorGroup[];

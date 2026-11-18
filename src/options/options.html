@@ -4,15 +4,18 @@
     <meta charset="utf-8" />
     <title data-i18n="optionsPageTitle">Settings · Logbeam</title>
     <link rel="icon" href="icons/icon16.png" />
+    <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="options.css" />
   </head>
   <body>
     <main>
-      <h1>
-        <img src="icons/icon48.png" alt="" width="26" height="26" />
-        <span data-i18n="optionsHeading">Logbeam settings</span>
-      </h1>
-      <p class="saved" id="saved" aria-live="polite"></p>
+      <header class="title">
+        <h1>
+          <img src="icons/icon48.png" alt="" width="22" height="22" />
+          Logbeam <span data-i18n="optionsHeading">Settings</span>
+        </h1>
+        <p class="saved" id="saved" aria-live="polite"></p>
+      </header>
 
       <section>
         <h2 data-i18n="optionsLogViewer">Log viewer</h2>
@@ -34,7 +37,7 @@
           <span data-i18n="optionsSecretUsedBy">They are used by the log viewer, Compare and "Mask secrets".</span>
         </p>
         <div id="patterns"></div>
-        <button id="add-pattern" data-i18n="optionsAddPattern">Add pattern</button>
+        <button id="add-pattern" class="add" data-i18n="optionsAddPattern">Add pattern</button>
         <p class="problems" id="problems"></p>
         <label class="test">
           <span data-i18n="optionsTryThem">Try them:</span>
@@ -69,7 +72,7 @@
           <span data-i18n="optionsLevelsHelp4">or in a JSON level field.</span>
         </p>
         <div id="levels"></div>
-        <button id="add-level" data-i18n="optionsAddLevel">Add a level word</button>
+        <button id="add-level" class="add" data-i18n="optionsAddLevel">Add a level word</button>
       </section>
 
       <section>

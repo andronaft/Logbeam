@@ -10,7 +10,7 @@ describe('parseFieldQuery', () => {
   it('reads conditions', () => {
     expect(parseFieldQuery('level=error service="payment api" duration>500')).toEqual([
       { key: 'level', op: '=', value: 'error' },
-      { key: 'service', op: '=', value: 'payment api' },
+      { key: 'service', op: '=', value: 'payment api', exact: true },
       { key: 'duration', op: '>', value: '500' },
     ]);
     expect(parseFieldQuery('status!=200 http.status>=500 log.level<=warn')).toHaveLength(3);

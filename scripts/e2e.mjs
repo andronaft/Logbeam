@@ -264,6 +264,16 @@ check('Esc closes the inspector', await page.locator('.inspector').isHidden());
 await page.keyboard.press('w');
 check('w selects the next warning', (await page.locator('.facts').textContent()).includes('WARN'));
 
+// x hides every line like the selected one, X brings them back
+const statusBefore = await page.locator('.status').textContent();
+await page.keyboard.press('x');
+await page.waitForTimeout(100);
+check('x hides lines like the selected one', (await page.locator('.status').textContent()).includes('hidden'));
+check('a chip shows the hidden kind', await page.locator('.mute-chip').isVisible());
+await page.keyboard.press('X');
+await page.waitForTimeout(100);
+check('X shows them again', (await page.locator('.status').textContent()) === statusBefore);
+
 // the strip next to the scrollbar marks errors and warnings; a click goes there
 const minimapBox = await page.locator('.minimap').boundingBox();
 check('the minimap is shown next to a long log', minimapBox !== null && minimapBox.width > 0);
@@ -926,6 +936,10 @@ await insights.keyboard.press('Escape');
 await insights.locator('.toggle', { hasText: 'Groups' }).click();
 const groupItems = await insights.locator('.group-item .n').allTextContents();
 check('errors are grouped', groupItems.join(',') === '×1,×1,×1', groupItems.join(','));
+check('the earliest error is marked "first"', (await insights.locator('.group-item .first-badge').count()) === 1);
+await insights.locator('.group-order .toggle', { hasText: 'First seen' }).click();
+check('First seen puts it on top', (await insights.locator('.group-item').first().locator('.first-badge').count()) === 1);
+await insights.locator('.group-order .toggle', { hasText: 'Most often' }).click();
 await insights.locator('.group-item').nth(2).click();
 await insights.waitForSelector('.group-chip:not([hidden])');
 check('a group shows only its error and stack trace', (await insightStatus()).startsWith('2 /'), await insightStatus());
@@ -1056,6 +1070,8 @@ await lightViewer.addScriptTag({ path: path.join(dist, 'logViewer.js') });
 await lightViewer.waitForSelector('.row');
 await lightViewer.evaluate(() => (document.documentElement.dataset.theme = 'light'));
 check('the log viewer has a light theme', (await background(lightViewer)) === 'rgb(255, 255, 255)');
+// the buttons fade to their new colours (a .12s transition): a screenshot at once caught them still dark
+await lightViewer.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
 await lightViewer.screenshot({ path: 'docs/log-viewer-light.png' });
 await lightViewer.close();
 await options.locator('#theme').selectOption('auto');
@@ -1239,7 +1255,7 @@ await ukViewer.locator('#open').click();
 await ukViewer.waitForSelector('.row');
 check('the log viewer speaks Ukrainian', (await ukViewer.locator('.status').textContent()) === 'Рядків: 7 / 7');
 await ukViewer.locator('.toggle', { hasText: 'Групи' }).click();
-check('Ukrainian plurals', (await ukViewer.locator('.groups-head').textContent()) === '3 різні помилки');
+check('Ukrainian plurals', (await ukViewer.locator('.groups-head > span').first().textContent()) === '3 різні помилки');
 await ukContext.close();
 
 check('no page errors', errors.length === 0, errors.join('; '));
