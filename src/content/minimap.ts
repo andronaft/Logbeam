@@ -63,21 +63,28 @@ export function createMinimap(options: {
     if (!context) return;
     context.scale(ratio, ratio);
     const mark = Math.max(2, height / count);
-    const colors = { ERROR: color('--error'), WARN: color('--warn'), bookmark: color('--accent') };
+    // one pass over the lines into a few bits per pixel row, then one rectangle per mark
+    const rows = Math.max(1, Math.ceil(height));
+    const marks = new Uint8Array(rows);
+    const WARN = 1;
+    const ERROR = 2;
+    const BOOKMARK = 4;
+    for (let i = 0; i < count; i++) {
+      const line = lines[i];
+      const bits =
+        (line.continuation ? 0 : line.level === 'ERROR' ? ERROR : line.level === 'WARN' ? WARN : 0) |
+        (bookmarks.size > 0 && bookmarks.has(line.number) ? BOOKMARK : 0);
+      if (bits) marks[Math.min(rows - 1, Math.floor((i / count) * height))] |= bits;
+    }
     // warnings first, so an error on the same pixel stays visible; bookmarks on top
-    for (const pass of ['WARN', 'ERROR', 'bookmark'] as const) {
-      context.fillStyle = colors[pass];
-      let last = -1;
-      lines.forEach((line, i) => {
-        const hit = pass === 'bookmark' ? bookmarks.has(line.number) : line.level === pass && !line.continuation;
-        if (!hit) return;
-        const y = Math.floor((i / count) * height);
-        if (y === last) return;
-        last = y;
-        if (pass === 'WARN') context.fillRect(2, y, WIDTH / 2 - 2, mark);
-        else if (pass === 'ERROR') context.fillRect(2, y, WIDTH - 4, mark);
-        else context.fillRect(0, y, WIDTH, Math.max(mark, 3));
-      });
+    const passes: [number, string, (y: number) => void][] = [
+      [WARN, color('--warn'), (y) => context.fillRect(2, y, WIDTH / 2 - 2, mark)],
+      [ERROR, color('--error'), (y) => context.fillRect(2, y, WIDTH - 4, mark)],
+      [BOOKMARK, color('--accent'), (y) => context.fillRect(0, y, WIDTH, Math.max(mark, 3))],
+    ];
+    for (const [bit, fill, paint] of passes) {
+      context.fillStyle = fill;
+      for (let y = 0; y < rows; y++) if (marks[y] & bit) paint(y);
     }
     follow();
   }

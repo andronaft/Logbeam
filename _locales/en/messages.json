@@ -890,5 +890,8 @@
   },
   "viewerMinimapTitle": {
     "message": "Errors, warnings and bookmarks in the shown lines: click to go there"
+  },
+  "viewerMoreChars": {
+    "message": "+{n} characters (click the line to read it all)"
   }
 }

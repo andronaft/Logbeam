@@ -11,6 +11,7 @@ import {
   filterLines,
   formatGap,
   LogParser,
+  signature,
   splitLines,
   splitSource,
 } from '../lib/logs';
@@ -48,6 +49,7 @@ import { Child, el } from './dom';
 import {
   FOLLOW_INTERVAL_MS,
   HIGHLIGHT_LIMIT,
+  ROW_TEXT_LIMIT,
   MAX_HIGHLIGHTS,
   MAX_SOURCES,
   OVERSCAN,
@@ -245,6 +247,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const sourceIndex = new Map(sources.map((source, i) => [source, i]));
   const fields = commonFields(allLines);
   let visible: CollapsedLine[] = [];
+  // worked out once per line, not on every refresh: Collapse compares signatures, and a row of the
+  // view is the line with a repeat count (600k copies per keystroke took 0.1 s)
+  const signatures: string[] = [];
+  const signatureOf = (line: LogLine) => (signatures[line.number - 1] ??= signature(line.text));
+  const rowCache: CollapsedLine[] = [];
+  const rowOf = (line: LogLine): CollapsedLine =>
+    // a context line is a copy with its own flags: not the one to keep
+    line === allLines[line.number - 1] ? (rowCache[line.number - 1] ??= { ...line, repeat: 1 }) : { ...line, repeat: 1 };
   // GitHub Actions ##[group] sections: folded like in GitHub, except the ones with errors
   let groups = findGroups(allLines);
   let groupByStart = new Map(groups.map((g) => [g.start, g]));
@@ -711,8 +721,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     }
   }
 
-  function appendText(parent: HTMLElement, line: LogLine): void {
-    const text = displayText(line);
+  /**
+   * A line's text with its search matches, secrets, ANSI colours and pod. A row shows the first
+   * `limit` characters: a 50k-character line would stall the page when it scrolls into view, and the
+   * line details show all of it.
+   */
+  function appendText(parent: HTMLElement, line: LogLine, limit = Number.POSITIVE_INFINITY): void {
+    const full = displayText(line);
+    const text = full.length > limit ? full.slice(0, limit) : full;
     const head = text.length > HIGHLIGHT_LIMIT ? text.slice(0, HIGHLIGHT_LIMIT) : text;
     const query = fieldMode ? '' : state.query;
     const ranges: Range[] = state.searchError ? [] : searchRanges(head, query, state.regex, state.caseSensitive, 'match');
@@ -734,6 +750,16 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     }
     for (const segment of toSegments(text, ranges)) {
       parent.append(segment.classes.length ? el('span', { className: segment.classes.join(' ') }, segment.text) : segment.text);
+    }
+    if (text.length < full.length) {
+      const more = (full.length - text.length).toLocaleString();
+      parent.append(
+        el(
+          'span',
+          { className: 'more-chars' },
+          ` … ${t('viewerMoreChars', '+{n} characters (click the line to read it all)', { n: more })}`,
+        ),
+      );
     }
   }
 
@@ -1129,7 +1155,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - ROW_HEIGHT * 2;
     const offset = allLines.length;
     const added = lastHeads.push(splitLines(appended.added)).map((line, i) => ({ ...line, number: offset + i + 1 }));
-    allLines.push(...added);
+    // a loop, not push(...added): 200k new lines are past what a call takes as arguments
+    for (const line of added) allLines.push(line);
+    rowCache.length = 0;
     times = entryTimes(allLines);
     counts = countByLevel(allLines);
     secretCount = allLines.filter((l) => l.secret).length;
@@ -1449,7 +1477,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     }
     // a search or an error group looks inside closed sections too
     if (groups.length > 0 && !state.query && !state.group) filtered = foldGroups(filtered, groups, openGroups);
-    visible = state.collapse ? collapseRepeats(filtered) : filtered.map((l) => ({ ...l, repeat: 1 }));
+    visible = state.collapse ? collapseRepeats(filtered, signatureOf) : filtered.map(rowOf);
     spacer.style.height = `${visible.length * ROW_HEIGHT}px`;
     const conditionNote = conditions
       ? ` · ${tn('viewerFieldConditions', conditions.length, '{n} field condition', '{n} field conditions')}`
@@ -1527,7 +1555,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
             txt.append(el('span', { className: 'cell', title: cell }, localizeTimestamp(cell, state.timeMode)));
           txt.append(el('span', { className: 'rest' }, state.maskSecrets ? maskSecrets(rest) : rest));
         } else {
-          appendText(txt, line);
+          appendText(txt, line, ROW_TEXT_LIMIT);
         }
         row.append(el('span', { className: 'ln', title: lineLinkTitle }, String(line.number)), gap, txt);
         return row;

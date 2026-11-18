@@ -103,6 +103,7 @@ select.toggle:focus { outline: none; border-color: var(--accent); }
 .search.invalid { border-color: var(--error); }
 .status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+.more-chars { color: var(--muted); font-style: italic; }
 .log-area { flex: 1; display: flex; min-height: 0; }
 .scroller { flex: 1; overflow: auto; position: relative; outline: none; }
 .minimap {

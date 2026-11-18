@@ -906,7 +906,10 @@ export function signature(text: string): string {
  * Collapses consecutive repeated entries. An entry is a line plus its continuation lines (a stack
  * trace), so six identical errors with the same trace become one entry marked ×6.
  */
-export function collapseRepeats(lines: LogLine[]): CollapsedLine[] {
+export function collapseRepeats(
+  lines: LogLine[],
+  signatureOf: (line: LogLine) => string = (line) => signature(line.text),
+): CollapsedLine[] {
   const entries: LogLine[][] = [];
   for (const line of lines) {
     const current = entries[entries.length - 1];
@@ -918,13 +921,14 @@ export function collapseRepeats(lines: LogLine[]): CollapsedLine[] {
   let previousSignature: string | null = null;
   let previousHead: CollapsedLine | null = null;
   for (const entry of entries) {
-    const sig = entry.map((line) => signature(line.text)).join('\n');
+    const sig = entry.map(signatureOf).join('\n');
     if (previousHead && sig === previousSignature) {
       previousHead.repeat++;
       continue;
     }
     const collapsed = entry.map((line) => ({ ...line, repeat: 1 }));
-    result.push(...collapsed);
+    // a loop, not push(...collapsed): one entry can have 200k lines, past what a call takes as arguments
+    for (const line of collapsed) result.push(line);
     previousHead = collapsed[0];
     previousSignature = sig;
   }

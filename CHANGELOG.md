@@ -59,6 +59,13 @@
 
 ### Fixed
 
+- **Follow no longer drops a big batch of new lines.** About 125k new lines at once failed with "Maximum call stack
+  size exceeded", and those lines never showed up, not even later.
+- **Collapse no longer breaks every filter** on a log with one entry of over about 125k lines (a huge dump under one
+  header).
+- **Faster on big logs.** With Collapse on, every click and key on a 600k-line log took about 0.9 s; now about 0.1–0.2 s
+  (each line's signature is worked out once). The minimap is drawn in one pass, field filters skip lines without
+  the key, and a row shows the first 5,000 characters of a very long line (the line details show all of it).
 - **Bookmarks and notes on a web page survive a reload** again (while the browser is open). They were lost,
   because a content script may not use the extension's session storage; the background page keeps them now.
 - **Follow no longer steals the focus** from a bookmark note every 3 seconds (the rest of what you typed became
