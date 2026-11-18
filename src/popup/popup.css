@@ -1,36 +1,3 @@
-:root {
-  color-scheme: dark;
-  --bg: #0f1419;
-  --panel: #1a222b;
-  --border: #2d3640;
-  --fg: #e6e1cf;
-  --muted: #8a9199;
-  --accent: #ffb454;
-  --error: #ff6b6b;
-}
-/* light: when the system is light (unless Settings say dark), or when Settings say light */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) {
-    color-scheme: light;
-    --bg: #ffffff;
-    --panel: #eef0f2;
-    --border: #d5d9de;
-    --fg: #1f2328;
-    --muted: #6b7280;
-    --accent: #b25e00;
-    --error: #c62828;
-  }
-}
-:root[data-theme='light'] {
-  color-scheme: light;
-  --bg: #ffffff;
-  --panel: #eef0f2;
-  --border: #d5d9de;
-  --fg: #1f2328;
-  --muted: #6b7280;
-  --accent: #b25e00;
-  --error: #c62828;
-}
 * {
   box-sizing: border-box;
 }
@@ -44,7 +11,7 @@ body {
   background: var(--bg);
   color: var(--fg);
   font:
-    13px/1.45 ui-sans-serif,
+    var(--fs) / 1.45 ui-sans-serif,
     system-ui,
     -apple-system,
     'Segoe UI',
@@ -59,12 +26,12 @@ header {
 }
 h1 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-h);
   color: var(--accent);
 }
 h2 {
-  margin: 0 0 8px;
-  font-size: 11px;
+  margin: 0 0 var(--s2);
+  font-size: var(--fs-xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -76,7 +43,7 @@ section {
 small {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 .switch-row,
 .check-row {
@@ -96,9 +63,9 @@ small {
   margin: 8px 0 0;
 }
 .note {
-  margin: 8px 0 0;
+  margin: var(--s2) 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 input[role='switch'] {
@@ -142,7 +109,7 @@ button {
   background: var(--panel);
   cursor: pointer;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r);
   padding: 5px 8px;
 }
 button:hover:not(:disabled) {
@@ -176,8 +143,16 @@ a.shortcut:hover {
 .viewer-row .wide {
   flex: 1;
 }
-.note {
-  color: var(--accent);
+/* the one main action of the popup */
+#open-viewer {
+  justify-content: center;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+#open-viewer:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, var(--fg));
 }
 kbd {
   color: var(--muted);
@@ -192,16 +167,16 @@ textarea,
 .output {
   width: 100%;
   font:
-    12px/1.45 ui-monospace,
+    var(--fs-sm) / 1.45 ui-monospace,
     'JetBrains Mono',
     Menlo,
     Consolas,
     monospace;
-  background: var(--panel);
+  background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px;
+  border-radius: var(--r);
+  padding: var(--s2);
 }
 textarea {
   height: 80px;
@@ -211,14 +186,32 @@ textarea:focus {
   outline: none;
   border-color: var(--accent);
 }
+/* the text tools, in groups with a small heading each */
+.tool-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: var(--s2) 0;
+}
+h3 {
+  margin: 0 0 var(--s1);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  margin: 8px 0;
+  gap: var(--s1);
+}
+/* encode / decode come in pairs */
+.grid.pairs {
+  grid-template-columns: repeat(2, 1fr);
 }
 .grid button {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   padding: 4px 6px;
   white-space: nowrap;
   overflow: hidden;
@@ -226,6 +219,9 @@ textarea:focus {
 }
 .output {
   margin: 0;
+  /* a result, not a button: an accent bar on the left instead of a box all round */
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r) var(--r) 0;
   max-height: 220px;
   overflow: auto;
   white-space: pre-wrap;
@@ -233,6 +229,7 @@ textarea:focus {
 }
 .output.error {
   color: var(--error);
+  border-left-color: var(--error);
 }
 .row {
   display: flex;
@@ -243,7 +240,7 @@ textarea:focus {
 footer {
   padding: 10px 14px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 footer b {
   color: var(--fg);
@@ -251,8 +248,10 @@ footer b {
 footer a {
   color: var(--accent);
 }
+/* a button, not a field: centred like the other actions */
 #open-pasted {
   margin-top: 8px;
+  justify-content: center;
 }
 .compare .row {
   margin-top: 0;

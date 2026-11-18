@@ -61,6 +61,14 @@
   next log, so if you always mask secrets, you turn Mask on once.
 - **Screen readers**: toggles, level filters and pod chips say whether they are on (`aria-pressed`), and the icon
   buttons (`.*`, `Aa`, 🖍, 🔗, `?`) have names.
+- **One look across the popup, Settings and Compare**: they share the same colours, corners and sizes, and grey
+  text is easier to read in both themes (line numbers too). Toggles that are on are tinted and bold, hidden level
+  chips are easier to read, and every button and the Context menu show a focus ring for the keyboard. Compare no
+  longer shows an empty box where the list of new errors goes.
+- **The popup**: "Open as log" is the main button, the text tools are in small groups (JSON, tokens & time;
+  Encode & decode; Case & lines), and a result no longer looks like a button. **Settings**: a smaller title with
+  "Saved ✓" next to it instead of in the corner, and quieter "+ Add" buttons. The panel of the right-click tools
+  follows the system's light or dark mode.
 
 ### Fixed
 

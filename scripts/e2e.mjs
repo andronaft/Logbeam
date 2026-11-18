@@ -1051,6 +1051,8 @@ await lightViewer.addScriptTag({ path: path.join(dist, 'logViewer.js') });
 await lightViewer.waitForSelector('.row');
 await lightViewer.evaluate(() => (document.documentElement.dataset.theme = 'light'));
 check('the log viewer has a light theme', (await background(lightViewer)) === 'rgb(255, 255, 255)');
+// the buttons fade to their new colours (a .12s transition): a screenshot at once caught them still dark
+await lightViewer.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
 await lightViewer.screenshot({ path: 'docs/log-viewer-light.png' });
 await lightViewer.close();
 await options.locator('#theme').selectOption('auto');

@@ -2,7 +2,7 @@ export const VIEWER_CSS = `
 :root {
   color-scheme: dark;
   --bg: #0f1419; --bg-alt: #151c23; --panel: #1a222b; --border: #2d3640;
-  --fg: #e6e1cf; --muted: #6c7680; --accent: #ffb454;
+  --fg: #e6e1cf; --muted: #8a9199; --accent: #ffb454;
   --error: #ff6b6b; --warn: #ffb454; --info: #59c2ff; --debug: #95e6cb; --trace: #8a9199;
   --on: #3a2f1c; --error-row: rgba(255, 107, 107, .06); --secret-bg: rgba(255, 107, 107, .22);
   --match-bg: #6b5a1e; --match-fg: #fff; --selected: #243040; --bar-other: #3a4550; --overlay: rgba(15, 20, 25, .85);
@@ -18,7 +18,7 @@ export const VIEWER_CSS = `
   :root:not([data-theme="dark"]) {
     color-scheme: light;
     --bg: #ffffff; --bg-alt: #f5f6f7; --panel: #eef0f2; --border: #d5d9de;
-    --fg: #1f2328; --muted: #6b7280; --accent: #b25e00;
+    --fg: #1f2328; --muted: #5b6370; --accent: #b25e00;
     --error: #c62828; --warn: #a15c00; --info: #0b62b8; --debug: #2e7d6b; --trace: #6b7280;
     --on: #fde7c7; --error-row: rgba(198, 40, 40, .06); --secret-bg: rgba(198, 40, 40, .14);
     --match-bg: #ffe08a; --match-fg: #1f2328; --selected: #dbe9fb; --bar-other: #c4cad1; --overlay: rgba(255, 255, 255, .88);
@@ -33,7 +33,7 @@ export const VIEWER_CSS = `
 :root[data-theme="light"] {
     color-scheme: light;
     --bg: #ffffff; --bg-alt: #f5f6f7; --panel: #eef0f2; --border: #d5d9de;
-    --fg: #1f2328; --muted: #6b7280; --accent: #b25e00;
+    --fg: #1f2328; --muted: #5b6370; --accent: #b25e00;
     --error: #c62828; --warn: #a15c00; --info: #0b62b8; --debug: #2e7d6b; --trace: #6b7280;
     --on: #fde7c7; --error-row: rgba(198, 40, 40, .06); --secret-bg: rgba(198, 40, 40, .14);
     --match-bg: #ffe08a; --match-fg: #1f2328; --selected: #dbe9fb; --bar-other: #c4cad1; --overlay: rgba(255, 255, 255, .88);
@@ -69,12 +69,15 @@ button, select.toggle {
 button:hover, select.toggle:hover { border-color: var(--accent); }
 button:focus-visible, select.toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 select.toggle { padding: 3px 6px; }
-select.toggle:focus { outline: none; border-color: var(--accent); }
-.toggle.on { background: var(--on); border-color: var(--accent); }
+/* on: tinted with the accent and in bold, so it reads as on at a glance */
+.toggle.on {
+  background: var(--on); background: color-mix(in srgb, var(--accent) 18%, var(--bg-alt));
+  border-color: var(--accent); color: var(--accent); font-weight: 600;
+}
 /* actions you use now and then: quiet until hovered */
 .tgroup.actions button:not(.on) { background: transparent; border-color: transparent; }
 .tgroup.actions button:not(.on):hover { border-color: var(--border); background: var(--bg-alt); }
-.chip { opacity: .45; }
+.chip { opacity: .65; }
 .chip.on { opacity: 1; }
 .tgroup.levels .chip::before {
   content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%;
@@ -274,7 +277,11 @@ select.toggle:focus { outline: none; border-color: var(--accent); }
 .group-item .n { color: var(--error); font-weight: 700; }
 .group-item .sample { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--error); }
 .group-item .meta { color: var(--muted); white-space: nowrap; }
-.group-chip { color: var(--error); max-width: 50vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toggle.group-chip {
+  color: var(--error); border-color: var(--error);
+  background: var(--error-row); background: color-mix(in srgb, var(--error) 14%, var(--bg-alt));
+}
+.group-chip { max-width: 50vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* JSON table */
 .txt.table { display: inline-flex; gap: 0; }
@@ -293,7 +300,7 @@ select.toggle:focus { outline: none; border-color: var(--accent); }
 .row.group-head .txt { font-weight: 600; }
 .fold-toggle {
   display: inline-block; margin-right: 8px; padding: 0 6px; border-radius: 8px; cursor: pointer;
-  background: var(--panel); color: var(--info); font-size: 11px; line-height: 16px; font-weight: 400;
+  background: var(--panel); color: var(--info); font-size: 11px; line-height: 20px; font-weight: 400;
 }
 .fold-toggle:hover { color: var(--accent); }
 .group-errors {
