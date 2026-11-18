@@ -99,10 +99,18 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   } else if (id === MENU_DARK) {
     void toggleDarkMode(tab).then((result) => reportOnIcon(tabId, result));
   } else if (id === MENU_COMPARE) {
-    void readTextForCompare(tabId, info.frameId).then(async (text) => {
-      if (text) await compareText(text, tab.title);
-      else await reportOnIcon(tabId, { ok: false, reason: 'Logbeam couldn’t read text on this page to compare.' });
-    });
+    void readTextForCompare(tabId, info.frameId)
+      .then(async (text) => {
+        if (text) await compareText(text, tab.title);
+        else await reportOnIcon(tabId, { ok: false, reason: 'Logbeam couldn’t read text on this page to compare.' });
+      })
+      // too big for the storage Compare uses
+      .catch(() =>
+        reportOnIcon(tabId, {
+          ok: false,
+          reason: t('viewerCompareTooBig', 'This log is too big to compare (over about 10 MB)'),
+        }),
+      );
   } else if (id.startsWith(TRANSFORM_PREFIX)) {
     void runTransformInTab(tabId, id.slice(TRANSFORM_PREFIX.length), info.frameId).then((result) => reportOnIcon(tabId, result));
   }

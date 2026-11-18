@@ -1189,6 +1189,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     try {
       const side = await chrome.runtime.sendMessage({ type: COMPARE_ADD, text: options.text, name: options.title });
       if (side === 'left') showToast(t('viewerAddedAsBefore', 'Added as “Before”. Open the other log and press Compare there.'));
+      // the background couldn't keep it: storage for Compare holds about 10 MB
+      else if (side !== 'right') showToast(t('viewerCompareTooBig', 'This log is too big to compare (over about 10 MB)'));
     } catch {
       showToast(t('viewerCompareUnavailable', 'Compare isn’t available here'));
     }

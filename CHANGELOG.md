@@ -63,6 +63,15 @@
 - Remembering dark mode or auto-open for a site while Logbeam syncs its sites no longer fails with "duplicate script id".
 - GELF records show their level (syslog 3 = ERROR, 4 = WARN, …) and their `short_message` instead of TRACE and a JSON blob.
 - The text-tool panel on a page and the popup's copy and shortcut labels are translated.
+- Colourful CI logs that end colours with `tput sgr0` (`ESC ( B`) show clean text and keep their level.
+- A click on a field value in the field panel works for keys like `k8s/app` or `user:id` (written `"k8s/app"=web`),
+  and for values with a `*` in them: a quoted value is matched as it is, `*` is a wildcard only without quotes.
+- Dark mode leaves sites alone that are already dark with `oklch()`, `lab()` or `color(srgb …)` backgrounds
+  (Tailwind 4) instead of turning them light.
+- Compare says when a log is too big to keep (over about 10 MB) instead of doing nothing, and reads `.gz` files.
+- A time range picked on the timeline keeps the same entries in a link.
+- The timestamp tool reads nanoseconds to the exact millisecond; the JWT tool explains a `null` payload instead of
+  failing; the case tools split `caféBar` into `café_bar`.
 - **Bookmarks and notes on a web page survive a reload** again (while the browser is open). They were lost,
   because a content script may not use the extension's session storage; the background page keeps them now.
 - **Follow no longer steals the focus** from a bookmark note every 3 seconds (the rest of what you typed became

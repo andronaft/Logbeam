@@ -11,9 +11,10 @@ export interface AnsiSpan {
   cls: string;
 }
 
-// CSI (colours, cursor moves, erasing), OSC (window titles, hyperlinks) and two-character escapes
+// CSI (colours, cursor moves, erasing), OSC (window titles, hyperlinks), character set choices
+// (ESC ( B, which `tput sgr0` writes) and two-character escapes
 // eslint-disable-next-line no-control-regex
-const ESCAPE = /\x1b\[([0-?]*)[ -/]*([@-~])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]/g;
+const ESCAPE = /\x1b\[([0-?]*)[ -/]*([@-~])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[ -/]+[0-~]|\x1b[@-Z\\-_]/g;
 
 const COLOURS = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
 

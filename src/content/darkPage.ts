@@ -18,17 +18,38 @@ declare global {
   }
 }
 
-/** Relative luminance (0 = black, 1 = white) of a CSS colour, or null if it's transparent. */
+const toAlpha = (value: string | undefined) =>
+  value === undefined ? 1 : value.endsWith('%') ? parseFloat(value) / 100 : parseFloat(value);
+
+/**
+ * Relative luminance (0 = black, 1 = white) of a CSS colour, or null if it's transparent or not
+ * one Logbeam reads. Browsers give computed colours as rgb(), but keep oklch(), lab() and
+ * color(srgb …) as written (Tailwind 4 colours are oklch).
+ */
 export function luminance(color: string): number | null {
-  const m = /rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)/.exec(color);
-  if (!m) return null;
-  const alpha = m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
-  if (alpha < 0.5) return null;
-  const channel = (v: string) => {
-    const c = parseFloat(v) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(m[1]) + 0.7152 * channel(m[2]) + 0.0722 * channel(m[3]);
+  const linear = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const rgb = /rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+%?))?\s*\)/.exec(color);
+  if (rgb) {
+    if (toAlpha(rgb[4]) < 0.5) return null;
+    const [r, g, b] = [rgb[1], rgb[2], rgb[3]].map((v) => linear(parseFloat(v) / 255));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  const srgb = /color\(\s*srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\s*\)/.exec(color);
+  if (srgb) {
+    if (toAlpha(srgb[4]) < 0.5) return null;
+    const [r, g, b] = [srgb[1], srgb[2], srgb[3]].map((v) => linear(parseFloat(v)));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  // the lightness is enough to tell dark from light: OKLab's L is about the cube root of luminance
+  const lab = /^(ok)?(?:lab|lch)\(\s*([\d.]+)(%?)[^/)]*(?:\/\s*([\d.]+%?))?\s*\)/.exec(color.trim());
+  if (lab) {
+    if (toAlpha(lab[4]) < 0.5) return null;
+    const ok = lab[1] !== undefined;
+    // oklch(0.145 0 0) or oklch(14.5% 0 0); lab(14 0 0) is 0-100
+    const lightness = parseFloat(lab[2]) / (lab[3] || !ok ? 100 : 1);
+    return ok ? lightness ** 3 : ((lightness * 100 + 16) / 116) ** 3;
+  }
+  return null;
 }
 
 /**

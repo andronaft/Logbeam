@@ -917,5 +917,8 @@
   },
   "popupShortcutNone": {
     "message": "No shortcut assigned. Click to set one."
+  },
+  "viewerCompareTooBig": {
+    "message": "This log is too big to compare (over about 10 MB)"
   }
 }
