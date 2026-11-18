@@ -4,6 +4,9 @@
 
 ### Added
 
+- **Error groups by first seen.** The Groups panel can list the errors in the order they first happened instead of
+  by count, and marks the earliest one "first" either way: 900 × `upstream timeout` are often the symptom of the one
+  `pool exhausted` three seconds before them.
 - **A minimap next to the scrollbar** marks every error, warning and bookmark in the shown lines, so in a long
   log you see at a glance where the trouble is. Click or drag on it to go there; a box shows the part on screen.
 - **`w` jumps to the next warning**, like `e` does to the next error.

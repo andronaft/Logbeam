@@ -980,5 +980,17 @@
   },
   "viewerMinimapTitle": {
     "message": "Помилки, попередження й закладки серед показаних рядків: клацніть, щоб перейти"
+  },
+  "viewerFirstError": {
+    "message": "перша"
+  },
+  "viewerFirstErrorTitle": {
+    "message": "Перша помилка в лозі: часто причина тих, що після неї"
+  },
+  "viewerGroupsByCount": {
+    "message": "Найчастіші"
+  },
+  "viewerGroupsByFirst": {
+    "message": "За появою"
   }
 }

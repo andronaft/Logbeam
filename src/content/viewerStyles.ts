@@ -264,7 +264,13 @@ select.toggle:focus { outline: none; border-color: var(--accent); }
   max-height: 30vh; overflow: auto; padding: 6px 12px; background: var(--bg-alt);
   border-bottom: 1px solid var(--border); display: grid; gap: 2px;
 }
-.groups-head { color: var(--muted); margin-bottom: 4px; }
+.groups-head { color: var(--muted); margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+.group-order { display: inline-flex; gap: 4px; margin-left: auto; }
+.group-order[hidden] { display: none; }
+.first-badge {
+  display: inline-block; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 700;
+  color: var(--bg); background: var(--error); vertical-align: 1px;
+}
 .group-item {
   display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; text-align: left; padding: 2px 8px;
   font: 12px ui-monospace, Menlo, Consolas, monospace;

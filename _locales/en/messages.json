@@ -890,5 +890,17 @@
   },
   "viewerMinimapTitle": {
     "message": "Errors, warnings and bookmarks in the shown lines: click to go there"
+  },
+  "viewerFirstError": {
+    "message": "first"
+  },
+  "viewerFirstErrorTitle": {
+    "message": "The first error in the log: often the cause of the ones after it"
+  },
+  "viewerGroupsByCount": {
+    "message": "Most often"
+  },
+  "viewerGroupsByFirst": {
+    "message": "First seen"
   }
 }
