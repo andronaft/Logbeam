@@ -248,8 +248,10 @@ footer b {
 footer a {
   color: var(--accent);
 }
+/* a button, not a field: centred like the other actions */
 #open-pasted {
   margin-top: 8px;
+  justify-content: center;
 }
 .compare .row {
   margin-top: 0;
