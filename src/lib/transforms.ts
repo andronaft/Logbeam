@@ -120,7 +120,10 @@ export function decodeJwt(input: string): DecodedJwt {
   }
   const decodePart = (part: string, name: string) => {
     try {
-      return JSON.parse(base64Decode(part)) as Record<string, unknown>;
+      const value: unknown = JSON.parse(base64Decode(part));
+      // "null" or "[1]" is JSON, but not a header or claims
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error();
+      return value as Record<string, unknown>;
     } catch {
       throw new Error(`JWT ${name} is not Base64url-encoded JSON`);
     }
@@ -185,7 +188,8 @@ export function convertTimestamp(input: string): string {
           ? ['milliseconds', value]
           : Math.abs(value) < 1e17
             ? ['microseconds', value / 1000]
-            : ['nanoseconds', value / 1e6];
+            : // past 2^53 a Number loses the last digits: divide the integer exactly
+              ['nanoseconds', /^-?\d+$/.test(trimmed) ? Number(BigInt(trimmed) / 1_000n) / 1000 : value / 1e6];
     const date = new Date(millis);
     if (Number.isNaN(date.getTime())) {
       throw new Error('Not a valid timestamp');
@@ -203,8 +207,8 @@ export function convertTimestamp(input: string): string {
 export function words(input: string): string[] {
   return input
     .trim()
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([\p{Ll}\p{Nd}])(\p{Lu})/gu, '$1 $2')
+    .replace(/(\p{Lu}+)(\p{Lu}\p{Ll})/gu, '$1 $2')
     .split(/[\s_\-.]+/)
     .filter(Boolean)
     .map((w) => w.toLowerCase());

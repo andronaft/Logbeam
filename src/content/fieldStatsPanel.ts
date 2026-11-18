@@ -1,3 +1,4 @@
+import { conditionKey, conditionValue } from '../lib/fields';
 import { fieldStats, formatDuration, numericStats } from '../lib/insights';
 import { LogLine } from '../lib/logs';
 import { t } from '../shared/i18n';
@@ -35,7 +36,7 @@ export function renderFieldStats(box: HTMLElement, lines: LogLine[], key: string
             ` ${show(n)}`,
           );
           // the entries at or above it: the slow ones
-          chip.addEventListener('click', () => filter(`${key}>=${numbers.duration ? `${n}ms` : String(n)}`));
+          chip.addEventListener('click', () => filter(`${conditionKey(key)}>=${numbers.duration ? `${n}ms` : String(n)}`));
           return chip;
         }),
       ),
@@ -59,8 +60,7 @@ export function renderFieldStats(box: HTMLElement, lines: LogLine[], key: string
         el('span', { className: 'n' }, `×${count.toLocaleString()}`),
       );
       row.addEventListener('click', () => {
-        const quoted = /[\s"]/.test(value) || value === '' ? JSON.stringify(value) : value;
-        filter(`${key}=${quoted}`);
+        filter(`${conditionKey(key)}=${conditionValue(value)}`);
       });
       return row;
     }),

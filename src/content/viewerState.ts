@@ -1,3 +1,4 @@
+import type { Mute } from '../lib/mute';
 /** The log viewer's state, options and fixed sizes, shared by its parts. */
 import { TimeMode } from '../lib/insights';
 import { Level, LogLine, ParseOptions } from '../lib/logs';
@@ -31,6 +32,8 @@ export interface State {
   timeRange: [number, number] | null;
   /** Pods or containers switched off with their chips. */
   hiddenSources: Set<string>;
+  /** Kinds of line hidden with "Hide lines like this" (x), the last one last. */
+  mutes: Mute[];
   /** Terms pinned with their own colour, independent of the search. */
   highlights: string[];
   /** Bookmarked line numbers and their notes. */

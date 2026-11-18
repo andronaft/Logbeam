@@ -1,5 +1,6 @@
 import { setCustomSecretPatterns } from '../lib/secrets';
 import { findTransform } from '../lib/transforms';
+import { t, toolKey } from '../shared/i18n';
 import { loadSettings } from '../shared/settings';
 
 /**
@@ -184,7 +185,7 @@ function show(title: string, output: string, isError: boolean, source: Source): 
   const closeButton = document.createElement('button');
   closeButton.className = 'close';
   closeButton.textContent = '×';
-  closeButton.title = 'Close (Esc)';
+  closeButton.title = t('panelClose', 'Close (Esc)');
   closeButton.addEventListener('click', close);
   header.append(brand, titleEl, closeButton);
 
@@ -195,13 +196,13 @@ function show(title: string, output: string, isError: boolean, source: Source): 
   const footer = document.createElement('footer');
   if (!isError) {
     const copy = document.createElement('button');
-    copy.textContent = 'Copy';
+    copy.textContent = t('popupCopy', 'Copy');
     copy.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(output);
-        copy.textContent = 'Copied ✓';
+        copy.textContent = t('copied', 'Copied ✓');
       } catch {
-        copy.textContent = 'Copy blocked by the page';
+        copy.textContent = t('panelCopyBlocked', 'Copy blocked by the page');
       }
     });
     footer.append(copy);
@@ -209,10 +210,10 @@ function show(title: string, output: string, isError: boolean, source: Source): 
     if (source.kind !== 'page') {
       const replace = document.createElement('button');
       replace.className = 'primary';
-      replace.textContent = 'Replace selection';
+      replace.textContent = t('panelReplace', 'Replace selection');
       replace.addEventListener('click', () => {
         if (replaceSource(source, output)) close();
-        else replace.textContent = 'Could not replace';
+        else replace.textContent = t('panelReplaceFailed', 'Could not replace');
       });
       footer.append(replace);
     }
@@ -227,17 +228,18 @@ function show(title: string, output: string, isError: boolean, source: Source): 
 async function run(id: string): Promise<void> {
   const transform = findTransform(id);
   if (!transform) return;
+  const title = t(toolKey(transform.id, 'title'), transform.title);
   const { text, source } = captureSelection();
   // the user's own secret patterns, from the settings page
   if (id === 'mask-secrets') setCustomSecretPatterns((await loadSettings()).customSecrets);
   if (!text.trim()) {
-    show(transform.title, 'Select some text first.', true, source);
+    show(title, t('panelSelectFirst', 'Select some text first.'), true, source);
     return;
   }
   try {
-    show(transform.title, transform.apply(text), false, source);
+    show(title, transform.apply(text), false, source);
   } catch (e) {
-    show(transform.title, (e as Error).message, true, source);
+    show(title, (e as Error).message, true, source);
   }
 }
 

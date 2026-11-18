@@ -134,7 +134,9 @@ async function setupShortcuts(): Promise<void> {
     const element = $(id);
     const keys = shortcut(name);
     element.textContent = keys || t('popupSetShortcut', 'set shortcut');
-    element.title = keys ? 'Click to change' : 'No shortcut assigned. Click to set one.';
+    element.title = keys
+      ? t('popupShortcutChange', 'Click to change')
+      : t('popupShortcutNone', 'No shortcut assigned. Click to set one.');
     element.addEventListener('click', openShortcuts);
   }
 }
@@ -201,7 +203,7 @@ function setupTools(): void {
         output.classList.add('error');
         actions.hidden = true;
       }
-      copy.textContent = 'Copy';
+      copy.textContent = t('popupCopy', 'Copy');
     });
     return button;
   };
@@ -221,9 +223,9 @@ function setupTools(): void {
   copy.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(output.textContent ?? '');
-      copy.textContent = 'Copied ✓';
+      copy.textContent = t('copied', 'Copied ✓');
     } catch {
-      copy.textContent = 'Copy failed';
+      copy.textContent = t('copyFailedShort', 'Copy failed');
     }
   });
   $('use-output').addEventListener('click', () => {

@@ -14,6 +14,7 @@ import {
   splitLines,
   splitSource,
 } from '../lib/logs';
+import { Mute, countKind, hideMuted, makeMute, muteKey } from '../lib/mute';
 import {
   Bookmark,
   appendedText,
@@ -232,6 +233,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     selectedTo: null,
     timeRange: null,
     hiddenSources: new Set(),
+    mutes: [],
     highlights: [],
     bookmarks: new Map(),
     timeMode: options.timeMode,
@@ -245,6 +247,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const sourceIndex = new Map(sources.map((source, i) => [source, i]));
   const fields = commonFields(allLines);
   let visible: CollapsedLine[] = [];
+  // the kind of each line, for "Hide lines like this": worked out once, when first asked for
+  const kinds: string[] = [];
+  const kindOf = (line: LogLine) => (kinds[line.number - 1] ??= muteKey(line));
   // GitHub Actions ##[group] sections: folded like in GitHub, except the ones with errors
   let groups = findGroups(allLines);
   let groupByStart = new Map(groups.map((g) => [g.start, g]));
@@ -521,6 +526,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const rangeChip = el('button', { className: 'toggle on range', title: t('viewerRangeTitle', 'Show all times again') });
   const highlightChips = el('span', { className: 'group' });
   const sourceChips = el('span', { className: 'group sources' });
+  const muteChips = el('span', { className: 'group mutes' });
   const sourceButtons = chipSources.map((source, i) => {
     const button = el(
       'button',
@@ -547,7 +553,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     spellcheck: false,
   });
   const columnsLabel = el('label', { className: 'columns-label' }, `${t('viewerColumns', 'Columns')} `, columnsInput);
-  const subbar = el('div', { className: 'subbar' }, rangeChip, groupChip, columnsLabel, highlightChips, sourceChips);
+  const subbar = el('div', { className: 'subbar' }, rangeChip, groupChip, columnsLabel, highlightChips, muteChips, sourceChips);
 
   // controls in groups that wrap as a whole: levels, search, how lines are shown, finding things, actions
   const tgroup = (name: string, ...children: Child[]) => el('span', { className: `tgroup ${name}` }, ...children);
@@ -687,6 +693,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       timeRange: state.timeRange,
       pods: listShown ? shownPods : null,
       hiddenPods: listShown ? null : hiddenPods,
+      mutes: state.mutes.length > 0 ? state.mutes.map((mute) => mute.line) : null,
     };
   }
 
@@ -767,6 +774,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     if (line.gap !== null) facts.push(` · ${t('viewerGapAfter', '{gap} after previous entry', { gap: formatGap(line.gap) })}`);
     if (line.secret) facts.push(' · ', el('b', { className: 'secret-note' }, `🔑 ${t('viewerHasSecret', 'contains a secret')}`));
 
+    const hideLike = el(
+      'button',
+      { className: 'toggle', title: t('viewerMuteTitle', 'Hide every line like this one, e.g. health checks ( x )') },
+      `⊘ ${t('viewerMute', 'Hide lines like this')}`,
+    );
+    hideLike.addEventListener('click', () => muteLike(line.number));
     const copyLine = el('button', { className: 'toggle' }, t('viewerCopyLine', 'Copy line'));
     copyLine.addEventListener('click', () => void copy(displayText(line), t('viewerLineCopied', 'Line copied')));
     const copyLink = el('button', { className: 'toggle' }, t('viewerCopyLink', 'Copy link'));
@@ -789,6 +802,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         { className: 'inspector-head' },
         el('span', { className: 'facts' }, ...facts),
         bookmark,
+        hideLike,
         copyLine,
         copyLink,
         close,
@@ -1189,6 +1203,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     try {
       const side = await chrome.runtime.sendMessage({ type: COMPARE_ADD, text: options.text, name: options.title });
       if (side === 'left') showToast(t('viewerAddedAsBefore', 'Added as “Before”. Open the other log and press Compare there.'));
+      // the background couldn't keep it: storage for Compare holds about 10 MB
+      else if (side !== 'right') showToast(t('viewerCompareTooBig', 'This log is too big to compare (over about 10 MB)'));
     } catch {
       showToast(t('viewerCompareUnavailable', 'Compare isn’t available here'));
     }
@@ -1280,6 +1296,10 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         jumpToNext((l) => l.level === 'ERROR' && !l.continuation);
       } else if (event.key === 'w') {
         jumpToNext((l) => l.level === 'WARN' && !l.continuation);
+      } else if (event.key === 'x' && state.selected !== null) {
+        muteLike(state.selected);
+      } else if (event.key === 'X' && state.mutes.length > 0) {
+        unmute(state.mutes[state.mutes.length - 1]);
       } else if (event.key === 's' && secretCount > 0) {
         jumpToNext((l) => l.secret);
       } else if (event.key === 'm' && state.selected !== null) {
@@ -1364,6 +1384,39 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   let fieldMode = false;
   const clock = (t: number) => formatTime(t, state.timeMode).slice(11, 19);
 
+  /**
+   * The first line of the entry a line is in. In a log with timestamps that is the last line
+   * with a time; its stack trace and the lines it printed come after it.
+   */
+  function entryHead(number: number): LogLine {
+    for (let i = number - 1; i >= 0; i--) if (allLines[i].time !== null) return allLines[i];
+    let i = number - 1;
+    while (i > 0 && allLines[i].continuation) i--;
+    return allLines[i];
+  }
+
+  /** Hide lines like this (x): every entry of the kind of the given line's entry. */
+  function muteLike(number: number): void {
+    const mute = makeMute(entryHead(number));
+    if (state.mutes.some((m) => m.key === mute.key)) return;
+    state.mutes.push(mute);
+    const count = countKind(allLines, mute.key, kindOf);
+    showToast(
+      tn(
+        'viewerMuted',
+        count,
+        '{n} entry like this hidden · X shows it again',
+        '{n} entries like this hidden · X shows them again',
+      ),
+    );
+    void refresh({ keepInspector: true });
+  }
+
+  function unmute(mute: Mute): void {
+    state.mutes = state.mutes.filter((m) => m !== mute);
+    void refresh({ keepInspector: true }).then(showSelection);
+  }
+
   function renderSubbar(): void {
     const range = state.timeRange;
     rangeChip.hidden = range === null;
@@ -1388,8 +1441,28 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         return chip;
       }),
     );
+    muteChips.replaceChildren(
+      ...state.mutes.map((mute) => {
+        const count = countKind(allLines, mute.key, kindOf);
+        const chip = el(
+          'button',
+          {
+            className: `toggle mute-chip${mute.level === 'ERROR' ? ' error' : ''}`,
+            title: t('viewerUnmuteTitle', 'Show these lines again'),
+          },
+          `⊘ ${mute.label} (${count.toLocaleString()}) ×`,
+        );
+        chip.addEventListener('click', () => unmute(mute));
+        return chip;
+      }),
+    );
     subbar.hidden =
-      range === null && state.group === null && state.table === null && state.highlights.length === 0 && sourceButtons.length < 2;
+      range === null &&
+      state.group === null &&
+      state.table === null &&
+      state.highlights.length === 0 &&
+      state.mutes.length === 0 &&
+      sourceButtons.length < 2;
     sourceChips.hidden = sourceButtons.length < 2;
     markDrag();
   }
@@ -1426,6 +1499,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const range = state.timeRange;
     if (range) base = base.filter((l) => times[l.number - 1] >= range[0] && times[l.number - 1] < range[1]);
     if (state.hiddenSources.size > 0) base = base.filter((l) => l.source === null || !state.hiddenSources.has(l.source));
+    const muted = hideMuted(base, new Set(state.mutes.map((mute) => mute.key)), kindOf);
+    base = muted.lines;
     if (state.group) {
       // the group's error lines and their stack traces
       const heads = state.group.lines;
@@ -1460,7 +1535,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       t('viewerStatus', '{shown} / {total} lines', {
         shown: matchCount.toLocaleString(),
         total: allLines.length.toLocaleString(),
-      }) + conditionNote;
+      }) +
+        conditionNote +
+        (muted.hidden > 0 ? ` · ${tn('viewerHiddenNote', muted.hidden, '{n} line hidden', '{n} lines hidden')}` : '');
     syncAddress();
     renderSubbar();
     if (!how.keepInspector || inspector.hidden || !visible.some((l) => l.number === state.selected)) renderInspector();
@@ -1563,6 +1640,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         if (hidden) state.hiddenSources.add(source);
         setPressed(button, !hidden);
       });
+    }
+    for (const number of link.mutes ?? []) {
+      if (number > allLines.length) continue;
+      const mute = makeMute(entryHead(number));
+      if (!state.mutes.some((m) => m.key === mute.key)) state.mutes.push(mute);
     }
     if (link.line !== null && link.line <= allLines.length) {
       state.selected = link.line;

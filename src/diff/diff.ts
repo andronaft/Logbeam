@@ -9,6 +9,7 @@ import {
   parseJsonDocument,
   previewJson,
 } from '../lib/diff';
+import { displayName, readLogFile } from '../lib/files';
 import { ErrorGroup, diffErrors } from '../lib/insights';
 import { CustomLevel, parseLog, splitLines } from '../lib/logs';
 import { maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
@@ -319,9 +320,10 @@ async function loadInputs(): Promise<void> {
 }
 
 function readFile(file: File, target: HTMLTextAreaElement, side: 'leftName' | 'rightName'): void {
-  void file.text().then((text) => {
+  // .gz too, like the viewer
+  void readLogFile(file).then((text) => {
     target.value = text;
-    names[side] = file.name;
+    names[side] = displayName(file.name);
     scheduleCompare();
   });
 }

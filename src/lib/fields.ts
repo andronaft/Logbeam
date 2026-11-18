@@ -11,10 +11,24 @@ export interface FieldCondition {
   key: string;
   op: FieldOp;
   value: string;
+  /** The value was "quoted": a * in it is a star, not a wildcard. */
+  exact?: boolean;
 }
 
-// key: letters, digits, _ . - @ ; value: "quoted" or anything up to the next space
-const CONDITION = /^([A-Za-z_@][\w.@-]*)(!=|>=|<=|=|>|<)("(?:[^"\\]|\\.)*"|\S+)$/;
+const QUOTED = '"(?:[^"\\\\]|\\\\.)*"';
+const PLAIN_KEY = /^[A-Za-z_@][\w.@-]*$/;
+// key: letters, digits, _ . - @, or "quoted" ("k8s/app"); value: "quoted" or anything up to the next space
+const CONDITION = new RegExp(`^(${QUOTED}|[A-Za-z_@][\\w.@-]*)(!=|>=|<=|=|>|<)(${QUOTED}|\\S+)$`);
+
+/** A key as a condition writes it: as it is, or "quoted" when it has other characters (k8s/app, user:id). */
+export function conditionKey(key: string): string {
+  return PLAIN_KEY.test(key) ? key : JSON.stringify(key);
+}
+
+/** A value as a condition writes it to match just that value: quoted when it has a space, a quote or a *. */
+export function conditionValue(value: string): string {
+  return /[\s"*]/.test(value) || value === '' ? JSON.stringify(value) : value;
+}
 
 /**
  * Reads a search box query as field conditions. Returns null unless every word is a condition, so
@@ -29,7 +43,8 @@ export function parseFieldQuery(query: string): FieldCondition[] | null {
     const match = CONDITION.exec(word);
     if (!match) return null;
     const [, key, op, raw] = match;
-    conditions.push({ key, op: op as FieldOp, value: unquote(raw) });
+    const exact = raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"');
+    conditions.push({ key: unquote(key), op: op as FieldOp, value: unquote(raw), ...(exact && { exact: true }) });
   }
   return conditions;
 }
@@ -103,14 +118,14 @@ const LEVEL_NAMES: Record<string, string> = {
   dbg: 'debug',
 };
 
-function sameText(actual: string, expected: string, key: string): boolean {
+function sameText(actual: string, expected: string, key: string, exact = false): boolean {
   let a = actual.toLowerCase();
   let e = expected.toLowerCase();
   if (key === 'level') {
     a = LEVEL_NAMES[a] ?? a;
     e = LEVEL_NAMES[e] ?? e;
   }
-  if (e.includes('*')) {
+  if (!exact && e.includes('*')) {
     // glob: service=pay* or path=*/orders/*
     const pattern = e.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
     return new RegExp(`^${pattern}$`).test(a);
@@ -119,9 +134,9 @@ function sameText(actual: string, expected: string, key: string): boolean {
 }
 
 function matchesCondition(actual: string | undefined, condition: FieldCondition): boolean {
-  const { op, value, key } = condition;
+  const { op, value, key, exact } = condition;
   if (op === '=' || op === '!=') {
-    const equal = actual !== undefined && (sameNumber(actual, value) || sameText(actual, value, key));
+    const equal = actual !== undefined && (sameNumber(actual, value) || sameText(actual, value, key, exact));
     return op === '=' ? equal : !equal;
   }
   if (actual === undefined) return false;
