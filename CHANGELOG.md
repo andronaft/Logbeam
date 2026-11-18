@@ -50,6 +50,19 @@
 
 ### Fixed
 
+- **Bookmarks and notes on a web page survive a reload** again (while the browser is open). They were lost,
+  because a content script may not use the extension's session storage; the background page keeps them now.
+- **Follow no longer steals the focus** from a bookmark note every 3 seconds (the rest of what you typed became
+  shortcuts: `e`, `m`…), and field statistics in the inspector stay open while new lines come in.
+- **Follow works on logs with Windows line ends** (CRLF) instead of saying at once that the log was replaced.
+- A time range dragged up to the last bar of the timeline dropped the last entry, often the "exited with code 1".
+- Opening a log without timestamps no longer turns the Timeline off for the next logs.
+- A regex search on a page whose CSP blocks workers no longer ends in "took over 2s": it searches on the page.
+  Typing a regex quickly over a big log no longer times out valid searches waiting behind each other.
+- A file dropped onto a viewer on a web page: Follow, Link and the address belong to the page, so they are off.
+- Settings no longer undo the time zone or the view you chose in the viewer while the Settings page was open.
+- The viewer page opened every later dropped file twice, and an old log's search worker stayed in memory after
+  another log was opened.
 - **A JSON log with nanosecond or microsecond times** (`"ts": 1727604000123456789`, Go and OpenTelemetry) no longer
   fails to open, and microseconds no longer show as the year 56715.
 - **`level=error` finds the errors of pino and bunyan logs**, whose level is a number (`"level": 50`).

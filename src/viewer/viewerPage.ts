@@ -25,8 +25,11 @@ async function start(): Promise<void> {
   const file = $<HTMLInputElement>('file');
   const paste = $<HTMLTextAreaElement>('paste');
   const open = $<HTMLButtonElement>('open');
+  // once a log is open, the viewer handles drops itself
+  const startPage = new AbortController();
   const openChosen = (list: FileList | null | undefined) => {
     const chosen = [...(list ?? [])];
+    if (chosen.length) startPage.abort();
     if (chosen.length)
       void openFiles(chosen).catch((error) =>
         alert(
@@ -45,13 +48,20 @@ async function start(): Promise<void> {
   });
   drop.addEventListener('dragleave', () => drop.classList.remove('dragging'));
   // a file dropped next to the drop area must not make the browser navigate to it
-  document.addEventListener('dragover', (event) => event.preventDefault());
-  document.addEventListener('drop', (event) => {
-    event.preventDefault();
-    openChosen(event.dataTransfer?.files);
-  });
+  document.addEventListener('dragover', (event) => event.preventDefault(), { signal: startPage.signal });
+  document.addEventListener(
+    'drop',
+    (event) => {
+      event.preventDefault();
+      openChosen(event.dataTransfer?.files);
+    },
+    { signal: startPage.signal },
+  );
   paste.addEventListener('input', () => (open.disabled = !paste.value.trim()));
-  open.addEventListener('click', () => void openViewer(paste.value, t('viewerPastedLog', 'Pasted log')));
+  open.addEventListener('click', () => {
+    startPage.abort();
+    void openViewer(paste.value, t('viewerPastedLog', 'Pasted log'));
+  });
   paste.focus();
 }
 

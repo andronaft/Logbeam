@@ -30,7 +30,9 @@ let saveTimer: ReturnType<typeof setTimeout> | undefined;
 function save(): void {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
-    await saveSettings(settings);
+    // the viewer saves the time mode and how it was left: keep what it saved since this page opened
+    const { timeMode, view } = await loadSettings();
+    await saveSettings({ ...settings, timeMode, view });
     saved.textContent = t('optionsSaved', 'Saved ✓');
     setTimeout(() => (saved.textContent = ''), 1500);
   }, 300);

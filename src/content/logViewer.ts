@@ -33,6 +33,7 @@ import {
 } from '../lib/insights';
 import { findSecrets, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
 import { ViewPrefs, loadSettings, saveSettings } from '../shared/settings';
+import { BOOKMARKS_PREFIX, loadBookmarks as loadPageBookmarks, saveBookmarks as savePageBookmarks } from '../shared/bookmarks';
 import { applyTheme } from '../shared/theme';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
@@ -106,7 +107,7 @@ export async function openViewer(text: string = readPageText(), name?: string): 
 /** Text to show, read while the loading screen is up; notice is said once the log is open. */
 type LoadLog = (label: HTMLElement, bar: HTMLElement) => Promise<{ text: string; notice: string }>;
 
-async function showViewer(load: LoadLog, name?: string): Promise<void> {
+async function showViewer(load: LoadLog, name?: string, fromFile = false): Promise<void> {
   previousViewer?.abort();
   const viewer = new AbortController();
   previousViewer = viewer;
@@ -161,6 +162,7 @@ async function showViewer(load: LoadLog, name?: string): Promise<void> {
     parseOptions,
     signal: viewer.signal,
     notice,
+    fromFile,
   });
 }
 
@@ -175,29 +177,35 @@ export async function openFiles(files: File[]): Promise<void> {
   const names = files.map((file) => displayName(file.name));
   if (files.length === 1) {
     const text = await readLogFile(files[0]);
-    await showViewer(async () => ({ text, notice: '' }), names[0]);
+    await showViewer(async () => ({ text, notice: '' }), names[0], true);
     return;
   }
   const texts = await Promise.all(files.map(readLogFile));
-  await showViewer(async (label, bar) => {
-    const inputs: MergeInput[] = [];
-    for (const [i, text] of texts.entries()) {
-      label.textContent = t('viewerMerging', 'Merging by time: {name}', { name: names[i] });
-      bar.style.width = `${Math.round((i / texts.length) * 100)}%`;
-      // only when each entry starts matters here; the merged log is parsed again as a whole
-      const parsed = await parseLogAsync(text, () => {});
-      inputs.push({
-        name: names[i],
-        lines: splitLines(text),
-        times: parsed.map((line) => (line.continuation ? null : line.time)),
-      });
-    }
-    const merged = mergeByTime(inputs);
-    const notice = merged.untimed.length
-      ? t('viewerMergedUntimed', 'No timestamps in {names}, so those lines are at the end', { names: merged.untimed.join(', ') })
-      : tn('viewerMerged', files.length, '{n} file merged by time', '{n} files merged by time');
-    return { text: merged.text, notice };
-  }, names.join(' + '));
+  await showViewer(
+    async (label, bar) => {
+      const inputs: MergeInput[] = [];
+      for (const [i, text] of texts.entries()) {
+        label.textContent = t('viewerMerging', 'Merging by time: {name}', { name: names[i] });
+        bar.style.width = `${Math.round((i / texts.length) * 100)}%`;
+        // only when each entry starts matters here; the merged log is parsed again as a whole
+        const parsed = await parseLogAsync(text, () => {});
+        inputs.push({
+          name: names[i],
+          lines: splitLines(text),
+          times: parsed.map((line) => (line.continuation ? null : line.time)),
+        });
+      }
+      const merged = mergeByTime(inputs);
+      const notice = merged.untimed.length
+        ? t('viewerMergedUntimed', 'No timestamps in {names}, so those lines are at the end', {
+            names: merged.untimed.join(', '),
+          })
+        : tn('viewerMerged', files.length, '{n} file merged by time', '{n} files merged by time');
+      return { text: merged.text, notice };
+    },
+    names.join(' + '),
+    true,
+  );
 }
 
 function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOptions): void {
@@ -285,7 +293,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const view: ViewPrefs = {
       collapse: state.collapse,
       showGaps: state.showGaps,
-      showTimeline: state.showTimeline,
+      // a log without times has no timeline to show or hide: keep what was saved
+      showTimeline: timeline === null ? options.view.showTimeline : state.showTimeline,
       maskSecrets: state.maskSecrets,
       context: state.context,
     };
@@ -413,7 +422,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   );
   linkButton.setAttribute('aria-label', linkButton.title);
   // pasted text and files have no address to share
-  linkButton.hidden = ON_EXTENSION_PAGE;
+  // a file opened or dropped onto a web page isn't that page's log: its address can't open it
+  const ownPage = !ON_EXTENSION_PAGE && !options.fromFile;
+  linkButton.hidden = !ownPage;
   const compareButton = el(
     'button',
     {
@@ -503,7 +514,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     t('viewerFollow', 'Follow'),
   );
   // only a log served over http(s) can be read again
-  followToggle.hidden = ON_EXTENSION_PAGE || !/^https?:$/.test(location.protocol);
+  followToggle.hidden = !ownPage || !/^https?:$/.test(location.protocol);
 
   // second row: what narrows the view besides levels and search
   const rangeChip = el('button', { className: 'toggle on range', title: t('viewerRangeTitle', 'Show all times again') });
@@ -579,7 +590,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       if (index >= 0) scrollToIndex(index, true);
     },
     pickRange: (from, to) => {
-      state.timeRange = [from, to];
+      // a range up to the last bar keeps the last entry too (the range's end is not included)
+      const end = timeline && to >= timeline.buckets[timeline.buckets.length - 1].to ? to + 1 : to;
+      state.timeRange = [from, end];
       void refresh();
     },
   });
@@ -667,6 +680,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
    * is something to write instead.
    */
   function syncAddress(): void {
+    if (options.fromFile && !ON_EXTENSION_PAGE) return;
     const hash = formatViewLink(currentView());
     if (hash === location.hash) return;
     if (!hash && parseViewLink(location.hash) === null) return;
@@ -851,19 +865,20 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   }
 
   // bookmarks are kept for this page while the browser is open (in memory, not on disk)
-  const bookmarksKey = `bookmarks:${location.href.split('#')[0]}`;
+  const bookmarksKey = `${BOOKMARKS_PREFIX}${location.href.split('#')[0]}`;
   function saveBookmarks(): void {
+    if (!ownPage) return;
     try {
-      void chrome.storage.session.set({ [bookmarksKey]: [...state.bookmarks] }).catch(() => undefined);
+      void savePageBookmarks(bookmarksKey, [...state.bookmarks]).catch(() => undefined);
     } catch {
       // the viewer injected into a page without extension APIs (tests)
     }
   }
   async function loadBookmarks(): Promise<void> {
+    if (!ownPage) return;
     try {
-      const data = await chrome.storage.session.get(bookmarksKey);
-      const saved = data[bookmarksKey] as [number, string][] | undefined;
-      if (saved?.length && !ON_EXTENSION_PAGE) {
+      const saved = await loadPageBookmarks(bookmarksKey);
+      if (saved.length) {
         state.bookmarks = new Map(saved.filter(([line]) => line <= allLines.length));
         updateBookmarkButtons();
         render();
@@ -1006,7 +1021,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const bookmarks: Bookmark[] = [...state.bookmarks].map(([line, note]) => ({ line, note }));
     const report = bookmarkReport(bookmarks, allLines, {
       title: options.title,
-      url: ON_EXTENSION_PAGE ? '' : location.href.split('#')[0],
+      url: ownPage ? location.href.split('#')[0] : '',
       timeMode: state.timeMode,
       mask: state.maskSecrets ? maskSecrets : undefined,
     });
@@ -1074,7 +1089,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     let text: string;
     try {
       const response = await fetch(location.href.split('#')[0], { cache: 'no-store', credentials: 'include' });
-      text = await response.text();
+      // the page's <pre> has LF line ends (the HTML parser turns CRLF into LF), the file may have CRLF
+      text = (await response.text()).replace(/\r\n?/g, '\n');
     } catch (error) {
       showToast(t('viewerFollowFailed', 'Follow: couldn’t read the page again ({error})', { error: (error as Error).message }));
       return;
@@ -1114,7 +1130,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     timelineToggle.hidden = timeline === null;
     drawTimeline();
     if (!groupsPanel.hidden) renderGroups();
-    await refresh();
+    // keep the inspector as it is: a note being typed keeps its focus, field statistics stay open
+    await refresh({ keepInspector: true });
     if (atBottom) scroller.scrollTop = scroller.scrollHeight;
     showToast(tn('viewerNewLines', added.length, '{n} new line', '{n} new lines'));
   }
@@ -1230,7 +1247,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       } else if (event.key === 'K') {
         event.preventDefault();
         extendSelection(-1);
-      } else if (event.key === 'y' && !ON_EXTENSION_PAGE) {
+      } else if (event.key === 'y' && ownPage) {
         copyViewLink();
       } else if (event.key === 'g') {
         event.preventDefault();
@@ -1341,13 +1358,15 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   }
 
   let regexSearch = new RegexSearch(allLines.map((l) => l.text));
+  // another log was opened: let the old search worker and its copy of the lines go
+  signal.addEventListener('abort', () => regexSearch.dispose());
   let refreshId = 0;
 
   /**
    * Plain-text search is linear and runs here. Regex search runs in a worker with a time limit,
    * so a pattern like (a+)+$ can't freeze the tab; results of outdated searches are dropped.
    */
-  async function refresh(): Promise<void> {
+  async function refresh(how: { keepInspector?: boolean } = {}): Promise<void> {
     const id = ++refreshId;
     let error = '';
     let mask: Uint8Array | null = null;
@@ -1357,7 +1376,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     if (state.query && state.regex) {
       status.textContent = t('viewerSearching', 'Searching…');
       const result = await regexSearch.search(state.query, state.caseSensitive);
-      if (id !== refreshId) return;
+      if (id !== refreshId || 'superseded' in result) return;
       if ('error' in result) error = result.error;
       else mask = result.mask;
     }
@@ -1407,7 +1426,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       }) + conditionNote;
     syncAddress();
     renderSubbar();
-    renderInspector();
+    if (!how.keepInspector || inspector.hidden || !visible.some((l) => l.number === state.selected)) renderInspector();
     render();
   }
 
