@@ -980,5 +980,35 @@
   },
   "viewerMinimapTitle": {
     "message": "Помилки, попередження й закладки серед показаних рядків: клацніть, щоб перейти"
+  },
+  "copied": {
+    "message": "Скопійовано ✓"
+  },
+  "copyFailedShort": {
+    "message": "Не вдалося скопіювати"
+  },
+  "panelCopyBlocked": {
+    "message": "Сторінка не дає копіювати"
+  },
+  "panelReplace": {
+    "message": "Замінити виділене"
+  },
+  "panelReplaceFailed": {
+    "message": "Не вдалося замінити"
+  },
+  "panelSelectFirst": {
+    "message": "Спершу виділіть текст."
+  },
+  "panelClose": {
+    "message": "Закрити (Esc)"
+  },
+  "popupShortcutChange": {
+    "message": "Натисніть, щоб змінити"
+  },
+  "popupShortcutNone": {
+    "message": "Клавіші не призначено. Натисніть, щоб призначити."
+  },
+  "viewerCompareTooBig": {
+    "message": "Цей лог завеликий для порівняння (понад ~10 МБ)"
   }
 }
