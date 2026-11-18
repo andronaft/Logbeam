@@ -220,6 +220,15 @@ await page.locator('.toggle', { hasText: '.*' }).click();
 await page.locator('.chip.lvl-INFO').click();
 await page.locator('.chip.lvl-DEBUG').click();
 await page.locator('.toggle', { hasText: 'Collapse' }).click();
+
+// no blank page when nothing matches: why, and the way back
+await page.locator('.search').fill('zzzz');
+await page.waitForTimeout(300);
+check('an empty result says why', (await page.locator('.empty-state').textContent()).includes('No lines match “zzzz”'));
+await page.locator('.empty-state .toggle', { hasText: 'Clear the search' }).click();
+await page.waitForTimeout(300);
+check('Clear the search brings the lines back', (await status()) === '65 / 65 lines', await status());
+await page.locator('.scroller').focus();
 await page.waitForTimeout(300);
 
 await page.keyboard.press('e');
@@ -380,6 +389,11 @@ await prefs.goto(`chrome-extension://${extensionId}/viewer.html`);
 const twoLines = '2026-10-04 10:00:00 INFO first password=hunter2hunter2\n2026-10-04 10:00:01 ERROR second\n';
 await prefs.locator('#file').setInputFiles({ name: 'one.log', mimeType: 'text/plain', buffer: Buffer.from(twoLines) });
 await prefs.waitForSelector('.row');
+check(
+  'the first logs show tips made from the log',
+  (await prefs.locator('.hint').isVisible()) && (await prefs.locator('.hint').textContent()).includes('next error'),
+);
+await prefs.locator('.hint-close').click();
 const maskButton = prefs.locator('.toggle', { hasText: 'Mask' });
 check('toggles say whether they are on', (await maskButton.getAttribute('aria-pressed')) === 'false');
 check(
@@ -397,6 +411,7 @@ await prefs.evaluate((text) => {
 }, twoLines);
 await prefs.waitForFunction(() => document.title.startsWith('two.log'));
 await prefs.waitForSelector('.row');
+check('closed tips stay closed', await prefs.locator('.hint').isHidden());
 check(
   'Mask and Context are kept for the next log',
   (await prefs.locator('.toggle', { hasText: 'Mask' }).getAttribute('aria-pressed')) === 'true' &&

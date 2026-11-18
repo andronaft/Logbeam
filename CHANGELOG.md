@@ -4,6 +4,12 @@
 
 ### Added
 
+- **Help for the first logs.** The first three logs someone opens show one line of tips made from that log: `e` for
+  the next error when there are errors, a field condition it really has (`status>=500`, click to try it), click a
+  line, drag the timeline, `?` for all keys. × hides them for good. The search box suggests the same condition
+  instead of `time=…`.
+- **No more blank page** when the filters leave nothing: the viewer says why ("No lines match “zzzz”") with
+  buttons to clear the search, show all levels or all times again.
 - **A minimap next to the scrollbar** marks every error, warning and bookmark in the shown lines, so in a long
   log you see at a glance where the trouble is. Click or drag on it to go there; a box shows the part on screen.
 - **`w` jumps to the next warning**, like `e` does to the next error.
@@ -59,6 +65,8 @@
 
 ### Fixed
 
+- `e`, `w`, `s` and `b` say what is missing instead of "Nothing found": no errors in this log at all, or errors that
+  the filters hide. A timeline bar says "1 entry", not "1 entries", and how to drag a range.
 - **Bookmarks and notes on a web page survive a reload** again (while the browser is open). They were lost,
   because a content script may not use the extension's session storage; the background page keeps them now.
 - **Follow no longer steals the focus** from a bookmark note every 3 seconds (the rest of what you typed became
