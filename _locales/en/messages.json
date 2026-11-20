@@ -885,6 +885,9 @@
   "viewerMerged_other": {
     "message": "{n} files merged by time"
   },
+  "keyNextPrevMatch": {
+    "message": "Next / previous search match"
+  },
   "keyNextWarning": {
     "message": "Next warning"
   },
@@ -968,6 +971,9 @@
   },
   "viewerErrorsHidden": {
     "message": "The errors are hidden by the filters"
+  },
+  "viewerNoMatches": {
+    "message": "No lines match the search"
   },
   "viewerNoWarnings": {
     "message": "No warnings in this log."

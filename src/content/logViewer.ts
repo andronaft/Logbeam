@@ -39,7 +39,7 @@ import { BOOKMARKS_PREFIX, loadBookmarks as loadPageBookmarks, saveBookmarks as 
 import { applyTheme } from '../shared/theme';
 import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
-import { keepInView, targetLineIndex } from '../lib/navigation';
+import { findJump, keepInView, targetLineIndex } from '../lib/navigation';
 import { LINK_LEVELS, ViewLink, formatViewLink, parseViewLink } from '../lib/viewLink';
 import { parseLogAsync } from './parseAsync';
 import { COMPARE_ADD } from '../shared/compare';
@@ -1331,6 +1331,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         selectLineAtIndex(visible.length - 1);
       } else if (event.key === 'e') {
         jumpToNext((l) => l.level === 'ERROR' && !l.continuation, 'error');
+      } else if (event.key === 'n' || event.key === 'N') {
+        jumpToMatch(event.key === 'n' ? 1 : -1);
       } else if (event.key === 'w') {
         jumpToNext((l) => l.level === 'WARN' && !l.continuation, 'warning');
       } else if (event.key === 'x' && state.selected !== null) {
@@ -1407,8 +1409,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     else render();
   }
 
-  /** What e, w, s and b look for, to say why there is nothing to jump to. */
-  type JumpKind = 'error' | 'warning' | 'secret' | 'bookmark';
+  /** What e, w, s, b and n look for, to say why there is nothing to jump to. */
+  type JumpKind = 'error' | 'warning' | 'secret' | 'bookmark' | 'match';
   const NOTHING: Record<JumpKind, [none: string, hidden: string]> = {
     error: [t('viewerNoErrors', 'No errors in this log.'), t('viewerErrorsHidden', 'The errors are hidden by the filters')],
     warning: [
@@ -1423,17 +1425,26 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       t('viewerNoBookmarks', 'No bookmarks yet: select a line and press m'),
       t('viewerBookmarksHidden', 'The bookmarked lines are hidden by the filters'),
     ],
+    match: [t('viewerNoMatches', 'No lines match the search'), t('viewerNoMatches', 'No lines match the search')],
   };
 
-  function jumpToNext(predicate: (line: LogLine) => boolean, kind: JumpKind): void {
+  /**
+   * Selects the next (or with direction -1 the previous) shown line that passes the predicate,
+   * after the selected line or the top of the view, wrapping around at the ends.
+   */
+  function jumpToNext(predicate: (line: LogLine) => boolean, kind: JumpKind, direction: 1 | -1 = 1): void {
+    const top = Math.floor(scroller.scrollTop / ROW_HEIGHT);
     const current =
-      state.selected !== null
-        ? visible.findIndex((l) => l.number === state.selected)
-        : Math.floor(scroller.scrollTop / ROW_HEIGHT) - 1;
-    let target = visible.findIndex((l, i) => i > current && predicate(l));
-    if (target < 0) target = visible.findIndex(predicate); // wrap around
+      state.selected !== null ? visible.findIndex((l) => l.number === state.selected) : direction > 0 ? top - 1 : top;
+    const target = findJump(visible, current, predicate, direction);
     if (target >= 0) scrollToIndex(target, true);
-    else showToast(NOTHING[kind][allLines.some(predicate) ? 1 : 0]);
+    else showToast(NOTHING[kind][kind !== 'match' && allLines.some(predicate) ? 1 : 0]);
+  }
+
+  /** n / N: the next or previous search match, skipping the context lines around the matches. */
+  function jumpToMatch(direction: 1 | -1): void {
+    if (!state.query || state.searchError) return;
+    jumpToNext((l) => !l.isContext, 'match', direction);
   }
 
   /**

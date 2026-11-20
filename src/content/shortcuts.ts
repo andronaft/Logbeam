@@ -9,6 +9,7 @@ const SHORTCUTS: { keys: string[]; message: string; text: string }[] = [
   { keys: ['Shift+click'], message: 'keySelectRange', text: 'Select the lines from the selected one to the clicked one' },
   { keys: ['J', 'K'], message: 'keyExtendSelection', text: 'Add the next line to the selection / take it back' },
   { keys: ['y'], message: 'keyCopyViewLink', text: 'Copy a link to this view, with its filters and selected lines' },
+  { keys: ['n', 'N'], message: 'keyNextPrevMatch', text: 'Next / previous search match' },
   { keys: ['e'], message: 'keyNextError', text: 'Next error' },
   { keys: ['w'], message: 'keyNextWarning', text: 'Next warning' },
   { keys: ['x', 'X'], message: 'keyMute', text: 'Hide lines like the selected one / show the last hidden kind again' },
