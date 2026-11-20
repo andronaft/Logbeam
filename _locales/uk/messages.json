@@ -975,6 +975,9 @@
   "viewerMerged_other": {
     "message": "{n} файлу зведено за часом"
   },
+  "keyNextPrevMatch": {
+    "message": "Наступний / попередній збіг пошуку"
+  },
   "keyNextWarning": {
     "message": "Наступне попередження"
   },
@@ -1076,6 +1079,9 @@
   },
   "viewerErrorsHidden": {
     "message": "Помилки приховані фільтрами"
+  },
+  "viewerNoMatches": {
+    "message": "Жоден рядок не відповідає пошуку"
   },
   "viewerNoWarnings": {
     "message": "У цьому лозі немає попереджень."

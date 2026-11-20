@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { keepInView, targetLineIndex } from '../src/lib/navigation';
+import { findJump, keepInView, targetLineIndex } from '../src/lib/navigation';
 
 describe('keepInView', () => {
   const ROW_HEIGHT = 20;
@@ -62,5 +62,45 @@ describe('targetLineIndex', () => {
   it('selects line before top visible on backward navigation when nothing is selected', () => {
     expect(targetLineIndex(-1, -1, 50, 0)).toBe(0);
     expect(targetLineIndex(-1, -1, 50, 25)).toBe(24);
+  });
+});
+
+describe('findJump', () => {
+  // m = a search match, c = a context line around it
+  const rows = ['c', 'm', 'c', 'c', 'm', 'c'];
+  const isMatch = (row: string) => row === 'm';
+
+  it('finds the next match after the current one', () => {
+    expect(findJump(rows, 1, isMatch, 1)).toBe(4);
+    expect(findJump(rows, 2, isMatch, 1)).toBe(4);
+  });
+
+  it('finds the previous match before the current one', () => {
+    expect(findJump(rows, 4, isMatch, -1)).toBe(1);
+    expect(findJump(rows, 3, isMatch, -1)).toBe(1);
+  });
+
+  it('wraps around at the ends', () => {
+    expect(findJump(rows, 4, isMatch, 1)).toBe(1);
+    expect(findJump(rows, 5, isMatch, 1)).toBe(1);
+    expect(findJump(rows, 1, isMatch, -1)).toBe(4);
+    expect(findJump(rows, 0, isMatch, -1)).toBe(4);
+  });
+
+  it('starts at the first or last item from outside the list', () => {
+    expect(findJump(rows, -1, isMatch, 1)).toBe(1);
+    expect(findJump(rows, -1, isMatch, -1)).toBe(4);
+    expect(findJump(rows, rows.length, isMatch, 1)).toBe(1);
+    expect(findJump(rows, rows.length, isMatch, -1)).toBe(4);
+  });
+
+  it('comes back to the only match', () => {
+    expect(findJump(['c', 'm', 'c'], 1, isMatch, 1)).toBe(1);
+    expect(findJump(['c', 'm', 'c'], 1, isMatch, -1)).toBe(1);
+  });
+
+  it('returns -1 when nothing matches or the list is empty', () => {
+    expect(findJump(['c', 'c'], 0, isMatch, 1)).toBe(-1);
+    expect(findJump([], -1, isMatch, 1)).toBe(-1);
   });
 });

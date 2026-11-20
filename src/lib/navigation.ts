@@ -28,3 +28,21 @@ export function targetLineIndex(currentIndex: number, delta: number, totalLines:
   }
   return Math.max(0, Math.min(totalLines - 1, currentIndex + delta));
 }
+
+/**
+ * The index of the next (direction +1) or previous (-1) item after `current` that passes `predicate`,
+ * wrapping around at the ends; -1 when none does. `current` may be -1 (before the first item) or
+ * `items.length` (after the last), e.g. when nothing is selected and the top of the view is used.
+ */
+export function findJump<T>(items: readonly T[], current: number, predicate: (item: T) => boolean, direction: 1 | -1): number {
+  const n = items.length;
+  if (n === 0) return -1;
+  let start = current + direction;
+  if (start < 0 || start >= n) start = direction > 0 ? 0 : n - 1;
+  // from the item after (or before) current, once round
+  for (let k = 0; k < n; k++) {
+    const i = (start + direction * k + n) % n;
+    if (predicate(items[i])) return i;
+  }
+  return -1;
+}

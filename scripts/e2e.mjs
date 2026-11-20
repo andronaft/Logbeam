@@ -212,6 +212,25 @@ await page.locator('select.context').selectOption('2');
 await page.waitForTimeout(300);
 check('search with context status still counts matches', (await status()) === '2 / 65 lines', await status());
 check('context lines are displayed and dimmed', (await page.locator('.row.context').count()) > 0);
+// n / N jump between the matches and skip the context lines around them
+await page.locator('.scroller').focus();
+const selectedRow = async () => {
+  const row = page.locator('.row.selected');
+  return { number: await row.locator('.ln').textContent(), context: await row.evaluate((r) => r.classList.contains('context')) };
+};
+await page.keyboard.press('n');
+const firstMatch = await selectedRow();
+await page.keyboard.press('n');
+const secondMatch = await selectedRow();
+await page.keyboard.press('N');
+const backMatch = await selectedRow();
+check(
+  'n / N select search matches, not context lines',
+  !firstMatch.context && !secondMatch.context && !backMatch.context && firstMatch.number !== secondMatch.number,
+  JSON.stringify([firstMatch, secondMatch, backMatch]),
+);
+check('N goes back to the previous match', backMatch.number === firstMatch.number, JSON.stringify(backMatch));
+await page.keyboard.press('Escape');
 await page.locator('select.context').selectOption('0');
 await page.waitForTimeout(300);
 
