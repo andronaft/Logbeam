@@ -88,7 +88,7 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
   **Shift+click** a second line to select everything in between (`#L120-L135`) and copy those lines or a link to them
 - **Links to a view**: the address keeps the levels, the search, the time range and the pods, so the link you
   send (🔗 or `y`) opens exactly what you see: "the errors from the payments pod after 10:05", not the whole log
-- **Keyboard**: next error (`e`) or warning (`w`), search (`/`), `j` / `k` between lines, `J` / `K` to select more of them, `g` / `G`
+- **Keyboard**: next error (`e`) or warning (`w`), search (`/`) and the next or previous match (`n` / `N`), `j` / `k` between lines, `J` / `K` to select more of them, `g` / `G`
   to the first or last; `?` lists all the keys
 - **Open automatically** on sites you choose (opt-in per site, only plain-text pages that look like logs)
 - Fast on **150k+ lines**: logs over 1 MB are parsed in a **Web Worker** with a progress bar, and only the
@@ -287,7 +287,9 @@ src/
       first contributors)
 - [x] Links that open the same view: filters in the link, ranges of lines
 - [ ] More languages ([#2](https://github.com/andronaft/Logbeam/issues/2))
-- [ ] Jump between search matches, and more ([open issues](https://github.com/andronaft/Logbeam/issues))
+- [x] Jump between search matches (`n` / `N`), one search for fields and words, hide lines like this, a minimap,
+      several logs as one
+- [ ] More ([open issues](https://github.com/andronaft/Logbeam/issues))
 
 ## Contributing
 

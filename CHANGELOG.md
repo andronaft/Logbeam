@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.10.0
 
 ### Added
 
+- **Jump between search matches** with `n` / `N`, like in `less` or vim: the next or previous match after the
+  selected line, round again at the ends. With Context on, the lines around the matches are skipped, so you land on
+  the matches only (#27).
 - **Help for the first logs.** The first three logs someone opens show one line of tips made from that log: `e` for
   the next error when there are errors, a field condition it really has (`status>=500`, click to try it), click a
   line, drag the timeline, `?` for all keys. × hides them for good. The search box suggests the same condition

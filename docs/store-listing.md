@@ -22,7 +22,7 @@ LOG VIEWER (Ctrl+Shift+L)
 • ERROR / WARN / INFO / DEBUG / TRACE in colour, with counters and one-click filters
 • Java, Python and Go stack traces stay grouped with their error
 • Plain-text and regex search with highlighted matches, and context lines around each match like grep -C
-• j / k to move between lines; JSON table saved as CSV
+• j / k to move between lines, n / N between search matches; JSON table saved as CSV
 • JSON logs (Logstash, pino, bunyan, zap) shown as readable lines
 • ANSI colours from CI runners and Docker; GitHub Actions ##[error] / ##[warning] lines and Jenkins consoles understood
 • GitHub Actions ##[group] sections folded like in GitHub; the ones with errors open
