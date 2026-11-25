@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Failed tests in one list.** On a CI log, **Tests ✖ N** lists the tests that failed, from pytest, Jest, Vitest,
+  Go, Maven surefire / failsafe, Gradle and RSpec, in the order they failed, with the first one marked "first" and
+  the assertion message next to it (`test_refund — AssertionError: assert 0 == 100`). A test the log reports twice,
+  like a pytest header and its summary line, is listed once; a Go test whose subtest failed shows the subtest. Click
+  one to go to its line, even in a folded `##[group]` section. The runners' own totals
+  (`Tests run: 12, Failures: 1`, `2 failed, 10 passed`) are added up in the panel's head. The toggle only shows
+  when tests failed.
+
 ## 0.10.0
 
 ### Added

@@ -305,6 +305,9 @@ select.toggle { padding: 3px 6px; }
 .group-item .n { color: var(--error); font-weight: 700; }
 .group-item .sample { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--error); }
 .group-item .meta { color: var(--muted); white-space: nowrap; }
+.test-item .n { color: var(--muted); font-weight: 400; }
+.test-item .reason { color: var(--muted); }
+.test-totals { margin-left: auto; }
 .toggle.group-chip {
   color: var(--error); border-color: var(--error);
   background: var(--error-row); background: color-mix(in srgb, var(--error) 14%, var(--bg-alt));
