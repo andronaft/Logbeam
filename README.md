@@ -289,7 +289,7 @@ src/
 - [ ] More languages ([#2](https://github.com/andronaft/Logbeam/issues/2))
 - [x] Jump between search matches (`n` / `N`), one search for fields and words, hide lines like this, a minimap,
       several logs as one
-- [ ] More ([open issues](https://github.com/andronaft/Logbeam/issues))
+- [ ] More: [the ideas list](docs/ideas.md) and the [open issues](https://github.com/andronaft/Logbeam/issues)
 
 ## Contributing
 
