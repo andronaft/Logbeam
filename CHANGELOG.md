@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **CI steps for every platform, with durations.** Besides GitHub Actions' `##[group]`, the viewer now folds GitLab
+  sections (nested, with the header GitLab shows), Azure DevOps sections, Buildkite groups (`---`, `+++`, `~~~`),
+  Jenkins stages and the steps of a Docker BuildKit build. Each fold row says how long the step took (`· 3m 12s`,
+  from the CI's own markers or the times of its lines) and shows a red ✖ when the step failed: it has errors or a
+  command in it exited with a non-zero code (`ERROR: Job failed: exit code 1` after the last section counts for the
+  step that ran the script). Failed steps start open. A `--- ` line in an ordinary log, `--- FAIL:` from `go test`
+  or a diff's `--- a/file` don't turn into steps.
+
+### Fixed
+
+- A level no longer carries on past a GitLab or Azure DevOps section marker, so an `npm ERR!` in one section
+  doesn't make the lines of the next section errors.
+
 ## 0.10.0
 
 ### Added

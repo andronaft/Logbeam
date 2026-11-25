@@ -335,6 +335,9 @@ select.toggle { padding: 3px 6px; }
   display: inline-block; margin-right: 8px; padding: 0 6px; border-radius: 8px;
   background: var(--error-row); color: var(--error); font-size: 11px; line-height: 16px;
 }
+.row.group-head .fold-toggle { margin-left: calc(var(--depth, 0) * 16px); }
+.group-duration { display: inline-block; margin-right: 8px; color: var(--muted); font-size: 11px; font-weight: 400; }
+.group-title { margin-right: 8px; }
 
 /* keyboard shortcuts ( ? ) */
 .help {
