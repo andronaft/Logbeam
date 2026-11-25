@@ -128,6 +128,17 @@ select.toggle { padding: 3px 6px; }
 .empty-state[hidden] { display: none; }
 .empty-state p { margin: 0; font-size: 14px; }
 .empty-actions { display: flex; gap: 8px; pointer-events: auto; }
+.goto {
+  position: absolute; top: 8px; right: 24px; z-index: 5; display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; background: var(--panel); border: 1px solid var(--accent); border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); color: var(--muted); font-size: 12px;
+}
+.goto[hidden] { display: none; }
+.goto-input {
+  width: 220px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg);
+  color: var(--fg); font: 12px ui-monospace, Menlo, Consolas, monospace;
+}
+.goto-input.invalid { border-color: var(--error); }
 .log-area { flex: 1; display: flex; min-height: 0; position: relative; }
 .scroller { flex: 1; overflow: auto; position: relative; outline: none; }
 .minimap {
