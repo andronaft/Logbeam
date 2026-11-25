@@ -33,7 +33,7 @@ import {
   toCsv,
   traceId,
 } from '../lib/insights';
-import { findSecrets, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
+import { findSecrets, hasSecret, maskField, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
 import { HINT_VIEWS, ViewPrefs, canSaveSettings, loadSettings, saveSettings } from '../shared/settings';
 import { BOOKMARKS_PREFIX, loadBookmarks as loadPageBookmarks, saveBookmarks as savePageBookmarks } from '../shared/bookmarks';
 import { applyTheme } from '../shared/theme';
@@ -154,7 +154,8 @@ async function showViewer(load: LoadLog, name?: string, fromFile = false): Promi
   if (settings.customSecrets.some((custom) => custom.pattern.trim())) {
     // the worker parsed without the user's own patterns: mark those lines here
     for (const line of lines) {
-      if (!line.secret && findSecrets(line.text.slice(0, HIGHLIGHT_LIMIT)).length > 0) line.secret = true;
+      // the whole line: a token after the first 5,000 characters is still a token
+      if (!line.secret && findSecrets(line.text).length > 0) line.secret = true;
     }
   }
   body.replaceChildren();
@@ -406,7 +407,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     t('viewerMask', 'Mask'),
     t('viewerMaskTitle', 'Hide secret values on screen and in copied text'),
     state.maskSecrets,
-    () => (state.maskSecrets = !state.maskSecrets),
+    () => {
+      state.maskSecrets = !state.maskSecrets;
+      // the open Groups panel shows error samples: mask them too
+      if (!groupsPanel.hidden) renderGroups();
+    },
     true,
   );
   const secretsButton = el(
@@ -732,7 +737,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       line: range ? range[0] : state.selected,
       lineEnd: range ? range[1] : null,
       levels: shown.length === present.length ? null : shown,
-      query: state.query,
+      // a search for a secret (a password from the field panel, say) stays out of the address,
+      // the history and the links people copy
+      query: hasSecret(state.query) ? '' : state.query,
       regex: state.regex,
       caseSensitive: state.caseSensitive,
       timeRange: state.timeRange,
@@ -963,7 +970,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   }
 
   function showStats(box: HTMLElement, key: string): void {
-    renderFieldStats(box, visible, key, setQuery);
+    renderFieldStats(box, visible, key, setQuery, state.maskSecrets);
   }
 
   // bookmarks are kept for this page while the browser is open (in memory, not on disk)
@@ -1004,8 +1011,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   }
 
   function renderGroups(): void {
-    renderErrorGroups(groupsPanel, allLines, state.timeMode, (group) => {
-      state.group = { key: group.key, lines: new Set(group.lines), label: `×${group.count} ${group.sample.slice(0, 60)}` };
+    renderErrorGroups(groupsPanel, allLines, state.timeMode, state.maskSecrets, (group) => {
+      state.group = {
+        key: group.key,
+        lines: new Set(group.lines),
+        label: `×${group.count} ${(state.maskSecrets ? maskSecrets(group.sample) : group.sample).slice(0, 60)}`,
+      };
       void refresh().then(() => {
         const index = visible.findIndex((l) => l.number === group.lines[0]);
         if (index >= 0) scrollToIndex(index, true);
@@ -1061,7 +1072,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   saveButton.addEventListener('click', () => {
     if (state.table) {
       const csv = toCsv(visible, state.table, {
-        mask: state.maskSecrets ? maskSecrets : undefined,
+        mask: state.maskSecrets ? (value, column) => maskField(column, value) : undefined,
       });
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
       const link = el('a', {
@@ -1884,8 +1895,10 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         if (state.table && line.json) {
           const { cells, rest } = tableCells(line, state.table);
           txt.classList.add('table');
-          for (const cell of cells)
+          cells.forEach((value, i) => {
+            const cell = state.maskSecrets ? maskField(state.table![i], value) : value;
             txt.append(el('span', { className: 'cell', title: cell }, localizeTimestamp(cell, state.timeMode)));
+          });
           txt.append(el('span', { className: 'rest' }, state.maskSecrets ? maskSecrets(rest) : rest));
         } else {
           appendText(txt, line, ROW_TEXT_LIMIT);

@@ -1220,5 +1220,8 @@
   },
   "keyGoto": {
     "message": "Перейти до часу, наприклад 10:05:30 з алерту"
+  },
+  "optionsSaveFailed": {
+    "message": "Не збережено: {error}"
   }
 }
