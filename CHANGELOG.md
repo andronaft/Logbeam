@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Show around** (`c`, or ⤢ in the line details): the selected line among all the lines, like "show context" in
+  Grafana. The search, levels, time range, pods and hidden kinds come off and the line stays in view; the
+  **← Back to the filtered view** chip puts them all back, with the line still selected.
+- **Go to a time** (`t`): type `10:05:30` from an alert (or `2026-10-04 10:05`, with a zone or without) and the
+  viewer selects the first entry at or after it. A time of day is read on the log's own day, the right one for a log
+  that goes past midnight, in UTC or local time as the viewer shows it.
+
 ## 0.10.0
 
 ### Added
