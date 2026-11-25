@@ -208,6 +208,33 @@ describe('Docker BuildKit steps', () => {
 });
 
 describe('no false steps', () => {
+  it('lines that start with --- are Buildkite groups only with something only Buildkite writes', () => {
+    // two "--- " lines in an ordinary log
+    expect(
+      steps(
+        'Deploy FAILED for some reason\nthe --- separator here\n--- a line that starts with dashes\nTests run fine\nmore text\n--- another\n',
+      ),
+    ).toEqual([]);
+    // go test output
+    expect(
+      steps('=== RUN   TestCharge\n--- FAIL: TestCharge (0.02s)\n=== RUN   TestRefund\n--- PASS: TestRefund (0.00s)\nFAIL\n'),
+    ).toEqual([]);
+    // a diff without a/ b/ prefixes, with or without file times
+    expect(steps('--- src/x.ts\n+++ src/x.ts\n@@ -1 +1 @@\n--- src/y.ts\n+++ src/y.ts\n')).toEqual([]);
+    expect(steps('--- x.ts\t2026-10-04 10:00:00\n+++ x.ts\t2026-10-04 10:00:01\n--- y.ts\t2026-10-04\n')).toEqual([]);
+  });
+
+  it('a real Buildkite log with only --- headers still has steps, by its emoji or its timestamps', () => {
+    const emoji = steps('--- :docker: Build image\nok\n--- Run tests\n1 passed\n');
+    expect(emoji.map((g) => [g.kind, g.title])).toEqual([
+      ['buildkite', ':docker: Build image'],
+      ['buildkite', 'Run tests'],
+    ]);
+    const timed = steps(`${E}_bk;t=1700000000000\x07--- Build\nok\n${E}_bk;t=1700000001000\x07--- Test\n`);
+    expect(timed.map((g) => g.title)).toEqual(['Build', 'Test']);
+    expect(steps('--- Build\nok\n--- Test\nboom\n^^^ +++\n').map((g) => g.title)).toEqual(['Build', 'Test']);
+  });
+
   it('ordinary logs with --- or #1 [ in them have no steps', () => {
     for (const log of [
       '2026-10-04 10:00:00 INFO --- starting ---\n2026-10-04 10:00:01 INFO --- done ---',

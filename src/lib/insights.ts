@@ -353,7 +353,9 @@ const AZURE = /^##\[section\](Starting|Finishing): (.*)$/;
 const BUILDKITE = /^(---|\+\+\+|~~~) (.+)$/;
 const BUILDKITE_REOPEN = /^\^\^\^ \+\+\+\s*$/;
 // what else starts with "--- ": go test results, a diff's file names
-const NOT_BUILDKITE = /^(?:--- (?:PASS|FAIL|SKIP|BENCH)\b|(?:---|\+\+\+) (?:[ab]\/|\/dev\/null))/;
+const NOT_BUILDKITE = /^(?:--- (?:PASS|FAIL|SKIP|BENCH)\b|(?:---|\+\+\+) (?:[ab]\/|\/dev\/null|\S+\t))/;
+// Buildkite's headers often start with an emoji code: "--- :hammer: Build"
+const BUILDKITE_EMOJI = /(?:^|\s):[a-z0-9_+-]+:(?=\s|$)/;
 // Jenkins: "[Pipeline] { (Build)" opens a stage, "[Pipeline] // stage" closes it; parallel branches aren't stages
 const JENKINS_START = /^\[Pipeline\] \{ \((?!Branch: )(.+)\)\s*$/;
 const JENKINS_END = /^\[Pipeline\] \/\/ stage\s*$/;
@@ -402,16 +404,27 @@ const EXIT_STARTS = new Set([35, 69, 0xd83d]);
 export function findGroups(lines: LogLine[]): LogGroup[] {
   const markTimes: (number | null)[] = [];
   const texts = lines.map((line) => stepText(line, markTimes));
-  // "--- " and "#1 [" start ordinary lines too: such a log is Buildkite's or BuildKit's only with two of them
+  // "--- " and "#1 [" start ordinary lines too. A log is Buildkite's only with two headers and something
+  // only Buildkite writes: a +++ or ~~~ header, ^^^ +++, its bk;t= timestamps or an :emoji: in a header.
+  // BuildKit's needs two different "#N [" steps. When in doubt, nothing is folded.
   let buildkiteHeads = 0;
+  let buildkiteSigns = 0;
   const buildkitIds = new Set<string>();
-  for (const rest of texts) {
+  texts.forEach((rest, i) => {
+    if (markTimes[i] !== null) buildkiteSigns++;
     const c = rest.charCodeAt(0);
-    if ((c === 45 || c === 43 || c === 126) && BUILDKITE.test(rest) && !NOT_BUILDKITE.test(rest)) buildkiteHeads++;
-    const head = c === 35 ? BUILDKIT_HEAD.exec(rest) : null;
-    if (head) buildkitIds.add(head[1]);
-  }
-  const buildkite = buildkiteHeads >= 2;
+    if (c === 94 && BUILDKITE_REOPEN.test(rest)) buildkiteSigns++;
+    const head = c === 45 || c === 43 || c === 126 ? BUILDKITE.exec(rest) : null;
+    // a diff's file names: "--- x.ts" right before "+++ x.ts"
+    const diff = head !== null && head[1] === '+++' && (texts[i - 1] ?? '').startsWith('--- ');
+    if (head && !diff && !NOT_BUILDKITE.test(rest)) {
+      buildkiteHeads++;
+      if (head[1] !== '---' || BUILDKITE_EMOJI.test(head[2])) buildkiteSigns++;
+    }
+    const step = c === 35 ? BUILDKIT_HEAD.exec(rest) : null;
+    if (step) buildkitIds.add(step[1]);
+  });
+  const buildkite = buildkiteHeads >= 2 && buildkiteSigns > 0;
   const buildkit = buildkitIds.size >= 2;
 
   const steps: Step[] = [];
