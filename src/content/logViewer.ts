@@ -41,6 +41,7 @@ import { Range, searchRanges, toSegments } from '../lib/segments';
 import { buildTimeline } from '../lib/timeline';
 import { findJump, keepInView, targetLineIndex } from '../lib/navigation';
 import { LINK_LEVELS, ViewLink, formatViewLink, parseViewLink } from '../lib/viewLink';
+import { indexAtTime, parseGotoTime } from '../lib/goto';
 import { parseLogAsync } from './parseAsync';
 import { COMPARE_ADD } from '../shared/compare';
 import { t, tn, uiLanguage } from '../shared/i18n';
@@ -571,7 +572,24 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     spellcheck: false,
   });
   const columnsLabel = el('label', { className: 'columns-label' }, `${t('viewerColumns', 'Columns')} `, columnsInput);
-  const subbar = el('div', { className: 'subbar' }, rangeChip, groupChip, columnsLabel, highlightChips, muteChips, sourceChips);
+  // "Show around" (c) took the filters off: this puts them back
+  const backChip = el(
+    'button',
+    { className: 'toggle on back-chip', title: t('viewerBackTitle', 'Put the filters back, keeping this line selected') },
+    `← ${t('viewerBackToFilters', 'Back to the filtered view')}`,
+  );
+  backChip.hidden = true;
+  const subbar = el(
+    'div',
+    { className: 'subbar' },
+    backChip,
+    rangeChip,
+    groupChip,
+    columnsLabel,
+    highlightChips,
+    muteChips,
+    sourceChips,
+  );
 
   // controls in groups that wrap as a whole: levels, search, how lines are shown, finding things, actions
   const tgroup = (name: string, ...children: Child[]) => el('span', { className: `tgroup ${name}` }, ...children);
@@ -634,6 +652,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   // instead of a blank page when the filters leave nothing: why, and the way back
   const emptyState = el('div', { className: 'empty-state' });
   emptyState.hidden = true;
+  // "Go to a time" (t): a small box over the lines
+  const gotoInput = el('input', {
+    className: 'goto-input',
+    placeholder: t('viewerGotoPlaceholder', '10:05:30 or 2026-10-04 10:05'),
+    spellcheck: false,
+  });
+  const gotoBox = el('label', { className: 'goto' }, `${t('viewerGotoLabel', 'Go to time')} `, gotoInput);
+  gotoBox.hidden = true;
   const hintBar = el('div', { className: 'hint' });
   hintBar.hidden = true;
   const minimap = createMinimap({
@@ -662,7 +688,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     timelineEl,
     groupsPanel,
     hintBar,
-    el('div', { className: 'log-area' }, scroller, emptyState, minimap.element),
+    el('div', { className: 'log-area' }, scroller, emptyState, gotoBox, minimap.element),
     inspector,
     toast,
     dropHint,
@@ -822,6 +848,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
       `⊘ ${t('viewerMute', 'Hide lines like this')}`,
     );
     hideLike.addEventListener('click', () => muteLike(line.number));
+    const around = el(
+      'button',
+      { className: 'toggle', title: t('viewerAroundTitle', 'Show this line among all the lines, without the filters ( c )') },
+      `⤢ ${t('viewerAround', 'Show around')}`,
+    );
+    around.addEventListener('click', showAround);
     const copyLine = el('button', { className: 'toggle' }, t('viewerCopyLine', 'Copy line'));
     copyLine.addEventListener('click', () => void copy(displayText(line), t('viewerLineCopied', 'Line copied')));
     const copyLink = el('button', { className: 'toggle' }, t('viewerCopyLink', 'Copy link'));
@@ -844,6 +876,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         { className: 'inspector-head' },
         el('span', { className: 'facts' }, ...facts),
         bookmark,
+        around,
         hideLike,
         copyLine,
         copyLink,
@@ -1022,6 +1055,14 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   highlightButton.addEventListener('click', addHighlight);
   search.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') addHighlight();
+  });
+  backChip.addEventListener('click', backToFilters);
+  gotoInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') goToTime(gotoInput.value);
+    else if (event.key === 'Escape') closeGoto();
+  });
+  gotoInput.addEventListener('blur', () => {
+    gotoBox.hidden = true;
   });
   rangeChip.addEventListener('click', () => {
     state.timeRange = null;
@@ -1308,6 +1349,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         }
         return;
       }
+      if (event.target === gotoInput) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       // typing in the bookmark note or the Columns box: letters are text there, not shortcuts
       const target = event.target as HTMLElement;
@@ -1346,6 +1388,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         jumpToMatch(event.key === 'n' ? 1 : -1);
       } else if (event.key === 'w') {
         jumpToNext((l) => l.level === 'WARN' && !l.continuation, 'warning');
+      } else if (event.key === 'c' && state.selected !== null) {
+        showAround();
+      } else if (event.key === 't') {
+        event.preventDefault();
+        openGoto();
       } else if (event.key === 'x' && state.selected !== null) {
         muteLike(state.selected);
       } else if (event.key === 'X' && state.mutes.length > 0) {
@@ -1514,6 +1561,103 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     void refresh({ keepInspector: true }).then(showSelection);
   }
 
+  /** What "Back to the filtered view" restores after "Show around": the view and the error group. */
+  let filteredView: { view: ViewLink; group: typeof state.group } | null = null;
+
+  /**
+   * Show around (c): the selected line among all the lines, like Grafana's "show context". The
+   * filters come off and the line stays in view; a chip puts them back.
+   */
+  function showAround(): void {
+    if (state.selected === null) return;
+    const view = currentView();
+    const filtered =
+      view.levels !== null ||
+      view.query !== '' ||
+      view.timeRange !== null ||
+      view.pods !== null ||
+      (view.hiddenPods?.length ?? 0) > 0 ||
+      (view.mutes?.length ?? 0) > 0 ||
+      state.group !== null;
+    if (!filtered) {
+      showToast(t('viewerNothingFiltered', 'All the lines are shown already'));
+      return;
+    }
+    filteredView = { view, group: state.group };
+    for (const [key, entry] of Object.entries(chipCounts)) {
+      if (key === 'UNKNOWN') state.includeUnknown = true;
+      else state.levels.add(key as Level);
+      setPressed(entry![0], true);
+    }
+    clearTimeout(debounce);
+    search.value = state.query = '';
+    state.timeRange = null;
+    state.group = null;
+    state.mutes = [];
+    state.hiddenSources.clear();
+    for (const button of sourceButtons) setPressed(button, true);
+    void refresh().then(showSelection);
+  }
+
+  function backToFilters(): void {
+    if (!filteredView) return;
+    const { view, group } = filteredView;
+    filteredView = null;
+    applyLink({ ...view, line: state.selected ?? view.line, lineEnd: null });
+    state.group = group;
+    void refresh().then(showSelection);
+  }
+
+  function openGoto(): void {
+    if (!timeline) {
+      showToast(t('viewerNoTimes', 'This log has no times to go to'));
+      return;
+    }
+    gotoBox.hidden = false;
+    gotoInput.classList.remove('invalid');
+    gotoInput.select();
+    gotoInput.focus();
+  }
+
+  function closeGoto(): void {
+    gotoBox.hidden = true;
+    scroller.focus();
+  }
+
+  /** Go to a time (t): the first shown entry at or after it. */
+  function goToTime(input: string): void {
+    let first = Number.NaN;
+    let last = Number.NaN;
+    for (const time of times) {
+      if (Number.isNaN(time)) continue;
+      if (Number.isNaN(first)) first = time;
+      last = time;
+    }
+    const moment = Number.isNaN(first) ? null : parseGotoTime(input, first, last, state.timeMode);
+    if (moment === null) {
+      gotoInput.classList.add('invalid');
+      return;
+    }
+    const index = indexAtTime(
+      visible.map((line) => times[line.number - 1]),
+      moment,
+    );
+    closeGoto();
+    if (index < 0) {
+      showToast(t('viewerTimesHidden', 'The filters hide every line with a time'));
+      return;
+    }
+    scrollToIndex(index, true);
+    showToast(
+      moment < first || moment > last
+        ? t('viewerGotoOutside', 'The log runs from {from} to {to}: went to the nearest entry', {
+            from: clock(first),
+            to: clock(last),
+          })
+        : t('viewerWentTo', 'Went to {time}', { time: formatTime(times[visible[index].number - 1], state.timeMode) }),
+    );
+  }
+
   function renderSubbar(): void {
     const range = state.timeRange;
     rangeChip.hidden = range === null;
@@ -1553,7 +1697,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
         return chip;
       }),
     );
+    backChip.hidden = filteredView === null;
     subbar.hidden =
+      filteredView === null &&
       range === null &&
       state.group === null &&
       state.table === null &&

@@ -272,6 +272,45 @@ await page.waitForTimeout(300);
 // keys go to the log again, not the search box
 await page.locator('.scroller').focus();
 
+// c shows the selected match among all the lines; the chip puts the search back
+await page.locator('.search').fill('Retry');
+await page.waitForTimeout(300);
+await page.locator('.scroller').focus();
+await page.keyboard.press('n');
+const aroundLine = await page.locator('.row.selected .ln').textContent();
+await page.keyboard.press('c');
+await page.waitForTimeout(300);
+check(
+  'c shows the selected line among all the lines',
+  (await status()) === '65 / 65 lines' &&
+    (await page.locator('.row.selected .ln').textContent()) === aroundLine &&
+    (await page.locator('.back-chip').isVisible()),
+  `${await status()} · line ${aroundLine}`,
+);
+await page.locator('.back-chip').click();
+await page.waitForTimeout(300);
+check(
+  'the chip puts the search back',
+  (await page.locator('.search').inputValue()) === 'Retry' && (await status()).startsWith('6 /'),
+  `${await page.locator('.search').inputValue()} · ${await status()}`,
+);
+await page.locator('.search').fill('');
+await page.waitForTimeout(300);
+await page.locator('.scroller').focus();
+
+// t goes to a time
+await page.keyboard.press('t');
+check('t opens the go-to-time box', await page.locator('.goto').isVisible());
+await page.locator('.goto-input').fill('10:00:38.6');
+await page.keyboard.press('Enter');
+await page.waitForTimeout(200);
+check(
+  't goes to the first entry at or after the time',
+  (await page.locator('.row.selected').textContent()).includes('10:00:38.674') && (await page.locator('.goto').isHidden()),
+  await page.locator('.row.selected').textContent(),
+);
+await page.keyboard.press('Escape');
+
 await page.keyboard.press('e');
 check('next error opens the inspector', await page.locator('.inspector').isVisible());
 check('inspector shows the error line', (await page.locator('.facts').textContent()).includes('ERROR'));
