@@ -1,4 +1,5 @@
 import { conditionKey, conditionValue } from '../lib/fields';
+import { maskField } from '../lib/secrets';
 import { fieldStats, formatDuration, numericStats } from '../lib/insights';
 import { LogLine } from '../lib/logs';
 import { t } from '../shared/i18n';
@@ -9,7 +10,13 @@ import { el } from './dom';
  * or durations min, median, p95, p99 and max. Clicking one filters by it through `filter`, with a
  * field query like `status=502` or `duration>=950ms`.
  */
-export function renderFieldStats(box: HTMLElement, lines: LogLine[], key: string, filter: (query: string) => void): void {
+export function renderFieldStats(
+  box: HTMLElement,
+  lines: LogLine[],
+  key: string,
+  filter: (query: string) => void,
+  mask = false,
+): void {
   const { values, total } = fieldStats(lines, key);
   const max = values[0]?.count ?? 1;
   const numbers = numericStats(lines, key);
@@ -50,12 +57,14 @@ export function renderFieldStats(box: HTMLElement, lines: LogLine[], key: string
     ),
     ...percentiles,
     ...values.map(({ value, count }) => {
+      // Mask hides a password's value here too; a click still filters by the real one
+      const shown = mask ? maskField(key, value) : value;
       const bar = el('span', { className: 'bar' });
       bar.style.width = `${Math.max(2, Math.round((count / max) * 100))}%`;
       const row = el(
         'button',
-        { className: 'stat', title: t('viewerShowOnly', 'Show only {filter}', { filter: `${key}=${value}` }) },
-        el('span', { className: 'value' }, value || '""'),
+        { className: 'stat', title: t('viewerShowOnly', 'Show only {filter}', { filter: `${key}=${shown}` }) },
+        el('span', { className: 'value' }, shown || '""'),
         el('span', { className: 'bar-wrap' }, bar),
         el('span', { className: 'n' }, `×${count.toLocaleString()}`),
       );

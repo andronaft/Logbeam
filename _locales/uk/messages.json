@@ -1181,5 +1181,8 @@
   },
   "viewerMoreChars": {
     "message": "+{n} символів (клацніть рядок, щоб прочитати все)"
+  },
+  "optionsSaveFailed": {
+    "message": "Не збережено: {error}"
   }
 }
