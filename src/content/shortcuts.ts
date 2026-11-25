@@ -12,6 +12,8 @@ const SHORTCUTS: { keys: string[]; message: string; text: string }[] = [
   { keys: ['n', 'N'], message: 'keyNextPrevMatch', text: 'Next / previous search match' },
   { keys: ['e'], message: 'keyNextError', text: 'Next error' },
   { keys: ['w'], message: 'keyNextWarning', text: 'Next warning' },
+  { keys: ['c'], message: 'keyAround', text: 'Show the selected line among all the lines; a chip puts the filters back' },
+  { keys: ['t'], message: 'keyGoto', text: 'Go to a time, e.g. 10:05:30 from an alert' },
   { keys: ['x', 'X'], message: 'keyMute', text: 'Hide lines like the selected one / show the last hidden kind again' },
   { keys: ['s'], message: 'keyNextSecret', text: 'Next leaked secret' },
   { keys: ['m'], message: 'keyBookmark', text: 'Bookmark the selected line' },

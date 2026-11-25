@@ -40,7 +40,8 @@ export function bookmarkReport(bookmarks: Bookmark[], lines: LogLine[], options:
     const after = time !== null && previousTime !== null ? ` (${formatGap(time - previousTime)})` : '';
     if (time !== null) previousTime = time;
     out.push(`- **${where}**${when}${after}${bookmark.note ? ` — ${bookmark.note}` : ''}`);
-    const text = options.mask ? options.mask(line.text) : line.text;
+    // a line of a private key's body has nothing a pattern would recognise: Mask hides it whole
+    const text = options.mask ? (line.secretBlock ? '****' : options.mask(line.text)) : line.text;
     // a fence longer than any run of backticks in the line, so the line can't close it
     const fence = '`'.repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map((run) => run[0].length + 1)));
     out.push(`  ${fence}`, `  ${text.length > 500 ? `${text.slice(0, 500)}…` : text}`, `  ${fence}`);
@@ -245,7 +246,7 @@ export interface LineId {
 }
 
 // fields that name one request, job or user across services: traceId, request_id, x-request-id, orderId…
-const ID_KEY = /^(?:x[_.-]?)?(?:trace|span|request|req|correlation|transaction|txn|session|order|job|user|tenant)[_.-]?id$/i;
+const ID_KEY = /^(?:x[_.-]?)?(?:trace|span|request|req|correlation|transaction|txn|order|job|user|tenant)[_.-]?id$/i;
 const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 // W3C trace IDs (32 hex) and the trace part of a traceparent header
 const TRACE_HEX = /\b(?=[0-9a-f]*[a-f])[0-9a-f]{32}\b/gi;
@@ -732,8 +733,8 @@ export function quoteCsv(value: string): string {
 }
 
 export interface CsvOptions {
-  /** Masks secrets in the cell values. */
-  mask?: (text: string) => string;
+  /** Masks secrets in the cell values; the column says what a bare value is (password, token). */
+  mask?: (value: string, column: string) => string;
 }
 
 /**
@@ -747,8 +748,8 @@ export function toCsv(rows: LogLine[], columns: string[], options?: CsvOptions):
     // stack-trace lines have no fields, so they would only be empty rows
     if (row.continuation) continue;
     const { cells } = tableCells(row, columns);
-    const formatted = cells.map((cell) => {
-      const masked = options?.mask ? options.mask(cell) : cell;
+    const formatted = cells.map((cell, i) => {
+      const masked = options?.mask ? options.mask(cell, columns[i]) : cell;
       return quoteCsv(masked);
     });
     lines.push(formatted.join(','));

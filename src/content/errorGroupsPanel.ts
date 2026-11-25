@@ -1,6 +1,7 @@
 import { ErrorGroup, GroupOrder, TimeMode, formatTime, groupErrors, sortGroups } from '../lib/insights';
 import { LogLine } from '../lib/logs';
 import { t, tn } from '../shared/i18n';
+import { maskSecrets } from '../lib/secrets';
 import { el } from './dom';
 
 /** How many groups the panel lists; a log with more different errors has bigger problems. */
@@ -17,6 +18,7 @@ export function renderErrorGroups(
   panel: HTMLElement,
   lines: LogLine[],
   timeMode: TimeMode,
+  mask: boolean,
   pick: (group: ErrorGroup) => void,
 ): void {
   const groups = sortGroups(groupErrors(lines), order);
@@ -42,7 +44,12 @@ export function renderErrorGroups(
       'button',
       { className: 'group-item', title: t('viewerGroupItemTitle', 'Show only this error') },
       el('span', { className: 'n' }, `×${group.count}`),
-      el('span', { className: 'sample' }, ...(group === earliest ? [firstBadge(), ' '] : []), group.sample),
+      el(
+        'span',
+        { className: 'sample' },
+        ...(group === earliest ? [firstBadge(), ' '] : []),
+        mask ? maskSecrets(group.sample) : group.sample,
+      ),
       el('span', { className: 'meta' }, `${where}${when}`),
     );
     item.addEventListener('click', () => pick(group));
@@ -53,7 +60,7 @@ export function renderErrorGroups(
     button.setAttribute('aria-pressed', String(order === value));
     button.addEventListener('click', () => {
       order = value;
-      renderErrorGroups(panel, lines, timeMode, pick);
+      renderErrorGroups(panel, lines, timeMode, mask, pick);
     });
     return button;
   };

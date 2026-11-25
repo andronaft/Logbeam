@@ -90,6 +90,8 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
   **Shift+click** a second line to select everything in between (`#L120-L135`) and copy those lines or a link to them
 - **Links to a view**: the address keeps the levels, the search, the time range and the pods, so the link you
   send (🔗 or `y`) opens exactly what you see: "the errors from the payments pod after 10:05", not the whole log
+- **Show around and go to a time**: `c` shows a filtered line among all the lines (a chip puts the filters back),
+  `t` jumps to a time like `10:05:30` from an alert
 - **Keyboard**: next error (`e`) or warning (`w`), search (`/`) and the next or previous match (`n` / `N`), `j` / `k` between lines, `J` / `K` to select more of them, `g` / `G`
   to the first or last; `?` lists all the keys
 - **Open automatically** on sites you choose (opt-in per site, only plain-text pages that look like logs)
@@ -291,7 +293,7 @@ src/
 - [ ] More languages ([#2](https://github.com/andronaft/Logbeam/issues/2))
 - [x] Jump between search matches (`n` / `N`), one search for fields and words, hide lines like this, a minimap,
       several logs as one
-- [ ] More ([open issues](https://github.com/andronaft/Logbeam/issues))
+- [ ] More: [the ideas list](docs/ideas.md) and the [open issues](https://github.com/andronaft/Logbeam/issues)
 
 ## Contributing
 

@@ -4,6 +4,12 @@
 
 ### Added
 
+- **Show around** (`c`, or ⤢ in the line details): the selected line among all the lines, like "show context" in
+  Grafana. The search, levels, time range, pods and hidden kinds come off and the line stays in view; the
+  **← Back to the filtered view** chip puts them all back, with the line still selected.
+- **Go to a time** (`t`): type `10:05:30` from an alert (or `2026-10-04 10:05`, with a zone or without) and the
+  viewer selects the first entry at or after it. A time of day is read on the log's own day, the right one for a log
+  that goes past midnight, in UTC or local time as the viewer shows it.
 - **CI steps for every platform, with durations.** Besides GitHub Actions' `##[group]`, the viewer now folds GitLab
   sections (nested, with the header GitLab shows), Azure DevOps sections, Buildkite groups (`---`, `+++`, `~~~`),
   Jenkins stages and the steps of a Docker BuildKit build. Each fold row says how long the step took (`· 3m 12s`,
@@ -16,6 +22,24 @@
 
 - A level no longer carries on past a GitLab or Azure DevOps section marker, so an `npm ERR!` in one section
   doesn't make the lines of the next section errors.
+
+### Security
+
+- **Mask now covers every place a secret was still shown or copied** (found in a security review):
+  - the bookmark Report copied the body of a private key line by line;
+  - field statistics, JSON table cells (and their tooltips), the CSV export and error-group samples showed a
+    password's value, which a pattern can't recognise without its field name: values are masked by their field now;
+  - a token after the first 5,000 characters of a line was not found by your own patterns.
+- **A search for a secret stays out of the address**: clicking `password=…` in the field statistics no longer writes
+  the password into the page's address, the browser history or the links you copy. Session IDs are no longer offered
+  as "follow this request" chips.
+- **More secret formats**: OpenAI and Anthropic keys, npm, Hugging Face, Google OAuth, Shopify, PyPI and SendGrid
+  tokens, Stripe test keys and webhook secrets, Slack app tokens and webhooks, Azure account keys and SAS signatures,
+  cookies, Docker registry auth, and `redis://:password@host`.
+- `password=Tr0ub4dor&3` was masked only up to `&` or `;`, and numeric passwords (`password=123456`) were not masked
+  at all; counts like `tokens_used=1234` still stay.
+- Settings say when they couldn't be saved (e.g. too many secret patterns for synced storage) instead of looking saved.
+- The background answers only Logbeam's own pages and scripts.
 
 ## 0.10.0
 
