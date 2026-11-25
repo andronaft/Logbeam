@@ -1182,6 +1182,45 @@
   "viewerMoreChars": {
     "message": "+{n} символів (клацніть рядок, щоб прочитати все)"
   },
+  "viewerBackTitle": {
+    "message": "Повернути фільтри, лишивши цей рядок виділеним"
+  },
+  "viewerBackToFilters": {
+    "message": "Назад до відфільтрованого"
+  },
+  "viewerAroundTitle": {
+    "message": "Показати цей рядок серед усіх рядків, без фільтрів ( c )"
+  },
+  "viewerAround": {
+    "message": "Показати навколо"
+  },
+  "viewerNothingFiltered": {
+    "message": "Уже показано всі рядки"
+  },
+  "viewerNoTimes": {
+    "message": "У цьому лозі немає часу, до якого можна перейти"
+  },
+  "viewerTimesHidden": {
+    "message": "Фільтри приховують усі рядки з часом"
+  },
+  "viewerGotoOutside": {
+    "message": "Лог охоплює час від {from} до {to}: перейшли до найближчого запису"
+  },
+  "viewerWentTo": {
+    "message": "Перейшли до {time}"
+  },
+  "viewerGotoPlaceholder": {
+    "message": "10:05:30 або 2026-10-04 10:05"
+  },
+  "viewerGotoLabel": {
+    "message": "Перейти до часу"
+  },
+  "keyAround": {
+    "message": "Показати виділений рядок серед усіх рядків; чип повертає фільтри"
+  },
+  "keyGoto": {
+    "message": "Перейти до часу, наприклад 10:05:30 з алерту"
+  },
   "viewerTests": {
     "message": "Тести"
   },

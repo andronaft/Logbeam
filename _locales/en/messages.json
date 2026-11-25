@@ -1056,6 +1056,45 @@
   "viewerMoreChars": {
     "message": "+{n} characters (click the line to read it all)"
   },
+  "viewerBackTitle": {
+    "message": "Put the filters back, keeping this line selected"
+  },
+  "viewerBackToFilters": {
+    "message": "Back to the filtered view"
+  },
+  "viewerAroundTitle": {
+    "message": "Show this line among all the lines, without the filters ( c )"
+  },
+  "viewerAround": {
+    "message": "Show around"
+  },
+  "viewerNothingFiltered": {
+    "message": "All the lines are shown already"
+  },
+  "viewerNoTimes": {
+    "message": "This log has no times to go to"
+  },
+  "viewerTimesHidden": {
+    "message": "The filters hide every line with a time"
+  },
+  "viewerGotoOutside": {
+    "message": "The log runs from {from} to {to}: went to the nearest entry"
+  },
+  "viewerWentTo": {
+    "message": "Went to {time}"
+  },
+  "viewerGotoPlaceholder": {
+    "message": "10:05:30 or 2026-10-04 10:05"
+  },
+  "viewerGotoLabel": {
+    "message": "Go to time"
+  },
+  "keyAround": {
+    "message": "Show the selected line among all the lines; a chip puts the filters back"
+  },
+  "keyGoto": {
+    "message": "Go to a time, e.g. 10:05:30 from an alert"
+  },
   "viewerTests": {
     "message": "Tests"
   },
