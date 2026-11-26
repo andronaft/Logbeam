@@ -331,6 +331,6 @@ export function canonicalJson(value: unknown, indent = ''): string {
 
 /** A short one-line rendering of a JSON value for the list of changes. */
 export function previewJson(value: unknown, max = 80): string {
-  const text = value instanceof RawNumber ? value.source : canonicalJson(value).replace(/\s*\n\s*/g, ' ');
+  const text = value instanceof RawNumber ? value.source : canonicalJson(value).replace(/\n\s*/g, ' ');
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
