@@ -32,8 +32,8 @@ export function conditionValue(value: string): string {
 
 // Words of a query, split on spaces outside quotes: service="payment api" level=error. One character at a time
 // (not [^\s"]+ inside the repeat, which backtracks), and a quote left open runs to the end, so a long query
-// with an odd number of quotes doesn't make the search box freeze.
-const WORDS = /(?:[^\s"]|"(?:[^"\\]|\\.)*(?:"|$))+/g;
+// with an odd number of quotes (or a backslash at its very end) doesn't make the search box freeze.
+const WORDS = /(?:[^\s"]|"(?:[^"\\]|\\.|\\$)*(?:"|$))+/g;
 
 /**
  * Reads a search box query as field conditions. Returns null unless every word is a condition, so

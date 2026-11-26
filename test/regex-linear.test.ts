@@ -27,6 +27,7 @@ const PIECES = [
   'a ',
   '"a',
   '\\"',
+  '"\\',
   "'a",
   'a.',
   'a-',
@@ -101,29 +102,25 @@ const LARGE = SMALL * 4;
 
 describe('regular expressions stay linear on hostile lines', () => {
   for (const [name, work] of Object.entries(WORK)) {
-    it(
-      name,
-      () => {
-        const slow: string[] = [];
-        for (const prefix of PREFIXES) {
-          for (const piece of PIECES) {
-            const small = time(work, hostile(prefix, piece, SMALL));
-            const large = time(work, hostile(prefix, piece, LARGE));
-            // Below 10 ms the times are noise. Quadratic growth would be 16×; a pause for garbage collection can
-            // make one step look like that too, so a suspect is measured once more at 4× the length.
-            if (large > 10 && large > small * 10) {
-              const larger = time(work, hostile(prefix, piece, LARGE * 4));
-              if (larger > large * 10) {
-                slow.push(
-                  `${JSON.stringify(prefix + piece)}… ${small.toFixed(1)} → ${large.toFixed(1)} → ${larger.toFixed(1)} ms`,
-                );
-              }
+    // A busy machine can pause long enough to look like quadratic growth once; real quadratic growth fails
+    // every try.
+    it(name, { retry: 2, timeout: 120_000 }, () => {
+      const slow: string[] = [];
+      for (const prefix of PREFIXES) {
+        for (const piece of PIECES) {
+          const small = time(work, hostile(prefix, piece, SMALL));
+          const large = time(work, hostile(prefix, piece, LARGE));
+          // Below 10 ms the times are noise. Quadratic growth would be 16×; a pause for garbage collection can
+          // make one step look like that too, so a suspect is measured once more at 4× the length.
+          if (large > 10 && large > small * 10) {
+            const larger = time(work, hostile(prefix, piece, LARGE * 4));
+            if (larger > large * 10) {
+              slow.push(`${JSON.stringify(prefix + piece)}… ${small.toFixed(1)} → ${large.toFixed(1)} → ${larger.toFixed(1)} ms`);
             }
           }
         }
-        expect(slow).toEqual([]);
-      },
-      60_000,
-    );
+      }
+      expect(slow).toEqual([]);
+    });
   }
 });
