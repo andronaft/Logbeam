@@ -153,6 +153,9 @@ button.add:hover {
   font-size: var(--fs);
   font-weight: normal;
 }
+.saved.error {
+  color: var(--error);
+}
 
 .level {
   display: grid;

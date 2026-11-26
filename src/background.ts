@@ -127,7 +127,9 @@ chrome.commands.onCommand.addListener((command, tab) => {
 });
 
 // the log viewer's Compare button (a content script can't open extension pages itself)
-chrome.runtime.onMessage.addListener((message: { type?: string; text?: string; name?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: { type?: string; text?: string; name?: string }, sender, sendResponse) => {
+  // only Logbeam's own pages and content scripts (web pages can't message it, but say so anyway)
+  if (sender.id !== chrome.runtime.id) return false;
   if (message?.type === COMPARE_ADD && typeof message.text === 'string') {
     // a log too big for storage.session: say so instead of leaving the viewer waiting
     void compareText(message.text, message.name).then(sendResponse, () => sendResponse(null));

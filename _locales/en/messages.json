@@ -1095,6 +1095,9 @@
   "keyGoto": {
     "message": "Go to a time, e.g. 10:05:30 from an alert"
   },
+  "optionsSaveFailed": {
+    "message": "Not saved: {error}"
+  },
   "viewerTests": {
     "message": "Tests"
   },

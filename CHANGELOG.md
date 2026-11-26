@@ -18,6 +18,24 @@
   (`Tests run: 12, Failures: 1`, `2 failed, 10 passed`) are added up in the panel's head. The toggle only shows
   when tests failed.
 
+### Security
+
+- **Mask now covers every place a secret was still shown or copied** (found in a security review):
+  - the bookmark Report copied the body of a private key line by line;
+  - field statistics, JSON table cells (and their tooltips), the CSV export and error-group samples showed a
+    password's value, which a pattern can't recognise without its field name: values are masked by their field now;
+  - a token after the first 5,000 characters of a line was not found by your own patterns.
+- **A search for a secret stays out of the address**: clicking `password=…` in the field statistics no longer writes
+  the password into the page's address, the browser history or the links you copy. Session IDs are no longer offered
+  as "follow this request" chips.
+- **More secret formats**: OpenAI and Anthropic keys, npm, Hugging Face, Google OAuth, Shopify, PyPI and SendGrid
+  tokens, Stripe test keys and webhook secrets, Slack app tokens and webhooks, Azure account keys and SAS signatures,
+  cookies, Docker registry auth, and `redis://:password@host`.
+- `password=Tr0ub4dor&3` was masked only up to `&` or `;`, and numeric passwords (`password=123456`) were not masked
+  at all; counts like `tokens_used=1234` still stay.
+- Settings say when they couldn't be saved (e.g. too many secret patterns for synced storage) instead of looking saved.
+- The background answers only Logbeam's own pages and scripts.
+
 ## 0.10.0
 
 ### Added

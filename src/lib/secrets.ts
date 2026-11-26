@@ -26,19 +26,34 @@ const PATTERNS: Pattern[] = [
   { kind: 'GitHub token', re: /\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})\b/g },
   { kind: 'GitLab token', re: /\bglpat-[A-Za-z0-9_-]{20,}\b/g },
   { kind: 'Slack token', re: /\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g },
-  { kind: 'Stripe key', re: /\b(?:sk|rk)_live_[A-Za-z0-9]{24,}\b/g },
+  { kind: 'Stripe key', re: /\b(?:(?:sk|rk)_(?:live|test)|whsec)_[A-Za-z0-9]{24,}\b/g },
+  { kind: 'Slack token', re: /\bxapp-\d-[A-Za-z0-9-]{20,}\b/g },
+  { kind: 'Slack webhook', re: /hooks\.slack\.com\/services\/T\w+\/B\w+\/(\w{20,})/g, groups: [1] },
+  { kind: 'OpenAI key', re: /\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{40,}|\bsk-[A-Za-z0-9_-]{20,}T3BlbkFJ[A-Za-z0-9_-]{20,}/g },
+  { kind: 'Anthropic key', re: /\bsk-ant-(?:api|admin)\d{2}-[A-Za-z0-9_-]{80,}/g },
+  { kind: 'npm token', re: /\bnpm_[A-Za-z0-9]{36}\b/g },
+  {
+    kind: 'API token',
+    re: /\b(?:hf_[A-Za-z]{34}|GOCSPX-[\w-]{28}|ya29\.[\w-]{30,}|shp(?:at|ca|pa|ss)_[a-f0-9]{32}|pypi-AgE[\w-]{50,}|SG\.[\w-]{22}\.[\w-]{43})\b/g,
+  },
+  { kind: 'Azure key', re: /\bAccountKey=([A-Za-z0-9+/]{40,}={0,2})/g, groups: [1] },
+  { kind: 'Azure SAS signature', re: /[?&]sig=([A-Za-z0-9%+/=]{16,})/g, groups: [1] },
+  { kind: 'Cookie', re: /\b(?:Set-)?Cookie:\s*[^=;\s]+=([^;\s]{8,})/gi, groups: [1] },
+  { kind: 'Docker auth', re: /"auth"\s*:\s*"([A-Za-z0-9+/]{16,}={0,2})"/g, groups: [1] },
   { kind: 'Google API key', re: /\bAIza[0-9A-Za-z_-]{35}\b/g },
   { kind: 'JWT', re: /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g },
   { kind: 'Bearer token', re: /\bBearer[ _]([A-Za-z0-9._~+/-]{20,}=*)/g, groups: [1] },
   { kind: 'Basic auth', re: /\bAuthorization["']?\s*[=:]\s*["']?Basic\s+([A-Za-z0-9+/]{8,}={0,2})/gi, groups: [1] },
   // scheme://user:password@host, where the password itself may contain "@" (split at the last one)
-  { kind: 'Password in URL', re: /\b[a-z][a-z0-9+.-]{0,20}:\/\/[^\s:/@]+:([^\s/]{3,})@[^\s@/]+/gi, groups: [1] },
+  // (redis://:password@host has no user)
+  { kind: 'Password in URL', re: /\b[a-z][a-z0-9+.-]{0,20}:\/\/[^\s:/@]*:([^\s/]{3,})@[^\s@/]+/gi, groups: [1] },
   // password=..., "apiKey": "...", SECRET_KEY: ..., access_token=..., with quoted values that may contain spaces
-  // and escaped quotes. A short unquoted value cut by "," or ";" (password=Pa;ssw0rd!) is masked with what follows.
+  // and escaped quotes. An unquoted value goes on past ",", ";" or "&" (password=Tr0ub4dor&3) unless another
+  // key= follows (password=x&user=bob).
   // A colon must follow the key directly (YAML, JSON): "JwtTokenFilter   : Rejected …" in a Spring log is a logger name.
   {
     kind: 'Password',
-    re: /\b[\w.-]{0,40}(?:password|passwd|pwd|passphrase|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)[\w.-]{0,40}["']?(?:\s*=|:)\s*(?:"((?:[^"\\\n]|\\.){4,200})"|'((?:[^'\\\n]|\\.){4,200})'|((?:[^\s"',;&}]{4,}|[^\s"',;&}]{1,3}[,;][^\s"',;&}]*)))/gi,
+    re: /\b[\w.-]{0,40}(?:password|passwd|pwd|passphrase|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)[\w.-]{0,40}["']?(?:\s*=|:)\s*(?:"((?:[^"\\\n]|\\.){4,200})"|'((?:[^'\\\n]|\\.){4,200})'|([^\s"',;&}]+(?:[,;&](?![\w.-]+=)[^\s"',;&}]+)*))/gi,
     groups: [1, 2, 3],
   },
 ];
@@ -54,15 +69,13 @@ function isPlaceholder(value: string): boolean {
     /^<.*>$/.test(value) || // <your-password>
     /^\*+$/.test(value) ||
     /\*{3,}/.test(value) ||
-    /^(null|none|true|false|undefined|changeme|change-me|example|redacted|xxx+)$/i.test(value) ||
-    /^\d{1,7}$/.test(value) || // counters like tokens_used=1234, not credentials
-    /^[\d.,;]+$/.test(value) // tokens=1,234
+    /^(null|none|true|false|undefined|changeme|change-me|example|redacted|xxx+)$/i.test(value)
   );
 }
 
 // Cheap pre-check so the full pattern list only runs on lines that might contain a secret.
 const HINT =
-  /AKIA|ASIA|aws_secret|gh[pousr]_|github_pat_|glpat-|xox[abprs]-|_live_|AIza|eyJ|bearer|basic|:\/\/[^\s/@]+:[^\s]+@|pass|pwd|secret|key|token|credential|PRIVATE/i;
+  /AKIA|ASIA|aws_secret|gh[pousr]_|github_pat_|glpat-|xox[abprs]-|xapp-|hooks\.slack|_live_|_test_|whsec_|sk-|npm_|hf_|GOCSPX-|ya29\.|shp|pypi-|SG\.|sig=|cookie|"auth"|AIza|eyJ|bearer|basic|:\/\/[^\s/@]*:[^\s]+@|pass|pwd|secret|key|token|credential|PRIVATE/i;
 
 let customPatterns: { kind: string; re: RegExp; groups: number[] }[] = [];
 
@@ -101,6 +114,12 @@ export function findSecrets(text: string): SecretMatch[] {
       if (group === undefined) continue;
       const value = match[group];
       if (!value || isPlaceholder(value)) continue;
+      if (kind === 'Password' && group === 3) {
+        // an unquoted value: pwd=x is too short to be one; digits are a secret only under a password key
+        // (password=123456), not a count (tokens_used=1234, max_tokens: 4096, tokens=1,234)
+        if (value.length < 4) continue;
+        if (/^[\d.,;]+$/.test(value) && !/pass|pwd|pin|secret/i.test(match[0].slice(0, match[0].length - value.length))) continue;
+      }
       const [start, end] = match.indices![group]!;
       if (end > start) found.push({ kind, start, end });
     }
@@ -121,7 +140,8 @@ export function hasSecret(text: string): boolean {
 }
 
 // Public, fixed prefixes that only say what kind of token it is. Keeping them reveals nothing secret.
-const TYPE_PREFIX = /^(?:AKIA|ASIA|gh[pousr]_|github_pat_|glpat-|xox[abprs]-|[sr]k_live_|AIza|eyJ)/;
+const TYPE_PREFIX =
+  /^(?:AKIA|ASIA|gh[pousr]_|github_pat_|glpat-|xox[abprs]-|xapp-|[sr]k_(?:live|test)_|whsec_|sk-(?:proj-|svcacct-|admin-|ant-)?|npm_|hf_|GOCSPX-|ya29\.|shp(?:at|ca|pa|ss)_|pypi-|SG\.|AIza|eyJ)/;
 
 /**
  * Replaces a secret with a fixed-length mask, so neither part of the value nor its length leaks.
@@ -133,6 +153,16 @@ export function maskValue(value: string): string {
 }
 
 const PRIVATE_KEY_BLOCK = /-----BEGIN ((?:[A-Z]+ )*PRIVATE KEY)-----[\s\S]*?-----END \1-----/g;
+
+/**
+ * A field's value as Mask shows it, where the field name says what it is: password=hunter2 in a
+ * table cell, the field statistics or a CSV is just "hunter2", which no pattern would catch alone.
+ */
+export function maskField(key: string, value: string): string {
+  if (hasSecret(value)) return maskSecrets(value);
+  const pair = /[\s"'&;,]/.test(value) ? `${key}=${JSON.stringify(value)}` : `${key}=${value}`;
+  return hasSecret(pair) ? maskValue(value) : value;
+}
 
 export function maskSecrets(text: string): string {
   // whole private key blocks first: their base64 body isn't recognisable line by line

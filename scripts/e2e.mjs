@@ -263,6 +263,13 @@ await page.locator('.chip.lvl-INFO').click();
 await page.locator('.chip.lvl-DEBUG').click();
 await page.locator('.toggle', { hasText: 'Collapse' }).click();
 
+// a search for a secret stays out of the address (history, copied links)
+await page.locator('.search').fill('password=hunter2xyz');
+await page.waitForTimeout(300);
+check('a secret in the search is not written to the address', !page.url().includes('hunter2'), page.url());
+await page.locator('.search').fill('');
+await page.waitForTimeout(300);
+
 // no blank page when nothing matches: why, and the way back
 await page.locator('.search').fill('zzzz');
 await page.waitForTimeout(300);

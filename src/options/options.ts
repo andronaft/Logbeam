@@ -32,9 +32,19 @@ function save(): void {
   saveTimer = setTimeout(async () => {
     // the viewer saves the time mode and how it was left: keep what it saved since this page opened
     const { timeMode, view } = await loadSettings();
-    await saveSettings({ ...settings, timeMode, view });
+    try {
+      await saveSettings({ ...settings, timeMode, view });
+    } catch (error) {
+      // e.g. over the 8 KB a synced setting may hold: say so, or the patterns look saved and aren't used
+      saved.textContent = t('optionsSaveFailed', 'Not saved: {error}', { error: (error as Error).message });
+      saved.classList.add('error');
+      return;
+    }
+    saved.classList.remove('error');
     saved.textContent = t('optionsSaved', 'Saved ✓');
-    setTimeout(() => (saved.textContent = ''), 1500);
+    setTimeout(() => {
+      if (!saved.classList.contains('error')) saved.textContent = '';
+    }, 1500);
   }, 300);
 }
 
