@@ -75,7 +75,7 @@ function isPlaceholder(value: string): boolean {
 
 // Cheap pre-check so the full pattern list only runs on lines that might contain a secret.
 const HINT =
-  /AKIA|ASIA|aws_secret|gh[pousr]_|github_pat_|glpat-|xox[abprs]-|xapp-|hooks\.slack|_live_|_test_|whsec_|sk-|npm_|hf_|GOCSPX-|ya29\.|shp|pypi-|SG\.|sig=|cookie|"auth"|AIza|eyJ|bearer|basic|:\/\/[^\s/@]*:[^\s]+@|pass|pwd|secret|key|token|credential|PRIVATE/i;
+  /AKIA|ASIA|aws_secret|gh[pousr]_|github_pat_|glpat-|xox[abprs]-|xapp-|hooks\.slack|_live_|_test_|whsec_|sk-|npm_|hf_|GOCSPX-|ya29\.|shp|pypi-|SG\.|sig=|cookie|"auth"|AIza|eyJ|bearer|basic|:\/\/[^\s/@:]*:[^\s/@]*@|pass|pwd|secret|key|token|credential|PRIVATE/i;
 
 let customPatterns: { kind: string; re: RegExp; groups: number[] }[] = [];
 

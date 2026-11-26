@@ -207,7 +207,7 @@ export function findFailedTests(lines: LogLine[]): TestReport {
       if (totals) {
         let f = 0;
         let t = 0;
-        for (const [, n, word] of totals[1].matchAll(/(\d+) (\w+)/g)) {
+        for (const [, n, word] of totals[1].matchAll(/\b(\d+) (\w+)/g)) {
           t += Number(n);
           if (/^(?:failed|errors?)$/.test(word)) f += Number(n);
         }
@@ -287,8 +287,8 @@ export function findFailedTests(lines: LogLine[]): TestReport {
     }
     const jestTotals = text.startsWith('Tests:') ? JEST_TOTALS.exec(text) : null;
     if (jestTotals) {
-      const f = /(\d+) failed/.exec(jestTotals[1]);
-      addTotals(f ? Number(f[1]) : 0, Number(/(\d+) total/.exec(jestTotals[1])![1]));
+      const f = /\b(\d+) failed/.exec(jestTotals[1]);
+      addTotals(f ? Number(f[1]) : 0, Number(/\b(\d+) total/.exec(jestTotals[1])![1]));
       continue;
     }
 

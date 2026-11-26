@@ -897,7 +897,7 @@ export function signature(text: string): string {
   return (
     text
       .replace(TIMESTAMP_RE, '')
-      .replace(/\[[^\]]*\]/g, '[]')
+      .replace(/\[[^[\]]*\]/g, '[]')
       .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
       // hex IDs, hashes and commit SHAs (key 9f2c, sha 41aa0be): letters and digits both, so words stay
       .replace(/\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{4,}\b/gi, '<hex>')
