@@ -10,6 +10,19 @@
 - **Go to a time** (`t`): type `10:05:30` from an alert (or `2026-10-04 10:05`, with a zone or without) and the
   viewer selects the first entry at or after it. A time of day is read on the log's own day, the right one for a log
   that goes past midnight, in UTC or local time as the viewer shows it.
+- **CI steps for every platform, with durations.** Besides GitHub Actions' `##[group]`, the viewer now folds GitLab
+  sections (nested, with the header GitLab shows), Azure DevOps sections, Buildkite groups (`---`, `+++`, `~~~`),
+  Jenkins stages and the steps of a Docker BuildKit build. Each fold row says how long the step took (`· 3m 12s`,
+  from the CI's own markers or the times of its lines) and shows a red ✖ when the step failed: it has errors or a
+  command in it exited with a non-zero code (`ERROR: Job failed: exit code 1` after the last section counts for the
+  step that ran the script). Failed steps start open. A `--- ` line in an ordinary log, `--- FAIL:` from `go test`
+  or a diff's `--- a/file` don't turn into steps.
+- **Show around** (`c`, or ⤢ in the line details): the selected line among all the lines, like "show context" in
+  Grafana. The search, levels, time range, pods and hidden kinds come off and the line stays in view; the
+  **← Back to the filtered view** chip puts them all back, with the line still selected.
+- **Go to a time** (`t`): type `10:05:30` from an alert (or `2026-10-04 10:05`, with a zone or without) and the
+  viewer selects the first entry at or after it. A time of day is read on the log's own day, the right one for a log
+  that goes past midnight, in UTC or local time as the viewer shows it.
 - **Failed tests in one list.** On a CI log, **Tests ✖ N** lists the tests that failed, from pytest, Jest, Vitest,
   Go, Maven surefire / failsafe, Gradle and RSpec, in the order they failed, with the first one marked "first" and
   the assertion message next to it (`test_refund — AssertionError: assert 0 == 100`). A test the log reports twice,
@@ -17,6 +30,11 @@
   one to go to its line, even in a folded `##[group]` section. The runners' own totals
   (`Tests run: 12, Failures: 1`, `2 failed, 10 passed`) are added up in the panel's head. The toggle only shows
   when tests failed.
+
+### Fixed
+
+- A level no longer carries on past a GitLab or Azure DevOps section marker, so an `npm ERR!` in one section
+  doesn't make the lines of the next section errors.
 
 ### Security
 

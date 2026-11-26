@@ -115,6 +115,20 @@ const ciTestsLog = [
   '2026-10-04T10:00:03.7000000Z ##[endgroup]',
   '2026-10-04T10:00:04.0000000Z ##[error]Process completed with exit code 1.',
 ].join('\n');
+// a GitLab job log: "\e[0Ksection_start:<epoch>:<name>\r\e[0K<header>", timed by the markers; the script fails
+const gitlabLog = [
+  `${E}[0Ksection_start:1700000000:prepare_executor\r${E}[0K${E}[36;1mPreparing the "docker" executor${E}[0;m`,
+  'Using Docker executor with image node:20 ...',
+  'Pulling docker image node:20 ...',
+  `${E}[0Ksection_end:1700000004:prepare_executor\r${E}[0K`,
+  `${E}[0Ksection_start:1700000004:step_script\r${E}[0K${E}[36;1mExecuting "step_script" stage of the job script${E}[0;m`,
+  '$ npm test',
+  'FAIL test/payments.test.ts > refunds partially',
+  `${E}[0Ksection_end:1700000196:step_script\r${E}[0K`,
+  `${E}[0Ksection_start:1700000196:cleanup_file_variables\r${E}[0K${E}[36;1mCleaning up project directory and file based variables${E}[0;m`,
+  `${E}[0Ksection_end:1700000197:cleanup_file_variables\r${E}[0K`,
+  `${E}[31;1mERROR: Job failed: exit code 1${E}[0;m`,
+].join('\n');
 // one request through three pods, next to another request
 const traceLog = [
   '[pod/api-6f9c/app] 2026-10-04T10:00:00.120Z INFO GET /orders/7781 traceId=4bf92f3577b34da6a3ce929d0e0e4736 userId=42',
@@ -127,6 +141,7 @@ const plainPages = {
   '/trace.log': traceLog,
   '/actions.log': actionsLog,
   '/ci-tests.log': ciTestsLog,
+  '/gitlab.log': gitlabLog,
   '/jenkins.log': jenkinsLog,
   '/ansi.log': ansiLog,
   '/redos.log': redosLog,
@@ -515,6 +530,40 @@ check(
   await ciTests.locator('.row.selected').getAttribute('data-number'),
 );
 await ciTests.close();
+// ---- GitLab sections: steps with durations, the failed one open ---------------------------------
+const gitlab = await context.newPage();
+watch(gitlab);
+await gitlab.goto(`${base}/gitlab.log`);
+await gitlab.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await gitlab.waitForSelector('.row');
+const gitlabStatus = () => gitlab.locator('.status').textContent();
+const gitlabTexts = (selector) => gitlab.locator(selector).allTextContents();
+check(
+  'GitLab sections are folded, except the failed one',
+  (await gitlabTexts('.fold-toggle')).join(' | ') === '▸ 5 lines | ▾ 5 lines | ▸ 3 lines' &&
+    (await gitlabStatus()).startsWith('9 / 17'),
+  `${(await gitlabTexts('.fold-toggle')).join(' | ')} · ${await gitlabStatus()}`,
+);
+check(
+  'a GitLab section shows its header and how long it took',
+  (await gitlabTexts('.group-title')).join(' | ') ===
+    'Preparing the "docker" executor | Executing "step_script" stage of the job script | Cleaning up project directory and file based variables' &&
+    (await gitlabTexts('.group-duration')).join(' | ') === '· 4s | · 3m 12s | · 1s',
+  `${(await gitlabTexts('.group-title')).join(' | ')} · ${(await gitlabTexts('.group-duration')).join(' | ')}`,
+);
+check(
+  'only the failed GitLab section has a ✖',
+  (await gitlabTexts('.group-errors')).join(' | ') === '✖ 1' &&
+    (await gitlab.locator('.row[data-number="7"] .group-errors').count()) === 1,
+  (await gitlabTexts('.group-errors')).join(' | '),
+);
+await gitlab.locator('.row[data-number="1"] .fold-toggle').click();
+check(
+  'a click opens a GitLab section',
+  (await gitlab.locator('.row[data-number="3"]').count()) === 1 && (await gitlabStatus()).startsWith('14 / 17'),
+  await gitlabStatus(),
+);
+await gitlab.close();
 
 // ---- following one request across pods ------------------------------------------------------
 const trace = await context.newPage();

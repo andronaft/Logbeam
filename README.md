@@ -72,7 +72,9 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
   by **first seen**, with the earliest error marked: the one `pool exhausted` is often the cause of 900 timeouts
 - **Follow** a log that is still being written: new lines are added every 3 seconds
 - **JSON table** with the columns you choose, saved as **CSV**, and **local time** instead of UTC
-- **GitHub Actions sections**: `##[group]` steps folded like in GitHub, the ones with errors open
+- **CI steps with durations**: the steps of GitHub Actions, GitLab, Azure DevOps, Buildkite, Jenkins and Docker
+  BuildKit logs folded like on the CI's own page, each with how long it took (`· 3m 12s`) and a ✖ on the failed
+  ones, which start open
 - **Failed tests** of a CI log in one list, from pytest, Jest, Vitest, Go, Maven, Gradle and RSpec, in the order
   they failed, the first one marked, with the assertion message; click one to go to its line
 - **ANSI colours** from CI and Docker logs, **your own level words** (`ALERT` → ERROR), and a **light theme**
