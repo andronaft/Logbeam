@@ -1,0 +1,22 @@
+{
+  "lines": [
+    "1 ERROR",
+    "2 ERROR ~",
+    "3 ERROR ~",
+    "4 ERROR +",
+    "5 INFO",
+    "6 INFO ~"
+  ],
+  "errorGroups": [
+    {
+      "sample": "fail: Microsoft.AspNetCore.Server.Kestrel[13]",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

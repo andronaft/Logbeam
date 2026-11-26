@@ -1,0 +1,2 @@
+{"__REALTIME_TIMESTAMP":"1764126721000000","PRIORITY":"3","_SYSTEMD_UNIT":"app.service","MESSAGE":"connection refused","_HOSTNAME":"web-1"}
+{"__REALTIME_TIMESTAMP":"1764126722000000","PRIORITY":"6","_SYSTEMD_UNIT":"app.service","MESSAGE":"started","_HOSTNAME":"web-1"}

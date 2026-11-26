@@ -1,0 +1,27 @@
+{
+  "lines": [
+    "1 -",
+    "2 -",
+    "3 -",
+    "4 -",
+    "5 ERROR",
+    "6 ERROR +",
+    "7 ERROR ~",
+    "8 ERROR ~",
+    "9 ERROR ~",
+    "10 ERROR ~",
+    "11 ERROR ~"
+  ],
+  "errorGroups": [
+    {
+      "sample": "Error: connect ECONNREFUSED 10.0.0.5:5432",
+      "count": 1,
+      "lines": [
+        5
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

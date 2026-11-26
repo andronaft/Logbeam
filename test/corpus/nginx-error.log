@@ -1,0 +1,1 @@
+2026/11/26 03:12:01 [error] 31#31: *1234 upstream timed out (110: Connection timed out) while reading response header from upstream, client: 10.0.0.1, server: api, request: "GET /api/pay HTTP/1.1", upstream: "http://10.1.2.3:8080/api/pay"

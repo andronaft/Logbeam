@@ -3,7 +3,7 @@
  * JSON records and from key=value pairs in plain lines (logfmt, Spring, nginx), so the same filter
  * works on both.
  */
-import type { LogLine } from './logs';
+import { LogLine, eachEntry } from './logs';
 
 export type FieldOp = '=' | '!=' | '>' | '>=' | '<' | '<=';
 
@@ -94,16 +94,13 @@ export function excludeWords(lines: LogLine[], words: string[], caseSensitive: b
     const haystack = caseSensitive ? text : text.toLowerCase();
     return needles.some((needle) => haystack.includes(needle));
   };
-  // in a log with timestamps, a line without one ("java.lang.…Exception") belongs to the entry above
+  const kept: LogLine[] = [];
   let entryOut = false;
-  let timed = false;
-  return lines.filter((line) => {
-    if (!line.continuation && (line.time !== null || !timed)) {
-      entryOut = has(line.text);
-      timed = line.time !== null;
-    }
-    return !entryOut && !has(line.text);
+  eachEntry(lines, (line, starts) => {
+    if (starts) entryOut = has(line.text);
+    if (!entryOut && !has(line.text)) kept.push(line);
   });
+  return kept;
 }
 
 function unquote(value: string): string {

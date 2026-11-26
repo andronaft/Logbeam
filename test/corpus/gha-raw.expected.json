@@ -1,0 +1,30 @@
+{
+  "lines": [
+    "1 - @",
+    "2 - @ gap 0ms",
+    "3 - @ gap 77ms",
+    "4 ERROR @ gap 28800ms"
+  ],
+  "errorGroups": [
+    {
+      "sample": "2026-11-26T03:12:30.0000000Z ##[error]Process completed with exit code 1.",
+      "count": 1,
+      "lines": [
+        4
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "title": "Run npm test",
+      "start": 1,
+      "end": 3,
+      "errors": 0,
+      "depth": 0,
+      "durationMs": 28877,
+      "failed": true
+    }
+  ],
+  "failedTests": [],
+  "totals": null
+}

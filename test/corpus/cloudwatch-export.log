@@ -1,0 +1,3 @@
+2026-11-26T03:12:01.123+00:00	START RequestId: 8f5c Version: $LATEST
+2026-11-26T03:12:01.500+00:00	2026-11-26T03:12:01.499Z	8f5c	ERROR	Invoke Error 	{"errorType":"TypeError","errorMessage":"x is undefined"}
+2026-11-26T03:12:02.000+00:00	REPORT RequestId: 8f5c	Duration: 876.12 ms	Billed Duration: 877 ms	Memory Size: 128 MB	Max Memory Used: 128 MB

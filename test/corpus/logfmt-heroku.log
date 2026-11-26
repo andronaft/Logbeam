@@ -1,0 +1,2 @@
+2026-11-26T03:12:01.000000+00:00 heroku[router]: at=error code=H12 desc="Request timeout" method=GET path="/" status=503 service=30000ms
+2026-11-26T03:12:01.000000+00:00 app[web.1]: Error R14 (Memory quota exceeded)

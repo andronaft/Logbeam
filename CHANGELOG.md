@@ -27,6 +27,14 @@
 
 ### Fixed
 
+- **One error is one group.** Error groups and Compare's new errors took every line under an error that had no
+  level or time of its own as an error of its own, so one Python traceback made 9 groups, a Node error 6, a Go panic
+  6 and a Terraform error 5. An error is now the line with the ERROR level and everything under it that only takes
+  that level: the stack trace, the object dump under a Node error, the goroutines of a Go panic. Showing a group
+  shows all of it.
+- **Python tracebacks are read as one entry**, a chained one too ("During handling of the above exception…"). A
+  traceback printed with no log line above it counts as an error, named by its exception line
+  (`KeyError: 'DATABASE_URL'`).
 - **A very long line no longer freezes the tab.** Some patterns took time that grew with the square of a line's
   length, so one minified JSON line of a few hundred kilobytes, or a long search with an odd number of quotes, could
   take seconds or minutes: the check for passwords in URLs, the search box's reading of quoted words, the

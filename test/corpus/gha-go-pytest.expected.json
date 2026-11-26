@@ -1,0 +1,97 @@
+{
+  "lines": [
+    "1 - @",
+    "2 - @ gap 900ms",
+    "3 - @ gap 100ms",
+    "4 - @ gap 100ms",
+    "5 ERROR @ gap 100ms",
+    "6 ERROR @ gap 100ms",
+    "7 ERROR @ gap 100ms",
+    "8 - @ gap 100ms",
+    "9 - @ gap 400ms",
+    "10 - @ gap 1000ms",
+    "11 - @ gap 100ms",
+    "12 - @ gap 100ms",
+    "13 - @ gap 100ms",
+    "14 - @ gap 100ms",
+    "15 ERROR @ gap 100ms",
+    "16 - @ gap 100ms",
+    "17 - @ gap 100ms",
+    "18 ERROR @ gap 300ms"
+  ],
+  "errorGroups": [
+    {
+      "sample": "2026-10-04T10:00:01.3000000Z --- FAIL: TestCharge (0.02s)",
+      "count": 1,
+      "lines": [
+        5
+      ]
+    },
+    {
+      "sample": "2026-10-04T10:00:01.4000000Z     --- FAIL: TestCharge/zero (0.00s)",
+      "count": 1,
+      "lines": [
+        6
+      ]
+    },
+    {
+      "sample": "2026-10-04T10:00:01.5000000Z FAIL\tgithub.com/acme/shop/pay\t0.031s",
+      "count": 1,
+      "lines": [
+        7
+      ]
+    },
+    {
+      "sample": "2026-10-04T10:00:03.5000000Z FAILED tests/test_pay.py::test_refund - AssertionError: assert 0 == 100",
+      "count": 1,
+      "lines": [
+        15
+      ]
+    },
+    {
+      "sample": "2026-10-04T10:00:04.0000000Z ##[error]Process completed with exit code 1.",
+      "count": 1,
+      "lines": [
+        18
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "title": "Run go test ./...",
+      "start": 1,
+      "end": 8,
+      "errors": 3,
+      "depth": 0,
+      "durationMs": 1500,
+      "failed": true
+    },
+    {
+      "title": "Run pytest",
+      "start": 9,
+      "end": 17,
+      "errors": 1,
+      "depth": 0,
+      "durationMs": 2000,
+      "failed": true
+    }
+  ],
+  "failedTests": [
+    {
+      "runner": "go",
+      "name": "TestCharge/zero",
+      "line": 6,
+      "reason": "expected an error for a zero amount, got nil"
+    },
+    {
+      "runner": "pytest",
+      "name": "test_refund",
+      "line": 11,
+      "reason": "AssertionError: assert 0 == 100"
+    }
+  ],
+  "totals": {
+    "failed": 1,
+    "total": 5
+  }
+}

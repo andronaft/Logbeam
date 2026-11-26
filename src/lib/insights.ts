@@ -4,7 +4,7 @@
  * for a JSON table, local times, and the new part of a log that is still being written.
  */
 import { fieldValue, numericValue, plainFields } from './fields';
-import { LogLine, formatGap, signature, splitSource } from './logs';
+import { LogLine, formatGap, isTracebackHead, signature, splitSource } from './logs';
 
 // ---- bookmarks ---------------------------------------------------------------------------
 
@@ -175,15 +175,27 @@ export function groupErrors(lines: LogLine[]): ErrorGroup[] {
   const groups = new Map<string, ErrorGroup>();
   for (let i = 0; i < lines.length; i++) {
     const head = lines[i];
-    if (head.continuation || head.level !== 'ERROR') continue;
-    const frames: string[] = [];
-    for (let j = i + 1; j < lines.length && lines[j].continuation && frames.length < FRAMES_IN_KEY; j++) {
-      frames.push(signature(splitSource(lines[j].text).rest));
+    // an error is a line with an ERROR level of its own; the stack frames under it and the lines that only
+    // take its level ("  errno: -111," under a Node error, the goroutines of a Go panic) are part of it
+    if (head.continuation || head.inherited || head.level !== 'ERROR') continue;
+    let end = i + 1;
+    while (end < lines.length && (lines[end].continuation || lines[end].inherited)) end++;
+    const body = lines.slice(i + 1, end);
+    // the first frames tell errors with the same message apart
+    const frames = body
+      .filter((line) => line.continuation && line.text.trim() !== '')
+      .slice(0, FRAMES_IN_KEY)
+      .map((line) => signature(splitSource(line.text).rest));
+    let message = splitSource(head.text).rest;
+    if (isTracebackHead(message)) {
+      // a traceback on its own: the exception line at its end says what the error is
+      const exception = [...body].reverse().find((line) => /^[A-Za-z_]/.test(splitSource(line.text).rest));
+      if (exception) message = splitSource(exception.text).rest;
     }
-    const key = [signature(splitSource(head.text).rest), ...frames].join('\n');
+    const key = [signature(message), ...frames].join('\n');
     let group = groups.get(key);
     if (!group) {
-      group = { key, sample: splitSource(head.text).rest, count: 0, lines: [], sources: [], first: null, last: null };
+      group = { key, sample: message, count: 0, lines: [], sources: [], first: null, last: null };
       groups.set(key, group);
     }
     group.count++;

@@ -1,0 +1,6 @@
+╷
+│ Error: creating EC2 Instance: UnauthorizedOperation: You are not authorized
+│
+│   with aws_instance.web,
+│   on main.tf line 12, in resource "aws_instance" "web":
+╵

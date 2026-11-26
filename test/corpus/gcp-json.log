@@ -1,0 +1,1 @@
+{"severity":"ERROR","timestamp":"2026-11-26T03:12:01Z","jsonPayload":{"message":"boom"},"resource":{"labels":{"pod_name":"pay-1"}}}

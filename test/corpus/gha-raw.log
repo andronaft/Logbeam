@@ -1,0 +1,4 @@
+2026-11-26T03:12:01.1234567Z ##[group]Run npm test
+2026-11-26T03:12:01.1234567Z npm test
+2026-11-26T03:12:01.2000000Z ##[endgroup]
+2026-11-26T03:12:30.0000000Z ##[error]Process completed with exit code 1.

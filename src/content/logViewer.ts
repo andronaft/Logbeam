@@ -1795,11 +1795,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     const muted = hideMuted(base, new Set(state.mutes.map((mute) => mute.key)), kindOf);
     base = muted.lines;
     if (state.group) {
-      // the group's error lines and their stack traces
+      // the group's error lines with their stack traces and the lines that take their level
       const heads = state.group.lines;
       let keep = false;
       base = base.filter((l) => {
-        if (!l.continuation) keep = heads.has(l.number);
+        if (!l.continuation && !l.inherited) keep = heads.has(l.number);
         return keep;
       });
     }

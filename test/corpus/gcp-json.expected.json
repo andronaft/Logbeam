@@ -1,0 +1,17 @@
+{
+  "lines": [
+    "1 ERROR @"
+  ],
+  "errorGroups": [
+    {
+      "sample": "2026-11-26T03:12:01Z ERROR {\"jsonPayload\":{\"message\":\"boom\"},\"resource\":{\"labels\":{\"pod_name\":\"pay-1\"}}}",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

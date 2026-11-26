@@ -1,0 +1,18 @@
+2026-10-04T10:00:00.1000000Z ##[group]Run go test ./...
+2026-10-04T10:00:01.0000000Z === RUN   TestCharge
+2026-10-04T10:00:01.1000000Z === RUN   TestCharge/zero
+2026-10-04T10:00:01.2000000Z     charge_test.go:31: expected an error for a zero amount, got nil
+2026-10-04T10:00:01.3000000Z --- FAIL: TestCharge (0.02s)
+2026-10-04T10:00:01.4000000Z     --- FAIL: TestCharge/zero (0.00s)
+2026-10-04T10:00:01.5000000Z FAIL	github.com/acme/shop/pay	0.031s
+2026-10-04T10:00:01.6000000Z ##[endgroup]
+2026-10-04T10:00:02.0000000Z ##[group]Run pytest
+2026-10-04T10:00:03.0000000Z =================================== FAILURES ===================================
+2026-10-04T10:00:03.1000000Z _________________________________ test_refund __________________________________
+2026-10-04T10:00:03.2000000Z E       AssertionError: assert 0 == 100
+2026-10-04T10:00:03.3000000Z tests/test_pay.py:21: AssertionError
+2026-10-04T10:00:03.4000000Z =========================== short test summary info ============================
+2026-10-04T10:00:03.5000000Z FAILED tests/test_pay.py::test_refund - AssertionError: assert 0 == 100
+2026-10-04T10:00:03.6000000Z ========================= 1 failed, 4 passed in 0.42s =========================
+2026-10-04T10:00:03.7000000Z ##[endgroup]
+2026-10-04T10:00:04.0000000Z ##[error]Process completed with exit code 1.

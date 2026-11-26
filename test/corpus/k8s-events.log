@@ -1,0 +1,4 @@
+LAST SEEN   TYPE      REASON      OBJECT                       MESSAGE
+2m          Warning   BackOff     pod/payments-7d9f8-x2k4p     Back-off restarting failed container app in pod payments-7d9f8-x2k4p
+3m          Normal    Pulled      pod/payments-7d9f8-x2k4p     Container image "pay:1.2.3" already present on machine
+1m          Warning   FailedScheduling  pod/worker-0         0/3 nodes are available: 3 Insufficient memory.

@@ -1,0 +1,5 @@
+State:          Waiting
+  Reason:       CrashLoopBackOff
+Last State:     Terminated
+  Reason:       OOMKilled
+  Exit Code:    137

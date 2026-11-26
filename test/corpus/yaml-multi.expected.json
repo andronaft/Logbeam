@@ -1,0 +1,22 @@
+{
+  "lines": [
+    "1 INFO @",
+    "2 INFO ~",
+    "3 INFO ~",
+    "4 INFO ~",
+    "5 INFO ~ secret",
+    "6 ERROR @ gap 1000ms"
+  ],
+  "errorGroups": [
+    {
+      "sample": "2026-11-26T03:12:02Z ERROR boom",
+      "count": 1,
+      "lines": [
+        6
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

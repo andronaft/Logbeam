@@ -4,7 +4,7 @@
  * out (the signature that Collapse uses too) and its level, so a 503 that a log marks ERROR is not
  * hidden with the 200s.
  */
-import { Level, LogLine, signature, splitSource } from './logs';
+import { Level, LogLine, eachEntry, signature, splitSource } from './logs';
 
 export interface Mute {
   /** The line it was made from: a view link keeps this number, not the text. */
@@ -33,19 +33,6 @@ export function makeMute(line: LogLine): Mute {
 }
 
 /**
- * Calls back with each line and whether it starts an entry. In a log with timestamps, a line
- * without one ("java.lang.IllegalStateException: …" under an error) belongs to the entry above.
- */
-function eachEntryLine(lines: LogLine[], visit: (line: LogLine, starts: boolean) => void): void {
-  let timed = false;
-  for (const line of lines) {
-    const starts = !line.continuation && (line.time !== null || !timed);
-    if (starts) timed = line.time !== null;
-    visit(line, starts);
-  }
-}
-
-/**
  * The lines without the hidden kinds, and how many lines were taken out. A stack trace goes with
  * its entry. keyOf is muteKey, cached by the caller: the viewer asks for the same lines on every
  * filter change.
@@ -58,7 +45,7 @@ export function hideMuted(
   if (keys.size === 0) return { lines, hidden: 0 };
   let hide = false;
   const kept: LogLine[] = [];
-  eachEntryLine(lines, (line, starts) => {
+  eachEntry(lines, (line, starts) => {
     if (starts) hide = keys.has(keyOf(line));
     if (!hide) kept.push(line);
   });
@@ -68,7 +55,7 @@ export function hideMuted(
 /** How many entries are of this kind. */
 export function countKind(lines: LogLine[], key: string, keyOf: (line: LogLine) => string = muteKey): number {
   let count = 0;
-  eachEntryLine(lines, (line, starts) => {
+  eachEntry(lines, (line, starts) => {
     if (starts && keyOf(line) === key) count++;
   });
   return count;
