@@ -30,13 +30,18 @@ export function conditionValue(value: string): string {
   return /[\s"*]/.test(value) || value === '' ? JSON.stringify(value) : value;
 }
 
+// Words of a query, split on spaces outside quotes: service="payment api" level=error. One character at a time
+// (not [^\s"]+ inside the repeat, which backtracks), and a quote left open runs to the end, so a long query
+// with an odd number of quotes (or a backslash at its very end) doesn't make the search box freeze.
+const WORDS = /(?:[^\s"]|"(?:[^"\\]|\\.|\\$)*(?:"|$))+/g;
+
 /**
  * Reads a search box query as field conditions. Returns null unless every word is a condition, so
  * an ordinary search like `timeout after 30s` or `a=b c` stays a text search.
  */
 export function parseFieldQuery(query: string): FieldCondition[] | null {
   // split on spaces outside quotes: service="payment api" level=error
-  const words = query.trim().match(/(?:[^\s"]+|"(?:[^"\\]|\\.)*")+/g);
+  const words = query.trim().match(WORDS);
   if (!words) return null;
   const conditions: FieldCondition[] = [];
   for (const word of words) {
@@ -63,7 +68,7 @@ export interface SearchQuery {
  * `service=payments timeout -healthz`. A word like -5 or --verbose is text, not a word to leave out.
  */
 export function parseQuery(query: string): SearchQuery {
-  const words = query.trim().match(/(?:[^\s"]+|"(?:[^"\\]|\\.)*")+/g) ?? [];
+  const words = query.trim().match(WORDS) ?? [];
   const conditions: FieldCondition[] = [];
   const exclude: string[] = [];
   const text: string[] = [];

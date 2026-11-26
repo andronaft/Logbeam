@@ -27,6 +27,11 @@
 
 ### Fixed
 
+- **A very long line no longer freezes the tab.** Some patterns took time that grew with the square of a line's
+  length, so one minified JSON line of a few hundred kilobytes, or a long search with an odd number of quotes, could
+  take seconds or minutes: the check for passwords in URLs, the search box's reading of quoted words, the
+  normalisation that groups errors, and the pytest and Jest totals. A 40,000-character line that took 1.5–5 seconds
+  now takes a millisecond, and a test runs every pattern on hostile lines of growing length.
 - A level no longer carries on past a GitLab or Azure DevOps section marker, so an `npm ERR!` in one section
   doesn't make the lines of the next section errors.
 
