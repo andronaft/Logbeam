@@ -1,0 +1,20 @@
+{
+  "lines": [
+    "1 ERROR",
+    "2 ERROR +",
+    "3 ERROR +",
+    "4 ERROR +"
+  ],
+  "errorGroups": [
+    {
+      "sample": "Traceback (most recent call last):",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

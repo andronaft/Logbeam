@@ -1,0 +1,25 @@
+{
+  "lines": [
+    "1 ERROR",
+    "2 ERROR"
+  ],
+  "errorGroups": [
+    {
+      "sample": "Error: UPGRADE FAILED: context deadline exceeded",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    },
+    {
+      "sample": "error: deployment \"payments\" exceeded its progress deadline",
+      "count": 1,
+      "lines": [
+        2
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

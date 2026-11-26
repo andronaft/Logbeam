@@ -1,0 +1,18 @@
+{
+  "lines": [
+    "1 ERROR @",
+    "2 INFO @ gap 1000ms"
+  ],
+  "errorGroups": [
+    {
+      "sample": "10.0.0.1 - - [26/Nov/2026:03:12:01 +0000] \"GET /api/pay HTTP/1.1\" 502 157 \"-\" \"curl/8.0\" 0.503 0.501",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

@@ -14,6 +14,11 @@ export interface LogLine {
   level: Level | null;
   /** True for lines that continue the previous entry, e.g. "\tat com.foo.Bar.baz(Bar.java:42)". */
   continuation: boolean;
+  /**
+   * True for a line with no level and no time of its own that takes the level of the entry above, e.g. the
+   * "  errno: -111," under a Node error. Such a line belongs to that entry (see eachEntry).
+   */
+  inherited?: boolean;
   /** Parsed timestamp in epoch millis, if the line starts an entry and has one. */
   time: number | null;
   /** Millis since the previous timestamped entry. */
@@ -215,6 +220,10 @@ const ANDROID_RE = /^\s*([VDIWEF])\/[\w.$-]+\s*(?:\(\s*\d+\))?\s*:|^\d\d-\d\d \d
 // Single-letter level in brackets near the start: "[W] disk almost full"
 const LETTER_RE = /^.{0,40}?\[([VDIWEF])\]\s/;
 const LETTER_LEVELS: Record<string, Level> = { V: 'TRACE', D: 'DEBUG', I: 'INFO', W: 'WARN', E: 'ERROR', F: 'ERROR' };
+
+// Python: "Traceback (most recent call last):", and the lines between two chained tracebacks
+const TRACEBACK_RE = /^Traceback \(most recent call last\):?\s*$/;
+const TRACEBACK_CHAIN_RE = /^(?:During handling of the above exception|The above exception was the direct cause)/;
 
 // Stack trace frames and wrapped exceptions (Java, JS, Python, Go).
 const CONTINUATION_RE =
@@ -551,6 +560,13 @@ const MAX_JSON_BLOCK_LINES = 5000;
 export class LogParser {
   /** Inside a PEM private key: its body lines don't look like secrets on their own. */
   private inPem = false;
+  /**
+   * In a Python traceback: 'body' for its indented frames, 'after' once its exception line was read (only
+   * blank lines and the lines that chain the next traceback go on with it then).
+   */
+  private traceback: 'body' | 'after' | null = null;
+  /** The open traceback had no log line above it and set the ERROR level itself. */
+  private tracebackLevel = false;
   private currentLevel: Level | null = null;
   private lastTime: number | null = null;
   private count = 0;
@@ -725,11 +741,25 @@ export class LogParser {
     // a pod's lines are read without the "[pod/…]" prefix, which stays in the shown text
     const { source, rest } = splitSource(raw);
     const json = parseJsonRecord(rest);
-    const continuation = json === null && CONTINUATION_RE.test(rest);
+    let continuation = json === null && CONTINUATION_RE.test(rest);
+    let inherited = false;
 
     let level: Level | null;
     let time: number | null = null;
-    if (continuation) {
+    if (json === null && TRACEBACK_RE.test(rest)) {
+      // a traceback printed without a log line above it ("Traceback (most recent call last):" on its own)
+      // is an error entry of its own
+      if (this.currentLevel === null) {
+        this.currentLevel = 'ERROR';
+        this.tracebackLevel = true;
+        continuation = false;
+      }
+      this.traceback = 'body';
+      level = this.currentLevel;
+    } else if (this.traceback !== null && json === null && this.continuesTraceback(rest)) {
+      continuation = true;
+      level = this.currentLevel;
+    } else if (continuation) {
       level = this.currentLevel;
     } else {
       level = json ? jsonLevel(json, this.custom) : detectLevel(rest, this.custom);
@@ -744,6 +774,7 @@ export class LogParser {
         this.currentLevel = level = 'ERROR';
       } else {
         level = this.currentLevel;
+        inherited = level !== null;
       }
     }
 
@@ -754,7 +785,7 @@ export class LogParser {
 
     const formatted = json ? formatJsonRecord(json) : rest;
     const text = source !== null ? raw.slice(0, raw.length - rest.length) + formatted : formatted;
-    return {
+    const line: LogLine = {
       number: ++this.count,
       text,
       level,
@@ -767,6 +798,33 @@ export class LogParser {
       source,
       ansi: null,
     };
+    if (inherited) line.inherited = true;
+    return line;
+  }
+
+  /**
+   * Whether a line goes on with the open Python traceback: its indented frames and code, blank lines, the
+   * lines that chain two tracebacks, and the exception line ("TimeoutError: gateway"), which ends it.
+   */
+  private continuesTraceback(text: string): boolean {
+    if (text === '' || TRACEBACK_CHAIN_RE.test(text)) return true;
+    if (this.traceback === 'body') {
+      if (/^\s/.test(text)) return true;
+      // the exception line, unless it is a new entry with a time of its own
+      if (/^[A-Za-z_][\w.]*(?::|$)/.test(text) && parseTimestamp(text) === null && parseTimeOfDay(text) === null) {
+        this.traceback = 'after';
+        return true;
+      }
+    }
+    this.endTraceback();
+    return false;
+  }
+
+  private endTraceback(): void {
+    this.traceback = null;
+    // the level a lone traceback set stays with it, not with the lines after it
+    if (this.tracebackLevel) this.currentLevel = null;
+    this.tracebackLevel = false;
   }
 }
 
@@ -904,6 +962,21 @@ export function signature(text: string): string {
       .replace(/\d+/g, '#')
       .trim()
   );
+}
+
+/**
+ * Calls back with each line and whether it starts an entry. An entry is a line with a level or a time of its
+ * own and the lines under it: stack frames and other continuation lines, lines that only take its level
+ * ("  errno: -111," under a Node error) and, in a log with timestamps, lines without one
+ * ("java.lang.IllegalStateException: …" under an error).
+ */
+export function eachEntry(lines: readonly LogLine[], visit: (line: LogLine, starts: boolean) => void): void {
+  let timed = false;
+  for (const line of lines) {
+    const starts = !line.continuation && !line.inherited && (line.time !== null || !timed);
+    if (starts) timed = line.time !== null;
+    visit(line, starts);
+  }
 }
 
 /**

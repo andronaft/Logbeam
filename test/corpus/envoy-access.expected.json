@@ -1,0 +1,17 @@
+{
+  "lines": [
+    "1 ERROR @"
+  ],
+  "errorGroups": [
+    {
+      "sample": "[2026-11-26T03:12:01.123Z] \"GET /pay HTTP/2\" 503 UF 0 91 30001 - \"10.0.0.1\" \"curl\" \"abc-123\" \"pay:8080\" \"10.1.2.3:8080\"",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

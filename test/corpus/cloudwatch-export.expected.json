@@ -1,0 +1,19 @@
+{
+  "lines": [
+    "1 - @",
+    "2 ERROR @ gap 377ms",
+    "3 - @ gap 500ms"
+  ],
+  "errorGroups": [
+    {
+      "sample": "2026-11-26T03:12:01.500+00:00\t2026-11-26T03:12:01.499Z\t8f5c\tERROR\tInvoke Error \t{\"errorType\":\"TypeError\",\"errorMessage\":\"x is undefined\"}",
+      "count": 1,
+      "lines": [
+        2
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

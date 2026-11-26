@@ -1,0 +1,31 @@
+{
+  "lines": [
+    "1 ERROR @",
+    "2 ERROR +",
+    "3 ERROR +",
+    "4 ERROR +",
+    "5 ERROR +",
+    "6 ERROR +",
+    "7 ERROR +",
+    "8 ERROR +",
+    "9 ERROR +",
+    "10 ERROR +",
+    "11 ERROR +",
+    "12 ERROR +",
+    "13 ERROR +",
+    "14 ERROR +",
+    "15 INFO @ gap 877ms"
+  ],
+  "errorGroups": [
+    {
+      "sample": "2026-11-26 03:12:01,123 ERROR [worker] Task failed",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

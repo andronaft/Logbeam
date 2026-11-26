@@ -1,0 +1,75 @@
+{
+  "lines": [
+    "1 -",
+    "2 -",
+    "3 -",
+    "4 -",
+    "5 -",
+    "6 -",
+    "7 -",
+    "8 -",
+    "9 -",
+    "10 ERROR",
+    "11 -",
+    "12 -",
+    "13 -",
+    "14 -",
+    "15 -",
+    "16 -",
+    "17 ERROR"
+  ],
+  "errorGroups": [
+    {
+      "sample": "FAIL test/payments.test.ts > refunds partially",
+      "count": 1,
+      "lines": [
+        10
+      ]
+    },
+    {
+      "sample": "ERROR: Job failed: exit code 1",
+      "count": 1,
+      "lines": [
+        17
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "title": "Preparing the \"docker\" executor",
+      "start": 1,
+      "end": 6,
+      "errors": 0,
+      "depth": 0,
+      "durationMs": 4000,
+      "failed": false
+    },
+    {
+      "title": "Executing \"step_script\" stage of the job script",
+      "start": 7,
+      "end": 12,
+      "errors": 1,
+      "depth": 0,
+      "durationMs": 192000,
+      "failed": true
+    },
+    {
+      "title": "Cleaning up project directory and file based variables",
+      "start": 13,
+      "end": 16,
+      "errors": 0,
+      "depth": 0,
+      "durationMs": 1000,
+      "failed": false
+    }
+  ],
+  "failedTests": [
+    {
+      "runner": "vitest",
+      "name": "refunds partially",
+      "line": 10,
+      "reason": ""
+    }
+  ],
+  "totals": null
+}

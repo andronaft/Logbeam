@@ -1,0 +1,3 @@
+Level,Date and Time,Source,Event ID,Task Category
+Error,11/26/2026 3:12:01 AM,Service Control Manager,7031,None,"The Payments service terminated unexpectedly."
+Warning,11/26/2026 3:12:00 AM,Disk,153,None,"The IO operation at logical block address 0x1 was retried."

@@ -33,6 +33,12 @@
 
 ### Fixed
 
+- **One error is one group.** Error groups and Compare's new errors took every line under an error that had no
+  level or time of its own as an error of its own, so one Python traceback made 9 groups, a Node error 6, a Go panic
+  6 and a Terraform error 5. An error is now its whole entry: the stack trace, the object dump under a Node error,
+  the goroutines of a Go panic. Hiding a kind of line and `-word` treat it the same way.
+- **Python tracebacks are read as one entry**, a chained one too ("During handling of the above exception…"), and a
+  traceback printed with no log line above it counts as an error.
 - A level no longer carries on past a GitLab or Azure DevOps section marker, so an `npm ERR!` in one section
   doesn't make the lines of the next section errors.
 

@@ -4,7 +4,7 @@
  * for a JSON table, local times, and the new part of a log that is still being written.
  */
 import { fieldValue, numericValue, plainFields } from './fields';
-import { LogLine, formatGap, signature, splitSource } from './logs';
+import { LogLine, eachEntry, formatGap, signature, splitSource } from './logs';
 
 // ---- bookmarks ---------------------------------------------------------------------------
 
@@ -173,12 +173,16 @@ const FRAMES_IN_KEY = 3;
  */
 export function groupErrors(lines: LogLine[]): ErrorGroup[] {
   const groups = new Map<string, ErrorGroup>();
+  const starts: boolean[] = [];
+  eachEntry(lines, (_, start) => starts.push(start));
   for (let i = 0; i < lines.length; i++) {
     const head = lines[i];
-    if (head.continuation || head.level !== 'ERROR') continue;
+    if (!starts[i] || head.level !== 'ERROR') continue;
+    // one error is one entry, its whole stack trace with it; the first frames tell errors with the same
+    // message apart (the lines that only take its level, like "  errno: -111,", don't)
     const frames: string[] = [];
-    for (let j = i + 1; j < lines.length && lines[j].continuation && frames.length < FRAMES_IN_KEY; j++) {
-      frames.push(signature(splitSource(lines[j].text).rest));
+    for (let j = i + 1; j < lines.length && !starts[j] && frames.length < FRAMES_IN_KEY; j++) {
+      if (lines[j].continuation) frames.push(signature(splitSource(lines[j].text).rest));
     }
     const key = [signature(splitSource(head.text).rest), ...frames].join('\n');
     let group = groups.get(key);

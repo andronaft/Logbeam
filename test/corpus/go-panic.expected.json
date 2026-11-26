@@ -1,0 +1,25 @@
+{
+  "lines": [
+    "1 ERROR",
+    "2 ERROR ~",
+    "3 ERROR ~",
+    "4 ERROR +",
+    "5 ERROR ~",
+    "6 ERROR +",
+    "7 ERROR ~",
+    "8 ERROR +",
+    "9 ERROR ~"
+  ],
+  "errorGroups": [
+    {
+      "sample": "panic: runtime error: invalid memory address or nil pointer dereference",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

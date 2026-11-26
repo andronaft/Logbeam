@@ -1,0 +1,12 @@
+{
+  "lines": [
+    "1 - @",
+    "2 - @ gap 4000ms",
+    "3 - @ gap 0ms",
+    "4 - @ gap 0ms"
+  ],
+  "errorGroups": [],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

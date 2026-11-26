@@ -1,0 +1,6 @@
+2026-11-26T03:12:01Z INFO loaded config:
+  server:
+    port: 8080
+  db:
+    url: postgres://app:hunter2@db:5432/app
+2026-11-26T03:12:02Z ERROR boom

@@ -1,0 +1,7 @@
+2026-11-26 03:12:01.123 ERROR 1 --- [nio-8080-exec-1] o.a.c.c.C.[.[.[/].[dispatcherServlet] : Servlet.service() threw exception
+org.springframework.dao.DataAccessResourceFailureException: Unable to acquire JDBC Connection
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.convert(HibernateJpaDialect.java:277)
+	... 120 common frames omitted
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30000ms.
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
+2026-11-26 03:12:02.000  INFO 1 --- [main] c.e.App : next

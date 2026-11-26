@@ -77,11 +77,10 @@ Sizes: **S** an afternoon, **M** a few days, **L** a week or more. Pick one, ope
 
 ## Code
 
-| Idea                                                                                                      | Size   | Notes                          |
-| --------------------------------------------------------------------------------------------------------- | ------ | ------------------------------ |
-| Move the line inspector out of `logViewer.ts` ([#28](https://github.com/andronaft/Logbeam/issues/28))     | M      | `logViewer.ts` is ~1,900 lines |
-| One "entry" helper for hide-lines, `-words` and groups (a line without a time belongs to the entry above) | S      | three copies today             |
-| More languages ([#2](https://github.com/andronaft/Logbeam/issues/2))                                      | S each |                                |
+| Idea                                                                                                  | Size   | Notes                          |
+| ----------------------------------------------------------------------------------------------------- | ------ | ------------------------------ |
+| Move the line inspector out of `logViewer.ts` ([#28](https://github.com/andronaft/Logbeam/issues/28)) | M      | `logViewer.ts` is ~1,900 lines |
+| More languages ([#2](https://github.com/andronaft/Logbeam/issues/2))                                  | S each |                                |
 
 ## Not doing
 

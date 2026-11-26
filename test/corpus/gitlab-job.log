@@ -1,0 +1,11 @@
+[0Ksection_start:1700000000:prepare_executor[0K[36;1mPreparing the "docker" executor[0;m
+Using Docker executor with image node:20 ...
+Pulling docker image node:20 ...
+[0Ksection_end:1700000004:prepare_executor[0K
+[0Ksection_start:1700000004:step_script[0K[36;1mExecuting "step_script" stage of the job script[0;m
+$ npm test
+FAIL test/payments.test.ts > refunds partially
+[0Ksection_end:1700000196:step_script[0K
+[0Ksection_start:1700000196:cleanup_file_variables[0K[36;1mCleaning up project directory and file based variables[0;m
+[0Ksection_end:1700000197:cleanup_file_variables[0K
+[31;1mERROR: Job failed: exit code 1[0;m

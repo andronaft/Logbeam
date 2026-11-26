@@ -1,0 +1,6 @@
+fail: Microsoft.AspNetCore.Server.Kestrel[13]
+      Connection id "0HN1", Request id "0HN1:00000001": An unhandled exception was thrown by the application.
+      System.InvalidOperationException: boom
+         at App.Pay.Charge() in /src/Pay.cs:line 12
+info: Microsoft.Hosting.Lifetime[0]
+      Application started.

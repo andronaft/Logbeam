@@ -1,0 +1,22 @@
+{
+  "lines": [
+    "1 -",
+    "2 ERROR",
+    "3 ERROR ~",
+    "4 ERROR ~",
+    "5 ERROR ~",
+    "6 ERROR ~"
+  ],
+  "errorGroups": [
+    {
+      "sample": "│ Error: creating EC2 Instance: UnauthorizedOperation: You are not authorized",
+      "count": 1,
+      "lines": [
+        2
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}

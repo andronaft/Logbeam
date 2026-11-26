@@ -1,0 +1,23 @@
+{
+  "lines": [
+    "1 ERROR @",
+    "2 ERROR ~",
+    "3 ERROR +",
+    "4 ERROR +",
+    "5 ERROR +",
+    "6 ERROR +",
+    "7 INFO @ gap 877ms"
+  ],
+  "errorGroups": [
+    {
+      "sample": "2026-11-26 03:12:01.123 ERROR 1 --- [nio-8080-exec-1] o.a.c.c.C.[.[.[/].[dispatcherServlet] : Servlet.service() threw exception",
+      "count": 1,
+      "lines": [
+        1
+      ]
+    }
+  ],
+  "steps": [],
+  "failedTests": [],
+  "totals": null
+}
