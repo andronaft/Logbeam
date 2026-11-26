@@ -159,15 +159,88 @@ ERROR boom
   });
 });
 
-describe('eachEntry', () => {
-  it('a line with a level of its own starts an entry, the lines that only take it do not', () => {
-    expect(heads(parseLog(NODE))).toEqual([
-      '/app/node_modules/pg/lib/client.js:132',
-      '      throw err',
-      '      ^',
-      '',
-      'Error: connect ECONNREFUSED 10.0.0.5:5432',
+describe('errors the review found', () => {
+  it('back-to-back tracebacks on their own are separate errors', () => {
+    const one = 'Traceback (most recent call last):\n  File "w.py", line 1, in <module>\nConnectionError: refused';
+    const groups = groupErrors(parseLog(`${one}\n${one}\n\n${one}`));
+    expect(groups).toHaveLength(1);
+    expect(groups[0].count).toBe(3);
+    expect(groups[0].sample).toBe('ConnectionError: refused');
+  });
+
+  it('a chained traceback on its own stays one error', () => {
+    const groups = groupErrors(
+      parseLog(`Traceback (most recent call last):
+  File "w.py", line 1, in <module>
+KeyError: 'a'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "w.py", line 3, in <module>
+RuntimeError: b`),
+    );
+    expect(groups).toHaveLength(1);
+    expect(groups[0].count).toBe(1);
+  });
+
+  it('tracebacks on their own with other exceptions through the same frames are other groups', () => {
+    const frames = '  File "manage.py", line 22, in <module>\n    main()\n  File "manage.py", line 18, in main\n    run()';
+    const groups = groupErrors(
+      parseLog(`Traceback (most recent call last):\n${frames}\nKeyError: 'user_id'
+Traceback (most recent call last):\n${frames}\npsycopg2.OperationalError: could not connect to server`),
+    );
+    expect(groups.map((group) => group.sample).sort()).toEqual([
+      "KeyError: 'user_id'",
+      'psycopg2.OperationalError: could not connect to server',
     ]);
+  });
+
+  it('pretty-printed JSON errors after another line are still grouped', () => {
+    const record = '{\n  "level": "error",\n  "msg": "boom",\n  "time": "2026-11-26T03:12:01Z"\n}';
+    const groups = groupErrors(parseLog(`INFO starting\n${record}\n${record}`));
+    expect(groups).toHaveLength(1);
+    expect(groups[0].count).toBe(2);
+  });
+
+  it('errors without a time are grouped in a log where other lines have one', () => {
+    const groups = groupErrors(
+      parseLog(`[pod/api/app] 2024-01-01T10:00:00Z INFO ok
+[pod/worker/app] ERROR failed to connect to redis
+[pod/worker/app] ERROR failed to connect to redis
+[pod/api/app] 2024-01-01T10:00:01Z INFO ok`),
+    );
+    expect(groups).toHaveLength(1);
+    expect(groups[0].count).toBe(2);
+  });
+
+  it('a JSON record ends a traceback', () => {
+    const lines = parseLog(`Traceback (most recent call last):
+  File "w.py", line 1, in <module>
+{"level":"warn","msg":"retrying"}
+continues the warning`);
+    expect(lines.map((line) => line.level)).toEqual(['ERROR', 'ERROR', 'WARN', 'WARN']);
+    expect(lines[2].continuation).toBe(false);
+  });
+
+  it("Python's logging format is not the exception line of a cut-off traceback", () => {
+    const lines = parseLog(`ERROR:app:request failed
+Traceback (most recent call last):
+  File "app.py", line 3, in handle
+INFO:app:next request`);
+    expect(lines[3]).toMatchObject({ level: 'INFO', continuation: false });
+  });
+});
+
+describe('hiding lines', () => {
+  it('in a log without timestamps, hiding a kind hides only its own lines, as before', () => {
+    const lines = parseLog(`npm WARN deprecated foo@1.0.0: use bar
+added 512 packages in 12s
+found 0 vulnerabilities
+> app@1.0.0 test`);
+    const { hidden } = hideMuted(lines, new Set([muteKey(lines[0])]));
+    expect(hidden).toBe(1);
+    expect(excludeWords(lines, ['deprecated'], false)).toHaveLength(3);
   });
 
   it('in a log with timestamps, a line without one belongs to the entry above', () => {
@@ -188,16 +261,5 @@ java.lang.IllegalStateException: bad
     const lines = parseLog(PYTHON);
     const { lines: kept } = hideMuted(lines, new Set([muteKey(lines[0])]));
     expect(kept.map((line) => line.text)).toEqual(['2026-11-26 03:12:02,000 INFO [worker] next']);
-  });
-
-  it('-word leaves out a whole Node error, its object dump with it', () => {
-    const kept = excludeWords(parseLog(`${NODE}\nINFO done`), ['ECONNREFUSED'], false);
-    expect(kept.map((line) => line.text)).toEqual([
-      '/app/node_modules/pg/lib/client.js:132',
-      '      throw err',
-      '      ^',
-      '',
-      'INFO done',
-    ]);
   });
 });

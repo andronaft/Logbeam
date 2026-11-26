@@ -7,7 +7,7 @@
   ],
   "errorGroups": [
     {
-      "sample": "Traceback (most recent call last):",
+      "sample": "KeyError: 'DATABASE_URL'",
       "count": 1,
       "lines": [
         1

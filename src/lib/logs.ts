@@ -16,7 +16,7 @@ export interface LogLine {
   continuation: boolean;
   /**
    * True for a line with no level and no time of its own that takes the level of the entry above, e.g. the
-   * "  errno: -111," under a Node error. Such a line belongs to that entry (see eachEntry).
+   * "  errno: -111," under a Node error. An error group counts it as part of that error (see groupErrors).
    */
   inherited?: boolean;
   /** Parsed timestamp in epoch millis, if the line starts an entry and has one. */
@@ -224,6 +224,13 @@ const LETTER_LEVELS: Record<string, Level> = { V: 'TRACE', D: 'DEBUG', I: 'INFO'
 // Python: "Traceback (most recent call last):", and the lines between two chained tracebacks
 const TRACEBACK_RE = /^Traceback \(most recent call last\):?\s*$/;
 const TRACEBACK_CHAIN_RE = /^(?:During handling of the above exception|The above exception was the direct cause)/;
+// Python's default logging format, "WARNING:app.db:slow query"
+const PYTHON_LOGGING_RE = /^(?:DEBUG|INFO|WARNING|ERROR|CRITICAL):/;
+
+/** "Traceback (most recent call last):", the head of a Python traceback. */
+export function isTracebackHead(text: string): boolean {
+  return TRACEBACK_RE.test(text);
+}
 
 // Stack trace frames and wrapped exceptions (Java, JS, Python, Go).
 const CONTINUATION_RE =
@@ -567,6 +574,8 @@ export class LogParser {
   private traceback: 'body' | 'after' | null = null;
   /** The open traceback had no log line above it and set the ERROR level itself. */
   private tracebackLevel = false;
+  /** "During handling of the above exception…" was read: the next traceback goes on with this one. */
+  private tracebackChained = false;
   private currentLevel: Level | null = null;
   private lastTime: number | null = null;
   private count = 0;
@@ -688,6 +697,7 @@ export class LogParser {
         // the record is the whole entry: take its level, time and message like a one-line JSON log
         head.text = formatJsonRecord(record);
         head.secret = hasSecret(head.text);
+        delete head.inherited;
         head.level = jsonLevel(record, this.custom) ?? head.level;
         const time = jsonTime(record);
         if (time !== null) {
@@ -746,9 +756,17 @@ export class LogParser {
 
     let level: Level | null;
     let time: number | null = null;
+    // a JSON record is a new entry, and so is a traceback right after another one that it doesn't chain to
+    if (
+      this.traceback !== null &&
+      (json !== null || (this.traceback === 'after' && !this.tracebackChained && TRACEBACK_RE.test(rest)))
+    ) {
+      this.endTraceback();
+    }
     if (json === null && TRACEBACK_RE.test(rest)) {
       // a traceback printed without a log line above it ("Traceback (most recent call last):" on its own)
       // is an error entry of its own
+      this.tracebackChained = false;
       if (this.currentLevel === null) {
         this.currentLevel = 'ERROR';
         this.tracebackLevel = true;
@@ -807,11 +825,21 @@ export class LogParser {
    * lines that chain two tracebacks, and the exception line ("TimeoutError: gateway"), which ends it.
    */
   private continuesTraceback(text: string): boolean {
-    if (text === '' || TRACEBACK_CHAIN_RE.test(text)) return true;
+    if (text === '') return true;
+    if (TRACEBACK_CHAIN_RE.test(text)) {
+      this.tracebackChained = true;
+      return true;
+    }
     if (this.traceback === 'body') {
       if (/^\s/.test(text)) return true;
-      // the exception line, unless it is a new entry with a time of its own
-      if (/^[A-Za-z_][\w.]*(?::|$)/.test(text) && parseTimestamp(text) === null && parseTimeOfDay(text) === null) {
+      // the exception line, unless it is a new entry: one with a time of its own, or Python's own logging
+      // format ("INFO:app:next request")
+      if (
+        /^[A-Za-z_][\w.]*(?::|$)/.test(text) &&
+        !PYTHON_LOGGING_RE.test(text) &&
+        parseTimestamp(text) === null &&
+        parseTimeOfDay(text) === null
+      ) {
         this.traceback = 'after';
         return true;
       }
@@ -825,6 +853,7 @@ export class LogParser {
     // the level a lone traceback set stays with it, not with the lines after it
     if (this.tracebackLevel) this.currentLevel = null;
     this.tracebackLevel = false;
+    this.tracebackChained = false;
   }
 }
 
@@ -965,15 +994,14 @@ export function signature(text: string): string {
 }
 
 /**
- * Calls back with each line and whether it starts an entry. An entry is a line with a level or a time of its
- * own and the lines under it: stack frames and other continuation lines, lines that only take its level
- * ("  errno: -111," under a Node error) and, in a log with timestamps, lines without one
- * ("java.lang.IllegalStateException: …" under an error).
+ * Calls back with each line and whether it starts an entry, for hiding lines: a stack trace goes with its
+ * entry, and in a log with timestamps so does a line without one ("java.lang.IllegalStateException: …" under
+ * an error). Error groups go further (see groupErrors).
  */
 export function eachEntry(lines: readonly LogLine[], visit: (line: LogLine, starts: boolean) => void): void {
   let timed = false;
   for (const line of lines) {
-    const starts = !line.continuation && !line.inherited && (line.time !== null || !timed);
+    const starts = !line.continuation && (line.time !== null || !timed);
     if (starts) timed = line.time !== null;
     visit(line, starts);
   }
