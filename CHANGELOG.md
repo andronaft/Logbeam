@@ -17,12 +17,6 @@
   command in it exited with a non-zero code (`ERROR: Job failed: exit code 1` after the last section counts for the
   step that ran the script). Failed steps start open. A `--- ` line in an ordinary log, `--- FAIL:` from `go test`
   or a diff's `--- a/file` don't turn into steps.
-- **Show around** (`c`, or ⤢ in the line details): the selected line among all the lines, like "show context" in
-  Grafana. The search, levels, time range, pods and hidden kinds come off and the line stays in view; the
-  **← Back to the filtered view** chip puts them all back, with the line still selected.
-- **Go to a time** (`t`): type `10:05:30` from an alert (or `2026-10-04 10:05`, with a zone or without) and the
-  viewer selects the first entry at or after it. A time of day is read on the log's own day, the right one for a log
-  that goes past midnight, in UTC or local time as the viewer shows it.
 - **Failed tests in one list.** On a CI log, **Tests ✖ N** lists the tests that failed, from pytest, Jest, Vitest,
   Go, Maven surefire / failsafe, Gradle and RSpec, in the order they failed, with the first one marked "first" and
   the assertion message next to it (`test_refund — AssertionError: assert 0 == 100`). A test the log reports twice,
@@ -58,6 +52,8 @@
   at all; counts like `tokens_used=1234` still stay.
 - Settings say when they couldn't be saved (e.g. too many secret patterns for synced storage) instead of looking saved.
 - The background answers only Logbeam's own pages and scripts.
+- Releases: the build tools no longer see the store keys, the stores get a version only after a reviewer approves
+  it, Actions are pinned to commits, and each release has `SHA256SUMS` for reproducible ZIPs (docs/PUBLISHING.md).
 
 ## 0.10.0
 
