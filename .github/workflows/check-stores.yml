@@ -1,6 +1,7 @@
 name: check-stores
 
 # Checks that the store secrets (docs/PUBLISHING.md) work, without publishing anything.
+# check-stores.mjs uses only Node's own modules, so nothing is installed, and only its step gets the secrets.
 on:
   workflow_dispatch:
 
@@ -10,16 +11,23 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    env:
-      CWS_EXTENSION_ID: kgjadbnghdgmcafdfgjhgfgcgnnnmcpe
-      CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-      CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-      CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
-      AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+    environment: stores
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/check-stores.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
       - run: node scripts/check-stores.mjs
+        env:
+          CWS_EXTENSION_ID: kgjadbnghdgmcafdfgjhgfgcgnnnmcpe
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
