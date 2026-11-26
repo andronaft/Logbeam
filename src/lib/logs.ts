@@ -665,6 +665,7 @@ export class LogParser {
       text: raw,
       level: block.head.level,
       continuation: true,
+      inherited: undefined,
       time: null,
       gap: null,
       json: null,
@@ -697,7 +698,7 @@ export class LogParser {
         // the record is the whole entry: take its level, time and message like a one-line JSON log
         head.text = formatJsonRecord(record);
         head.secret = hasSecret(head.text);
-        delete head.inherited;
+        head.inherited = undefined;
         head.level = jsonLevel(record, this.custom) ?? head.level;
         const time = jsonTime(record);
         if (time !== null) {
@@ -735,6 +736,7 @@ export class LogParser {
         text: raw,
         level: this.currentLevel,
         continuation: true,
+        inherited: undefined,
         time: null,
         gap: null,
         json: null,
@@ -808,6 +810,8 @@ export class LogParser {
       text,
       level,
       continuation,
+      // set on every line (undefined or true), so all lines have one shape for the engine
+      inherited: inherited || undefined,
       time,
       gap,
       json,
@@ -816,7 +820,6 @@ export class LogParser {
       source,
       ansi: null,
     };
-    if (inherited) line.inherited = true;
     return line;
   }
 
