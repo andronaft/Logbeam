@@ -220,10 +220,10 @@ const LETTER_LEVELS: Record<string, Level> = { V: 'TRACE', D: 'DEBUG', I: 'INFO'
 const CONTINUATION_RE =
   /^(\s+at\s|\s+\.\.\.\s\d+\s(more|common frames)|Caused by:|Suppressed:|\s+File ".*", line \d+|Traceback \(most recent call last\)|goroutine \d+ \[|\t)/;
 
-// Jenkins pipeline steps, the shell commands it echoes and GitHub Actions groups start entries of their
-// own, so a log without timestamps doesn't carry the last level on: "[Pipeline] sh", "+ mvn -B test",
-// "::group::Install"
-const STEP_RE = /^(?:\[Pipeline\] |\+ |##\[(?:end)?group\]|::(?:end)?group::)/;
+// Jenkins pipeline steps, the shell commands it echoes, GitHub Actions groups and GitLab and Azure DevOps
+// sections start entries of their own, so a log without timestamps doesn't carry the last level on:
+// "[Pipeline] sh", "+ mvn -B test", "::group::Install", "section_start:1700000000:build", "##[section]Starting: Build"
+const STEP_RE = /^(?:\[Pipeline\] |\+ |##\[(?:end)?group\]|::(?:end)?group::|section_(?:start|end):\d+:|##\[section\])/;
 // a Java exception printed without a level, e.g. by Maven or Jenkins: "java.lang.IllegalStateException: boom"
 const EXCEPTION_RE = /^(?:Exception in thread "[^"]*" )?(?:[a-z_$][\w$]*\.)+[A-Z][\w$]*(?:Exception|Error)\b(?::|$)/;
 

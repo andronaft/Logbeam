@@ -293,57 +293,351 @@ export function traceId(lines: LogLine[], value: string): IdTrace {
   return trace;
 }
 
-// ---- GitHub Actions groups ---------------------------------------------------------------
+// ---- CI steps ----------------------------------------------------------------------------
 
+/** Which CI wrote the step markers. */
+export type StepKind = 'gha' | 'gitlab' | 'azure' | 'buildkite' | 'jenkins' | 'buildkit';
+
+/** One step (section, stage) of a CI log, which the viewer folds to its first line. */
 export interface LogGroup {
-  /** The text after ##[group]: "Run npm test", "Fetching the repository". */
+  /** "Run npm test", the header of a GitLab section, a Jenkins stage, "[build 2/4] RUN npm ci". */
   title: string;
-  /** Line number of the ##[group] line. */
+  /** Line number of the line that starts it: ##[group], section_start, [Pipeline] { (Build), … */
   start: number;
-  /** Line number of its ##[endgroup], or of the line before the next group or the log's last line. */
+  /** Line number of its end marker, or of the step's last line before the next step or the log's end. */
   end: number;
-  /** ERROR entries inside the group. */
+  /** ERROR entries inside the step. */
   errors: number;
+  kind: StepKind;
+  /** 0 for a top-level step, 1 for a section inside one, … */
+  depth: number;
+  /** How long it took, from the CI's own markers or the times of its lines; null when the log doesn't say. */
+  durationMs: number | null;
+  /** It has errors, or a command in it exited with a non-zero code. */
+  failed: boolean;
+  /** The CI asks for it folded (GitLab [collapsed=true], Buildkite ---) or open (Buildkite +++). */
+  collapsed?: boolean;
 }
 
-// GitHub Actions raw logs: "2026-10-04T10:00:00.1234567Z ##[group]Run npm test"; ::group:: as written in a
-// workflow, or printed by tools that run locally (act)
-const GROUP_START = /^(?:\d{4}-\d{2}-\d{2}T[\d:.]+Z\s)?(?:##\[group\]|::group::)(.*)$/;
-const GROUP_END = /^(?:\d{4}-\d{2}-\d{2}T[\d:.]+Z\s)?(?:##\[endgroup\]|::endgroup::)\s*$/;
+/** A step while the log is read: what its duration and failure are worked out from. */
+interface Step {
+  group: LogGroup;
+  /** The GitLab section name, which its section_end repeats. */
+  name: string;
+  firstTime: number | null;
+  firstLine: number;
+  lastTime: number | null;
+  lastLine: number;
+  /** GitLab: epoch seconds in section_start and section_end. */
+  markStart: number | null;
+  markEnd: number | null;
+  /** BuildKit: "#5 DONE 41.3s". */
+  markMs: number | null;
+  exited: boolean;
+}
 
-/**
- * The ##[group] … ##[endgroup] sections of a GitHub Actions log, which the GitHub UI folds. Groups don't
- * nest there, so a new group ends the one before it.
- */
-export function findGroups(lines: LogLine[]): LogGroup[] {
-  const groups: LogGroup[] = [];
-  let open: LogGroup | null = null;
-  for (const line of lines) {
-    const rest = splitSource(line.text).rest;
-    const start = GROUP_START.exec(rest);
-    if (start) {
-      if (open) open.end = line.number - 1;
-      open = { title: start[1].trim(), start: line.number, end: line.number, errors: 0 };
-      groups.push(open);
-    } else if (open) {
-      open.end = line.number;
-      if (line.level === 'ERROR' && !line.continuation) open.errors++;
-      if (GROUP_END.test(rest)) open = null;
+// a time before the marker: GitHub Actions and GitLab (with its "00O " stream tag), Jenkins' timestamper
+const LEADING_TIME =
+  /^\[?(?:\d{4}-\d{2}-\d{2}[T ])?\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?:Z|[+-]\d{2}:?\d{2})?\]?\s+(?:\d{2}[OE]\+?\s)?/;
+// Buildkite's timestamps, \e_bk;t=1700000000000\a, of which the colour parser takes out only the \e_
+// eslint-disable-next-line no-control-regex
+const BUILDKITE_TIME = /^(?:bk;t=(\d{10,16})\x07)+/;
+
+// GitHub Actions raw logs, ::group:: as written in a workflow or printed by act
+const GHA_START = /^(?:##\[group\]|::group::)(.*)$/;
+const GHA_END = /^(?:##\[endgroup\]|::endgroup::)\s*$/;
+// GitLab: \e[0Ksection_start:1700000000:step_script[collapsed=true]\r\e[0KStep title
+const GITLAB_START = /^section_start:(\d+):([\w.-]+)(\[[^\]]*\])?\s*$/;
+const GITLAB_END = /^section_end:(\d+):([\w.-]+)\s*$/;
+const AZURE = /^##\[section\](Starting|Finishing): (.*)$/;
+// Buildkite: "--- Build" folded, "+++ Tests" open, "~~~ Setup" folded; "^^^ +++" opens the one before
+const BUILDKITE = /^(---|\+\+\+|~~~) (.+)$/;
+const BUILDKITE_REOPEN = /^\^\^\^ \+\+\+\s*$/;
+// what else starts with "--- ": go test results, a diff's file names
+const NOT_BUILDKITE = /^(?:--- (?:PASS|FAIL|SKIP|BENCH)\b|(?:---|\+\+\+) (?:[ab]\/|\/dev\/null|\S+\t))/;
+// Buildkite's headers often start with an emoji code: "--- :hammer: Build"
+const BUILDKITE_EMOJI = /(?:^|\s):[a-z0-9_+-]+:(?=\s|$)/;
+// Jenkins: "[Pipeline] { (Build)" opens a stage, "[Pipeline] // stage" closes it; parallel branches aren't stages
+const JENKINS_START = /^\[Pipeline\] \{ \((?!Branch: )(.+)\)\s*$/;
+const JENKINS_END = /^\[Pipeline\] \/\/ stage\s*$/;
+// Docker BuildKit plain progress: "#5 [build 2/4] RUN npm ci", "#5 0.512 …", "#5 DONE 41.3s", "#5 ERROR: …"
+const BUILDKIT_HEAD = /^#(\d+) \[.+?\]/;
+const BUILDKIT_LINE = /^#(\d+) /;
+const BUILDKIT_DONE = /^#\d+ DONE (\d+(?:\.\d+)?)s\b/;
+const BUILDKIT_FAILED = /^#\d+ (?:ERROR|CANCELED)\b/;
+// a command that failed: GitHub Actions, GitLab, Jenkins, Buildkite, Azure, CircleCI
+const EXIT_LINE =
+  /^(?:##\[error\](?:Process completed with exit code |\S+ exited with code '?)|ERROR: (?:Job failed: (?:command terminated with )?exit code |script returned exit code )|🚨 Error: The command exited with status |Exited with code exit status )(?!0\b)-?\d+/;
+// GitLab sections that run after the script failed: not where it failed
+const GITLAB_AFTER_FAILURE = /^(?:after_script|upload_artifacts|archive_cache|cleanup)/;
+
+function lastIndex<T>(items: T[], test: (item: T) => boolean): number {
+  for (let i = items.length - 1; i >= 0; i--) if (test(items[i])) return i;
+  return -1;
+}
+
+/** A line's text as the step markers are matched: no pod or file prefix, no time before it. */
+function stepText(line: LogLine, times: (number | null)[]): string {
+  // read on every refresh of a followed log: the regular expressions run only where they can match
+  let rest = line.source === null ? line.text : splitSource(line.text).rest;
+  let time: number | null = null;
+  if (rest.startsWith('bk;t=')) {
+    const buildkite = BUILDKITE_TIME.exec(rest);
+    if (buildkite) {
+      time = Number(buildkite[1]);
+      rest = rest.slice(buildkite[0].length);
     }
   }
-  return groups;
+  times.push(time);
+  const c = rest.charCodeAt(0);
+  return (c >= 48 && c <= 57) || c === 91 ? rest.replace(LEADING_TIME, '') : rest;
 }
 
-/** Leaves out the lines inside closed groups; their ##[group] line stays as the group's header. */
+/** The first characters a step marker or an exit line can start with: # : s [ - + ~ ^ E 🚨 */
+const MARKER_STARTS = new Set([35, 58, 115, 91, 45, 43, 126, 94]);
+const EXIT_STARTS = new Set([35, 69, 0xd83d]);
+
+/**
+ * The steps of a CI log, which the viewer folds like the CI's own page does: GitHub Actions ##[group]
+ * sections, GitLab sections (nested), Azure DevOps sections, Buildkite groups, Jenkins stages and the
+ * steps of a Docker BuildKit build, each with how long it took and whether it failed.
+ */
+export function findGroups(lines: LogLine[]): LogGroup[] {
+  const markTimes: (number | null)[] = [];
+  const texts = lines.map((line) => stepText(line, markTimes));
+  // "--- " and "#1 [" start ordinary lines too. A log is Buildkite's only with two headers and something
+  // only Buildkite writes: a +++ or ~~~ header, ^^^ +++, its bk;t= timestamps or an :emoji: in a header.
+  // BuildKit's needs two different "#N [" steps. When in doubt, nothing is folded.
+  let buildkiteHeads = 0;
+  let buildkiteSigns = 0;
+  const buildkitIds = new Set<string>();
+  texts.forEach((rest, i) => {
+    if (markTimes[i] !== null) buildkiteSigns++;
+    const c = rest.charCodeAt(0);
+    if (c === 94 && BUILDKITE_REOPEN.test(rest)) buildkiteSigns++;
+    const head = c === 45 || c === 43 || c === 126 ? BUILDKITE.exec(rest) : null;
+    // a diff's file names: "--- x.ts" right before "+++ x.ts"
+    const diff = head !== null && head[1] === '+++' && (texts[i - 1] ?? '').startsWith('--- ');
+    if (head && !diff && !NOT_BUILDKITE.test(rest)) {
+      buildkiteHeads++;
+      if (head[1] !== '---' || BUILDKITE_EMOJI.test(head[2])) buildkiteSigns++;
+    }
+    const step = c === 35 ? BUILDKIT_HEAD.exec(rest) : null;
+    if (step) buildkitIds.add(step[1]);
+  });
+  const buildkite = buildkiteHeads >= 2 && buildkiteSigns > 0;
+  const buildkit = buildkitIds.size >= 2;
+
+  const steps: Step[] = [];
+  // open GitLab, Azure and Jenkins sections, innermost last
+  const stack: Step[] = [];
+  // the open GitHub Actions, Buildkite or BuildKit step: the next one ends it
+  let flat: Step | null = null;
+  // a GitHub Actions step's output goes on after its ##[endgroup], up to the next group
+  let ghaTiming: Step | null = null;
+  const buildkitSteps = new Map<string, Step>();
+  let lastBuildkite: Step | null = null;
+  // the line after a GitLab section's header marker is its title
+  let wantsTitle: Step | null = null;
+  // and after its end marker comes an empty line (the "\r\e[0K" of the marker)
+  let justEnded: Step | null = null;
+
+  const start = (kind: StepKind, title: string, line: LogLine, time: number | null): Step => {
+    const step: Step = {
+      group: {
+        title,
+        start: line.number,
+        end: line.number,
+        errors: 0,
+        kind,
+        depth: stack.length,
+        durationMs: null,
+        failed: false,
+      },
+      name: title,
+      firstTime: time,
+      firstLine: line.number,
+      lastTime: time,
+      lastLine: line.number,
+      markStart: null,
+      markEnd: null,
+      markMs: null,
+      exited: false,
+    };
+    steps.push(step);
+    return step;
+  };
+  const time = (step: Step, line: LogLine, at: number | null) => {
+    if (at === null) return;
+    if (step.firstTime === null) {
+      step.firstTime = at;
+      step.firstLine = line.number;
+    }
+    step.lastTime = at;
+    step.lastLine = line.number;
+  };
+  // a line inside the step
+  const see = (step: Step, line: LogLine, rest: string, at: number | null) => {
+    step.group.end = line.number;
+    if (line.level === 'ERROR' && !line.continuation) step.group.errors++;
+    if (EXIT_STARTS.has(rest.charCodeAt(0)) && EXIT_LINE.test(rest)) step.exited = true;
+    time(step, line, at);
+  };
+  const push = (step: Step) => {
+    flat = null;
+    stack.push(step);
+  };
+  // closes the section at `index` of the stack and the ones inside it, on this line
+  const close = (index: number, line: LogLine, rest: string, at: number | null) => {
+    const from = stack[index].group.start;
+    for (const step of stack.splice(index)) see(step, line, rest, at);
+    if (flat && flat.group.start > from) flat = null;
+    if (ghaTiming && ghaTiming.group.start > from) ghaTiming = null;
+  };
+
+  lines.forEach((line, i) => {
+    const rest = texts[i];
+    const at = line.time ?? markTimes[i];
+    const marker = MARKER_STARTS.has(rest.charCodeAt(0));
+    if (wantsTitle) {
+      if (rest.trim() && !GITLAB_START.test(rest) && !GITLAB_END.test(rest)) wantsTitle.group.title = rest.trim();
+      wantsTitle = null;
+    }
+    if (justEnded && rest === '') justEnded.group.end = line.number;
+    justEnded = null;
+
+    let started: Step | null = null;
+    let closed = false;
+    let m: RegExpExecArray | null;
+    if (!marker) {
+      // an ordinary line
+    } else if ((m = GITLAB_START.exec(rest))) {
+      started = start('gitlab', m[2], line, at);
+      started.markStart = Number(m[1]);
+      if (/collapsed=true/.test(m[3] ?? '')) started.group.collapsed = true;
+      wantsTitle = started;
+    } else if ((m = GITLAB_END.exec(rest))) {
+      const name = m[2];
+      const index = lastIndex(stack, (s) => s.group.kind === 'gitlab' && s.name === name);
+      if (index >= 0) {
+        const step = stack[index];
+        step.markEnd = Number(m[1]);
+        close(index, line, rest, at);
+        justEnded = step;
+        closed = true;
+      }
+    } else if ((m = AZURE.exec(rest))) {
+      const title = m[2].trim();
+      if (m[1] === 'Starting') started = start('azure', title, line, at);
+      else {
+        const index = lastIndex(stack, (s) => s.group.kind === 'azure' && s.name === title);
+        if (index >= 0) {
+          close(index, line, rest, at);
+          closed = true;
+        }
+      }
+    } else if ((m = JENKINS_START.exec(rest))) {
+      started = start('jenkins', m[1].trim(), line, at);
+    } else if (JENKINS_END.test(rest)) {
+      const index = lastIndex(stack, (s) => s.group.kind === 'jenkins');
+      if (index >= 0) {
+        close(index, line, rest, at);
+        closed = true;
+      }
+    } else if ((m = GHA_START.exec(rest))) {
+      started = ghaTiming = start('gha', m[1].trim(), line, at);
+    } else if (GHA_END.test(rest) && flat?.group.kind === 'gha') {
+      see(flat, line, rest, at);
+      flat = null;
+      closed = true;
+    } else if (buildkite && BUILDKITE_REOPEN.test(rest)) {
+      if (lastBuildkite) lastBuildkite.group.collapsed = false;
+    } else if (buildkite && (m = BUILDKITE.exec(rest)) && !NOT_BUILDKITE.test(rest)) {
+      started = lastBuildkite = start('buildkite', m[2].trim(), line, at);
+      started.group.collapsed = m[1] !== '+++';
+    } else if (buildkit && (m = BUILDKIT_LINE.exec(rest))) {
+      const id = m[1];
+      const step = buildkitSteps.get(id);
+      if (!step && BUILDKIT_HEAD.test(rest)) {
+        started = start('buildkit', rest.slice(m[0].length).trim(), line, at);
+        buildkitSteps.set(id, started);
+      } else if (step) {
+        const done = BUILDKIT_DONE.exec(rest);
+        if (done) step.markMs = Math.round(Number(done[1]) * 1000);
+        if (BUILDKIT_FAILED.test(rest)) step.exited = true;
+      }
+    }
+
+    if (started) {
+      if (started.group.kind === 'gitlab' || started.group.kind === 'azure' || started.group.kind === 'jenkins') {
+        for (const step of stack) see(step, line, rest, at);
+        push(started);
+        return;
+      }
+      for (const step of stack) see(step, line, rest, at);
+      flat = started;
+      return;
+    }
+    for (const step of stack) see(step, line, rest, at);
+    // a BuildKit step holds only its own "#N …" lines: what comes after the build isn't in it
+    const inFlat = flat !== null && !closed && (flat.group.kind !== 'buildkit' || BUILDKIT_LINE.test(rest));
+    if (inFlat) see(flat!, line, rest, at);
+    if (ghaTiming && ghaTiming !== flat) time(ghaTiming, line, at);
+    if (stack.length === 0 && !inFlat && !closed && EXIT_STARTS.has(rest.charCodeAt(0)) && EXIT_LINE.test(rest)) {
+      // "ERROR: Job failed: exit code 1" after the last section: the last step with lines failed
+      let last: Step | null = null;
+      for (const step of steps) {
+        if (step.group.end <= step.group.start) continue;
+        if (step.group.kind === 'gitlab' && GITLAB_AFTER_FAILURE.test(step.name)) continue;
+        if (!last || step.group.end >= last.group.end) last = step;
+      }
+      if (last) last.exited = true;
+    }
+  });
+
+  return steps.map((step) => {
+    const group = step.group;
+    if (step.markMs !== null) group.durationMs = step.markMs;
+    else if (step.markStart !== null && step.markEnd !== null && step.markEnd >= step.markStart)
+      group.durationMs = (step.markEnd - step.markStart) * 1000;
+    else if (
+      step.firstTime !== null &&
+      step.lastTime !== null &&
+      step.lastLine > step.firstLine &&
+      step.lastTime >= step.firstTime
+    )
+      group.durationMs = step.lastTime - step.firstTime;
+    group.failed = group.errors > 0 || step.exited;
+    return group;
+  });
+}
+
+/** Leaves out the lines inside closed steps (and the steps in them); a step's first line stays as its header. */
 export function foldGroups<T extends LogLine>(lines: T[], groups: LogGroup[], open: Set<number>): T[] {
-  const closed = groups.filter((g) => !open.has(g.start) && g.end > g.start);
+  const closed = groups.filter((g) => !open.has(g.start) && g.end > g.start).sort((a, b) => a.start - b.start);
   if (closed.length === 0) return lines;
+  // the hidden line ranges, (start, end], with nested and touching ones merged
+  const hidden: [number, number][] = [];
+  for (const g of closed) {
+    const last = hidden[hidden.length - 1];
+    if (last && g.start <= last[1]) last[1] = Math.max(last[1], g.end);
+    else hidden.push([g.start, g.end]);
+  }
   let i = 0;
   return lines.filter((line) => {
-    while (i < closed.length && closed[i].end < line.number) i++;
-    const group = closed[i];
-    return !group || line.number <= group.start || line.number > group.end;
+    while (i < hidden.length && hidden[i][1] < line.number) i++;
+    const range = hidden[i];
+    return !range || line.number <= range[0] || line.number > range[1];
   });
+}
+
+/** How long a step took, as CI pages write it: 250ms, 5s, 41.3s, 3m 12s, 1h 5m. */
+export function formatStepDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60_000) return `${Math.floor(ms / 100) / 10}s`;
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
 
 // ---- time zones --------------------------------------------------------------------------

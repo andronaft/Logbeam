@@ -21,8 +21,10 @@ import {
   appendedText,
   bookmarkReport,
   defaultColumns,
+  LogGroup,
   findGroups,
   foldGroups,
+  formatStepDuration,
   formatTime,
   isMostlyJson,
   LineId,
@@ -265,10 +267,12 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   const rowOf = (line: LogLine): CollapsedLine =>
     // a context line is a copy with its own flags: not the one to keep
     line === allLines[line.number - 1] ? (rowCache[line.number - 1] ??= { ...line, repeat: 1 }) : { ...line, repeat: 1 };
-  // GitHub Actions ##[group] sections: folded like in GitHub, except the ones with errors
+  // CI steps (GitHub Actions, GitLab, Azure, Buildkite, Jenkins, BuildKit): folded, except failed ones
+  // and the ones the CI shows open
   let groups = findGroups(allLines);
   let groupByStart = new Map(groups.map((g) => [g.start, g]));
-  const openGroups = new Set(groups.filter((g) => g.errors > 0).map((g) => g.start));
+  const startsOpen = (g: LogGroup) => g.failed || g.collapsed === false;
+  const openGroups = new Set(groups.filter(startsOpen).map((g) => g.start));
 
   // ---- toolbar ----------------------------------------------------------------------------
   const setPressed = (button: HTMLElement, on: boolean) => {
@@ -522,7 +526,10 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     'button',
     {
       className: 'toggle',
-      title: t('viewerSectionsTitle', 'Open or close all ##[group] sections of a GitHub Actions log'),
+      title: t(
+        'viewerSectionsTitle',
+        'Open or close all steps of a CI log: GitHub Actions, GitLab, Azure DevOps, Buildkite, Jenkins, Docker',
+      ),
     },
     t('viewerSections', 'Sections'),
   );
@@ -1240,7 +1247,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     // a group that was still being written may have ended or got errors; new ones start folded
     groups = findGroups(allLines);
     groupByStart = new Map(groups.map((g) => [g.start, g]));
-    for (const group of groups) if (group.errors > 0 && group.start > offset) openGroups.add(group.start);
+    for (const group of groups) if (startsOpen(group) && group.start > offset) openGroups.add(group.start);
     sectionsButton.hidden = groups.length === 0;
     regexSearch.dispose();
     regexSearch = new RegexSearch(allLines.map((l) => l.text));
@@ -1885,9 +1892,22 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
               `${open ? '▾' : '▸'} ${tn('viewerSectionLines', size, '{n} line', '{n} lines')}`,
             ),
           );
-          if (group.errors > 0) {
-            txt.append(el('span', { className: 'group-errors' }, `✖ ${group.errors.toLocaleString()}`));
+          if (group.depth > 0) row.style.setProperty('--depth', String(group.depth));
+          if (group.durationMs !== null) {
+            txt.append(
+              el(
+                'span',
+                { className: 'group-duration', title: t('viewerStepDuration', 'How long this step took') },
+                `· ${formatStepDuration(group.durationMs)}`,
+              ),
+            );
           }
+          if (group.failed) {
+            const errors = group.errors > 0 ? ` ${group.errors.toLocaleString()}` : '';
+            txt.append(el('span', { className: 'group-errors', title: t('viewerStepFailed', 'This step failed') }, `✖${errors}`));
+          }
+          // a GitLab section's marker line doesn't say what the step is: its header is the next line
+          if (!line.text.includes(group.title)) txt.append(el('span', { className: 'group-title' }, group.title));
         }
         if (line.repeat > 1) {
           txt.append(el('span', { className: 'repeat', title: repeatTitle }, `×${line.repeat}`));

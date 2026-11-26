@@ -754,7 +754,13 @@
     "message": "Sections"
   },
   "viewerSectionsTitle": {
-    "message": "Open or close all ##[group] sections of a GitHub Actions log"
+    "message": "Open or close all steps of a CI log: GitHub Actions, GitLab, Azure DevOps, Buildkite, Jenkins, Docker"
+  },
+  "viewerStepFailed": {
+    "message": "This step failed"
+  },
+  "viewerStepDuration": {
+    "message": "How long this step took"
   },
   "viewerSectionHide": {
     "message": "Hide this section"

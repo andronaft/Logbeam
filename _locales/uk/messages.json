@@ -808,7 +808,13 @@
     "message": "Розділи"
   },
   "viewerSectionsTitle": {
-    "message": "Розгорнути або згорнути всі розділи ##[group] логу GitHub Actions"
+    "message": "Розгорнути або згорнути всі кроки логу CI: GitHub Actions, GitLab, Azure DevOps, Buildkite, Jenkins, Docker"
+  },
+  "viewerStepFailed": {
+    "message": "Цей крок завершився з помилкою"
+  },
+  "viewerStepDuration": {
+    "message": "Скільки тривав цей крок"
   },
   "viewerSectionHide": {
     "message": "Згорнути розділ"
