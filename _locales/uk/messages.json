@@ -1229,5 +1229,44 @@
   },
   "optionsSaveFailed": {
     "message": "Не збережено: {error}"
+  },
+  "viewerTests": {
+    "message": "Тести"
+  },
+  "viewerTestsTitle": {
+    "message": "Тести, що не пройшли, з pytest, Jest, Go, Maven, Gradle і RSpec, у тому порядку, в якому вони впали"
+  },
+  "viewerFirstTestTitle": {
+    "message": "Перший тест, що впав: часто причина тих, що після нього"
+  },
+  "viewerTestItemTitle": {
+    "message": "Перейти до рядка, де він впав (рядок {line})"
+  },
+  "viewerTestTotalsTitle": {
+    "message": "З підсумків самих тест-раннерів"
+  },
+  "viewerFailedTests_one": {
+    "message": "{n} тест не пройшов"
+  },
+  "viewerFailedTests_few": {
+    "message": "{n} тести не пройшли"
+  },
+  "viewerFailedTests_many": {
+    "message": "{n} тестів не пройшли"
+  },
+  "viewerFailedTests_other": {
+    "message": "{n} тесту не пройшли"
+  },
+  "viewerTestTotals_one": {
+    "message": "{n} з {total} не пройшов"
+  },
+  "viewerTestTotals_few": {
+    "message": "{n} з {total} не пройшли"
+  },
+  "viewerTestTotals_many": {
+    "message": "{n} з {total} не пройшли"
+  },
+  "viewerTestTotals_other": {
+    "message": "{n} з {total} не пройшли"
   }
 }

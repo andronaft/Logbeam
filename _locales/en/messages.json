@@ -1103,5 +1103,32 @@
   },
   "optionsSaveFailed": {
     "message": "Not saved: {error}"
+  },
+  "viewerTests": {
+    "message": "Tests"
+  },
+  "viewerTestsTitle": {
+    "message": "The tests that failed, from pytest, Jest, Go, Maven, Gradle and RSpec, in the order they failed"
+  },
+  "viewerFirstTestTitle": {
+    "message": "The first test that failed: often the cause of the ones after it"
+  },
+  "viewerTestItemTitle": {
+    "message": "Go to the line where it failed (line {line})"
+  },
+  "viewerTestTotalsTitle": {
+    "message": "From the test runners’ own summaries"
+  },
+  "viewerFailedTests_one": {
+    "message": "{n} failed test"
+  },
+  "viewerFailedTests_other": {
+    "message": "{n} failed tests"
+  },
+  "viewerTestTotals_one": {
+    "message": "{n} of {total} failed"
+  },
+  "viewerTestTotals_other": {
+    "message": "{n} of {total} failed"
   }
 }

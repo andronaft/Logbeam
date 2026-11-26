@@ -36,6 +36,7 @@ import {
   traceId,
 } from '../lib/insights';
 import { findSecrets, hasSecret, maskField, maskSecrets, setCustomSecretPatterns } from '../lib/secrets';
+import { findFailedTests } from '../lib/tests';
 import { HINT_VIEWS, ViewPrefs, canSaveSettings, loadSettings, saveSettings } from '../shared/settings';
 import { BOOKMARKS_PREFIX, loadBookmarks as loadPageBookmarks, saveBookmarks as savePageBookmarks } from '../shared/bookmarks';
 import { applyTheme } from '../shared/theme';
@@ -63,6 +64,7 @@ import {
   entryTimes,
 } from './viewerState';
 import { renderErrorGroups } from './errorGroupsPanel';
+import { renderFailedTests } from './testsPanel';
 import { renderFieldStats } from './fieldStatsPanel';
 import { renderRange } from './rangePanel';
 import { createTimelineView } from './timelineView';
@@ -517,6 +519,20 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     },
     t('viewerGroups', 'Groups'),
   );
+  // the tests a CI log says failed, from any runner: shown only when some did
+  let testReport = findFailedTests(allLines);
+  const testsButton = el('button', {
+    className: 'toggle',
+    title: t(
+      'viewerTestsTitle',
+      'The tests that failed, from pytest, Jest, Go, Maven, Gradle and RSpec, in the order they failed',
+    ),
+  });
+  const showTestCount = () => {
+    testsButton.textContent = `${t('viewerTests', 'Tests')} ✖ ${testReport.failed.length}`;
+    testsButton.hidden = testReport.failed.length === 0;
+  };
+  showTestCount();
   const tableToggle = el(
     'button',
     { className: 'toggle', title: t('viewerTableTitle', 'Show JSON records as a table') },
@@ -615,7 +631,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     ),
     tgroup('find', search, highlightButton, regexToggle, caseToggle, contextSelect),
     tgroup('view', collapseToggle, gapsToggle, timelineToggle, tableToggle, timeButton),
-    tgroup('jump', secretsGroup, nextError, groupsButton, sectionsButton, bookmarksButton, reportButton),
+    tgroup('jump', secretsGroup, nextError, groupsButton, testsButton, sectionsButton, bookmarksButton, reportButton),
     tgroup(
       'actions',
       followToggle,
@@ -682,6 +698,8 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
   inspector.hidden = true;
   const groupsPanel = el('aside', { className: 'groups' });
   groupsPanel.hidden = true;
+  const testsPanel = el('aside', { className: 'groups tests' });
+  testsPanel.hidden = true;
   const toast = el('div', { className: 'toast' });
   const dropHint = el(
     'div',
@@ -694,6 +712,7 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     subbar,
     timelineEl,
     groupsPanel,
+    testsPanel,
     hintBar,
     el('div', { className: 'log-area' }, scroller, emptyState, gotoBox, minimap.element),
     inspector,
@@ -1031,6 +1050,17 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     });
   }
 
+  function renderTests(): void {
+    renderFailedTests(testsPanel, testReport, (test) => {
+      // open the section the line is folded in; a filter that hides it still shows where it would be
+      for (const group of groups) if (test.line > group.start && test.line <= group.end) openGroups.add(group.start);
+      void refresh().then(() => {
+        select(test.line);
+        showSelection();
+      });
+    });
+  }
+
   /** Selects one line, or with `to` the lines from `number` to it. */
   function select(number: number | null, to: number | null = null): void {
     state.selected = number;
@@ -1174,6 +1204,11 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     groupsButton.classList.toggle('on', !groupsPanel.hidden);
     if (!groupsPanel.hidden) renderGroups();
   });
+  testsButton.addEventListener('click', () => {
+    testsPanel.hidden = !testsPanel.hidden;
+    testsButton.classList.toggle('on', !testsPanel.hidden);
+    if (!testsPanel.hidden) renderTests();
+  });
   groupChip.addEventListener('click', () => {
     state.group = null;
     void refresh();
@@ -1249,6 +1284,9 @@ function buildViewer(body: HTMLElement, allLines: LogLine[], options: ViewerOpti
     groupByStart = new Map(groups.map((g) => [g.start, g]));
     for (const group of groups) if (startsOpen(group) && group.start > offset) openGroups.add(group.start);
     sectionsButton.hidden = groups.length === 0;
+    testReport = findFailedTests(allLines);
+    showTestCount();
+    if (!testsPanel.hidden) renderTests();
     regexSearch.dispose();
     regexSearch = new RegexSearch(allLines.map((l) => l.text));
     for (const [key, entry] of Object.entries(chipCounts)) {

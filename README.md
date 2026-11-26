@@ -75,6 +75,8 @@ piped to a file…) with **Ctrl+Shift+L** (**⌃⇧L** on Mac) or from the popup
 - **CI steps with durations**: the steps of GitHub Actions, GitLab, Azure DevOps, Buildkite, Jenkins and Docker
   BuildKit logs folded like on the CI's own page, each with how long it took (`· 3m 12s`) and a ✖ on the failed
   ones, which start open
+- **Failed tests** of a CI log in one list, from pytest, Jest, Vitest, Go, Maven, Gradle and RSpec, in the order
+  they failed, the first one marked, with the assertion message; click one to go to its line
 - **ANSI colours** from CI and Docker logs, **your own level words** (`ALERT` → ERROR), and a **light theme**
 - **Compare** this log with another one, e.g. a passing and a failing CI run, with the **new errors** listed
   first (see below)
@@ -223,6 +225,7 @@ src/
 │   ├── timelineView.ts  the error timeline, with dragging to pick a time range
 │   ├── fieldStatsPanel.ts  top values and percentiles of a field, in the inspector
 │   ├── errorGroupsPanel.ts the Groups panel: each different error once
+│   ├── testsPanel.ts    the Tests panel: the tests that failed, in order
 │   ├── rangePanel.ts    the inspector for a range of lines
 │   ├── dom.ts           el(): DOM from nodes, never innerHTML (Trusted Types)
 │   ├── viewerStyles.ts  its CSS, dark and light
@@ -236,6 +239,7 @@ src/
 │   ├── ansi.ts          ANSI colour codes → plain text and colour spans
 │   ├── fields.ts        field filters: level=error duration>1.5s
 │   ├── insights.ts      bookmark reports, field statistics and percentiles, error groups, JSON table
+│   ├── tests.ts         failed tests of pytest, Jest, Vitest, Go, Maven, Gradle and RSpec in a CI log
 │   ├── diff.ts          line and JSON diff for Compare
 │   ├── secrets.ts       credential detection and masking
 │   ├── regexSafety.ts   rejects regexes prone to catastrophic backtracking

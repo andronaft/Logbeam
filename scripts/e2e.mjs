@@ -94,6 +94,27 @@ const actionsLog = [
   '2026-10-04T10:00:05.2000000Z ##[endgroup]',
   '2026-10-04T10:00:06.0000000Z ##[error]Process completed with exit code 1.',
 ].join('\n');
+// a CI log where Go and pytest tests fail: one list of them in the order they failed
+const ciTestsLog = [
+  '2026-10-04T10:00:00.1000000Z ##[group]Run go test ./...',
+  '2026-10-04T10:00:01.0000000Z === RUN   TestCharge',
+  '2026-10-04T10:00:01.1000000Z === RUN   TestCharge/zero',
+  '2026-10-04T10:00:01.2000000Z     charge_test.go:31: expected an error for a zero amount, got nil',
+  '2026-10-04T10:00:01.3000000Z --- FAIL: TestCharge (0.02s)',
+  '2026-10-04T10:00:01.4000000Z     --- FAIL: TestCharge/zero (0.00s)',
+  '2026-10-04T10:00:01.5000000Z FAIL\tgithub.com/acme/shop/pay\t0.031s',
+  '2026-10-04T10:00:01.6000000Z ##[endgroup]',
+  '2026-10-04T10:00:02.0000000Z ##[group]Run pytest',
+  '2026-10-04T10:00:03.0000000Z =================================== FAILURES ===================================',
+  '2026-10-04T10:00:03.1000000Z _________________________________ test_refund __________________________________',
+  '2026-10-04T10:00:03.2000000Z E       AssertionError: assert 0 == 100',
+  '2026-10-04T10:00:03.3000000Z tests/test_pay.py:21: AssertionError',
+  '2026-10-04T10:00:03.4000000Z =========================== short test summary info ============================',
+  '2026-10-04T10:00:03.5000000Z FAILED tests/test_pay.py::test_refund - AssertionError: assert 0 == 100',
+  '2026-10-04T10:00:03.6000000Z ========================= 1 failed, 4 passed in 0.42s =========================',
+  '2026-10-04T10:00:03.7000000Z ##[endgroup]',
+  '2026-10-04T10:00:04.0000000Z ##[error]Process completed with exit code 1.',
+].join('\n');
 // a GitLab job log: "\e[0Ksection_start:<epoch>:<name>\r\e[0K<header>", timed by the markers; the script fails
 const gitlabLog = [
   `${E}[0Ksection_start:1700000000:prepare_executor\r${E}[0K${E}[36;1mPreparing the "docker" executor${E}[0;m`,
@@ -119,6 +140,7 @@ const traceLog = [
 const plainPages = {
   '/trace.log': traceLog,
   '/actions.log': actionsLog,
+  '/ci-tests.log': ciTestsLog,
   '/gitlab.log': gitlabLog,
   '/jenkins.log': jenkinsLog,
   '/ansi.log': ansiLog,
@@ -208,6 +230,7 @@ const status = () => page.locator('.status').textContent();
 check('viewer shows every line', (await status()) === '65 / 65 lines', await status());
 check('timeline is drawn', (await page.locator('.bucket').count()) === 80);
 check('secrets are counted', (await page.locator('.toggle.secrets').textContent()) === '🔑 2');
+check('no Tests toggle in a log without tests', await page.locator('.toggle', { hasText: 'Tests ✖' }).isHidden());
 check('secret values are highlighted', (await page.locator('.secret').count()) >= 1);
 await page.screenshot({ path: 'docs/log-viewer.png' });
 
@@ -457,6 +480,56 @@ await actions.waitForTimeout(300);
 check('search looks inside closed sections', (await actionsStatus()).startsWith('1 / 14'), await actionsStatus());
 await actions.close();
 
+// ---- failed tests -----------------------------------------------------------------------------
+const ciTests = await context.newPage();
+watch(ciTests);
+await ciTests.goto(`${base}/ci-tests.log`);
+await ciTests.addScriptTag({ path: path.join(dist, 'logViewer.js') });
+await ciTests.waitForSelector('.row');
+const testsToggle = ciTests.locator('.toggle', { hasText: 'Tests ✖' });
+check(
+  'the Tests toggle counts the failed tests',
+  (await testsToggle.textContent()) === 'Tests ✖ 2',
+  await testsToggle.textContent(),
+);
+await testsToggle.click();
+const testItems = ciTests.locator('.tests .test-item');
+const testNames = (await testItems.locator('.sample').allTextContents()).join(' | ');
+check(
+  'the Tests panel lists Go and pytest tests in the order they failed',
+  testNames ===
+    'first TestCharge/zero — expected an error for a zero amount, got nil | test_refund — AssertionError: assert 0 == 100',
+  testNames,
+);
+check('the first failed test is marked "first"', (await testItems.first().locator('.first-badge').count()) === 1);
+check(
+  'the Tests panel shows the runners’ totals',
+  (await ciTests.locator('.tests .test-totals').textContent()) === '1 of 5 failed',
+  await ciTests.locator('.tests .test-totals').textContent(),
+);
+await testItems.nth(1).click();
+await ciTests.waitForSelector('.row.selected');
+check(
+  'a click on a test selects its failure line',
+  (await ciTests.locator('.row.selected').getAttribute('data-number')) === '11' &&
+    (await ciTests.locator('.inspector .full-text').textContent()).includes('test_refund'),
+  await ciTests.locator('.row.selected').getAttribute('data-number'),
+);
+// with every section closed, a click opens the one the test failed in
+await ciTests.locator('.toggle', { hasText: 'Sections' }).click();
+check(
+  'Sections closes both sections',
+  (await ciTests.locator('.row').count()) < 6,
+  String(await ciTests.locator('.row').count()),
+);
+await testItems.first().click();
+await ciTests.waitForSelector('.row.selected[data-number="6"]');
+check(
+  'a click on a test in a folded section opens it',
+  (await ciTests.locator('.row.selected').getAttribute('data-number')) === '6',
+  await ciTests.locator('.row.selected').getAttribute('data-number'),
+);
+await ciTests.close();
 // ---- GitLab sections: steps with durations, the failed one open ---------------------------------
 const gitlab = await context.newPage();
 watch(gitlab);

@@ -17,6 +17,19 @@
   command in it exited with a non-zero code (`ERROR: Job failed: exit code 1` after the last section counts for the
   step that ran the script). Failed steps start open. A `--- ` line in an ordinary log, `--- FAIL:` from `go test`
   or a diff's `--- a/file` don't turn into steps.
+- **Show around** (`c`, or ⤢ in the line details): the selected line among all the lines, like "show context" in
+  Grafana. The search, levels, time range, pods and hidden kinds come off and the line stays in view; the
+  **← Back to the filtered view** chip puts them all back, with the line still selected.
+- **Go to a time** (`t`): type `10:05:30` from an alert (or `2026-10-04 10:05`, with a zone or without) and the
+  viewer selects the first entry at or after it. A time of day is read on the log's own day, the right one for a log
+  that goes past midnight, in UTC or local time as the viewer shows it.
+- **Failed tests in one list.** On a CI log, **Tests ✖ N** lists the tests that failed, from pytest, Jest, Vitest,
+  Go, Maven surefire / failsafe, Gradle and RSpec, in the order they failed, with the first one marked "first" and
+  the assertion message next to it (`test_refund — AssertionError: assert 0 == 100`). A test the log reports twice,
+  like a pytest header and its summary line, is listed once; a Go test whose subtest failed shows the subtest. Click
+  one to go to its line, even in a folded `##[group]` section. The runners' own totals
+  (`Tests run: 12, Failures: 1`, `2 failed, 10 passed`) are added up in the panel's head. The toggle only shows
+  when tests failed.
 
 ### Fixed
 
