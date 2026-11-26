@@ -53,6 +53,8 @@
   at all; counts like `tokens_used=1234` still stay.
 - Settings say when they couldn't be saved (e.g. too many secret patterns for synced storage) instead of looking saved.
 - The background answers only Logbeam's own pages and scripts.
+- Releases: the build tools no longer see the store keys, the stores get a version only after a reviewer approves
+  it, Actions are pinned to commits, and each release has `SHA256SUMS` for reproducible ZIPs (docs/PUBLISHING.md).
 
 ## 0.10.0
 
